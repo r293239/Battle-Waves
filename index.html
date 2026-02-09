@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monster Wave Defense</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Rogue Spud - Monster Defense</title>
     <style>
         * {
             margin: 0;
@@ -14,243 +13,132 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
-            color: #f0f0f0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            background: linear-gradient(135deg, #0f0f1f, #1a1a2e);
+            color: #fff;
             min-height: 100vh;
             padding: 20px;
         }
 
         .container {
-            width: 100%;
-            max-width: 1200px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .game-header {
-            text-align: center;
-            padding: 20px;
-            background: rgba(25, 25, 45, 0.9);
-            border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-            border: 1px solid #444477;
-        }
-
-        .game-title {
-            font-size: 2.8rem;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #6a11cb, #2575fc);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .game-subtitle {
-            font-size: 1.2rem;
-            color: #a0a0e0;
-            margin-bottom: 20px;
-        }
-
-        .game-area {
+            max-width: 1400px;
+            margin: 0 auto;
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
         }
 
-        .game-canvas-container {
-            flex: 3;
+        .game-header {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 15px;
+            border: 2px solid #4a4a9a;
+        }
+
+        .game-title {
+            font-size: 3.5rem;
+            background: linear-gradient(90deg, #ff6b6b, #ffa726);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+            margin-bottom: 10px;
+        }
+
+        .game-subtitle {
+            color: #aaaaff;
+            font-size: 1.2rem;
+        }
+
+        .game-area {
+            flex: 2;
             min-width: 300px;
             position: relative;
-            background: rgba(15, 15, 30, 0.9);
-            border-radius: 12px;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #000;
+            border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-            border: 1px solid #444477;
+            border: 3px solid #4a4a9a;
+            box-shadow: 0 0 30px rgba(74, 74, 154, 0.3);
         }
 
         canvas {
             display: block;
-            background: #0c0c1a;
+            background: #0a0a1a;
         }
 
-        .ui-panel {
-            flex: 1;
-            min-width: 250px;
-            background: rgba(25, 25, 45, 0.9);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-            border: 1px solid #444477;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .panel-title {
-            font-size: 1.5rem;
-            color: #6a11cb;
-            border-bottom: 2px solid #444477;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-
-        .stats-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .stat-item {
-            background: rgba(40, 40, 70, 0.7);
-            padding: 10px;
-            border-radius: 8px;
-            border-left: 4px solid #2575fc;
-        }
-
-        .stat-value {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #ffffff;
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            color: #a0a0e0;
-        }
-
-        .shop-container {
-            display: none;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .shop-item {
-            background: rgba(40, 40, 70, 0.7);
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-
-        .shop-item:hover {
-            background: rgba(50, 50, 90, 0.9);
-            border-color: #6a11cb;
-            transform: translateY(-2px);
-        }
-
-        .shop-item-name {
-            font-weight: bold;
-            color: #ffffff;
-        }
-
-        .shop-item-cost {
-            color: #ffcc00;
-            font-weight: bold;
-        }
-
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(90deg, #6a11cb, #2575fc);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
-        }
-
-        .btn-success {
-            background: linear-gradient(90deg, #11998e, #38ef7d);
-            color: white;
-        }
-
-        .btn-success:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
-        }
-
-        .btn-warning {
-            background: linear-gradient(90deg, #f7971e, #ffd200);
-            color: #222;
-        }
-
-        .btn-warning:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(247, 151, 30, 0.4);
-        }
-
-        .game-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            z-index: 10;
-            display: none;
-        }
-
-        .overlay-title {
-            font-size: 3rem;
-            color: #ffffff;
-            text-shadow: 0 0 10px #6a11cb;
-        }
-
-        .wave-info {
+        .wave-display {
             position: absolute;
             top: 20px;
             left: 0;
             right: 0;
             text-align: center;
-            font-size: 1.8rem;
+            font-size: 2rem;
             font-weight: bold;
             color: #ffcc00;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
-            z-index: 5;
-            pointer-events: none;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+            z-index: 10;
         }
 
-        .instructions {
-            margin-top: 15px;
-            color: #a0a0e0;
+        .ui-panel {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #4a4a9a;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel-section {
+            background: rgba(40, 40, 80, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #5555aa;
+        }
+
+        .section-title {
+            color: #ffcc00;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #5555aa;
+            padding-bottom: 5px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            background: rgba(50, 50, 100, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .stat-label {
             font-size: 0.9rem;
-            text-align: center;
-            line-height: 1.5;
+            color: #aaaaff;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .health-container {
+            margin-top: 10px;
         }
 
         .health-bar {
@@ -264,863 +152,313 @@
 
         .health-fill {
             height: 100%;
-            background: linear-gradient(90deg, #11998e, #38ef7d);
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
             border-radius: 10px;
-            width: 100%;
             transition: width 0.3s;
         }
 
+        .weapons-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .weapon-slot {
+            aspect-ratio: 1;
+            background: rgba(50, 50, 100, 0.3);
+            border: 2px dashed #5555aa;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .weapon-slot:hover {
+            background: rgba(50, 50, 100, 0.6);
+            border-color: #ffcc00;
+        }
+
+        .weapon-slot.active {
+            background: rgba(80, 80, 160, 0.3);
+            border: 2px solid #ffcc00;
+        }
+
+        .weapon-slot.occupied {
+            background: rgba(60, 60, 120, 0.4);
+            border: 2px solid #ff6b6b;
+        }
+
+        .weapon-icon {
+            font-size: 2rem;
+        }
+
+        .weapon-level {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffcc00;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        .shop-items {
+            display: grid;
+            gap: 10px;
+        }
+
+        .shop-item {
+            background: rgba(60, 60, 120, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #5555aa;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shop-item:hover {
+            transform: translateY(-2px);
+            border-color: #ffcc00;
+            background: rgba(70, 70, 140, 0.7);
+            box-shadow: 0 5px 15px rgba(255, 204, 0, 0.2);
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .item-effect {
+            color: #aaaaff;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .item-cost {
+            background: linear-gradient(45deg, #ffd700, #ffaa00);
+            color: #000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #4a4a9a, #6a6ada);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 74, 154, 0.4);
+        }
+
+        .btn-refresh {
+            background: linear-gradient(45deg, #11998e, #38ef7d);
+            color: white;
+            width: 50px;
+            padding: 12px 0;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .overlay-content {
+            background: rgba(30, 30, 60, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ffcc00;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .overlay-title {
+            font-size: 3rem;
+            color: #ffcc00;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+        }
+
+        .overlay-text {
+            font-size: 1.2rem;
+            color: #aaaaff;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
         @media (max-width: 768px) {
-            .game-area {
+            .container {
                 flex-direction: column;
             }
             
             .game-title {
-                font-size: 2.2rem;
+                font-size: 2.5rem;
             }
             
-            .ui-panel {
-                min-width: 100%;
+            .weapons-grid {
+                grid-template-columns: repeat(3, 1fr);
             }
+        }
+
+        .merge-info {
+            margin-top: 10px;
+            color: #aaaaff;
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 10px;
+            background: rgba(50, 50, 100, 0.3);
+            border-radius: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="game-header">
-            <h1 class="game-title">Monster Wave Defense</h1>
-            <p class="game-subtitle">Survive waves of monsters, upgrade your character, and become unstoppable!</p>
+            <h1 class="game-title">Rogue Spud</h1>
+            <p class="game-subtitle">Survive the monster horde, merge weapons, and upgrade your arsenal!</p>
         </div>
 
         <div class="game-area">
-            <div class="game-canvas-container">
-                <div class="wave-info" id="waveInfo">Wave 1</div>
+            <div class="canvas-container">
+                <div class="wave-display" id="waveDisplay">Wave 1</div>
                 <canvas id="gameCanvas" width="800" height="600"></canvas>
-                <div class="game-overlay" id="gameOverlay">
-                    <h2 class="overlay-title" id="overlayTitle">Wave Complete!</h2>
-                    <p id="overlayText">You survived the wave! Shop for upgrades before the next wave.</p>
-                    <button class="btn btn-success" id="continueBtn">
-                        <i class="fas fa-shopping-cart"></i> Enter Shop
-                    </button>
+            </div>
+        </div>
+
+        <div class="ui-panel">
+            <div class="panel-section">
+                <h3 class="section-title">Player Stats</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Health</div>
+                        <div class="stat-value" id="healthValue">100/100</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Damage</div>
+                        <div class="stat-value" id="damageValue">15</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Speed</div>
+                        <div class="stat-value" id="speedValue">5</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Gold</div>
+                        <div class="stat-value" id="goldValue">100</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Wave</div>
+                        <div class="stat-value" id="waveValue">1</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Kills</div>
+                        <div class="stat-value" id="killsValue">0</div>
+                    </div>
+                </div>
+                <div class="health-container">
+                    <div class="stat-label">Health Bar</div>
+                    <div class="health-bar">
+                        <div class="health-fill" id="healthFill" style="width: 100%"></div>
+                    </div>
                 </div>
             </div>
 
-            <div class="ui-panel">
-                <h3 class="panel-title">Player Stats</h3>
-                <div class="stats-container">
-                    <div class="stat-item">
-                        <div class="stat-value" id="healthValue">100</div>
-                        <div class="stat-label">Health</div>
-                        <div class="health-bar">
-                            <div class="health-fill" id="healthBar"></div>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="damageValue">10</div>
-                        <div class="stat-label">Damage</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="speedValue">5</div>
-                        <div class="stat-label">Speed</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="goldValue">100</div>
-                        <div class="stat-label">Gold</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="waveValue">1</div>
-                        <div class="stat-label">Wave</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="killsValue">0</div>
-                        <div class="stat-label">Kills</div>
-                    </div>
+            <div class="panel-section">
+                <h3 class="section-title">Weapons (6 Slots)</h3>
+                <div class="weapons-grid" id="weaponsGrid"></div>
+                <div class="merge-info">
+                    Click a weapon slot, then click another of the same type to merge and upgrade!
                 </div>
+            </div>
 
-                <h3 class="panel-title">Shop</h3>
-                <div class="shop-container" id="shopContainer">
-                    <!-- Shop items will be generated here -->
-                </div>
-
+            <div class="panel-section">
+                <h3 class="section-title">Shop (4 Items)</h3>
+                <div class="shop-items" id="shopItems"></div>
                 <div class="controls">
-                    <button class="btn btn-primary" id="startBtn">
-                        <i class="fas fa-play"></i> Start Wave
+                    <button class="btn btn-secondary" id="refreshShop">
+                        <span class="icon">🔄</span> Refresh (25g)
                     </button>
-                    <button class="btn btn-warning" id="restartBtn">
-                        <i class="fas fa-redo"></i> Restart
+                    <button class="btn btn-primary" id="startWave">
+                        <span class="icon">⚔️</span> Start Wave
                     </button>
-                </div>
-
-                <div class="instructions">
-                    <p><i class="fas fa-mouse-pointer"></i> Move with mouse or touch</p>
-                    <p><i class="fas fa-skull-crossbones"></i> Defeat monsters to earn gold</p>
-                    <p><i class="fas fa-store"></i> Buy upgrades between waves</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // Game variables
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const waveInfo = document.getElementById('waveInfo');
-        const gameOverlay = document.getElementById('gameOverlay');
-        const overlayTitle = document.getElementById('overlayTitle');
-        const overlayText = document.getElementById('overlayText');
-        const continueBtn = document.getElementById('continueBtn');
-        const shopContainer = document.getElementById('shopContainer');
-        const startBtn = document.getElementById('startBtn');
-        const restartBtn = document.getElementById('restartBtn');
-        
-        // UI elements for stats
-        const healthValue = document.getElementById('healthValue');
-        const damageValue = document.getElementById('damageValue');
-        const speedValue = document.getElementById('speedValue');
-        const goldValue = document.getElementById('goldValue');
-        const waveValue = document.getElementById('waveValue');
-        const killsValue = document.getElementById('killsValue');
-        const healthBar = document.getElementById('healthBar');
-        
-        // Game state
-        let gameState = 'shop'; // 'shop', 'wave', 'gameover'
-        let wave = 1;
-        let gold = 100;
-        let kills = 0;
-        
-        // Player stats
-        let player = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            radius: 20,
-            health: 100,
-            maxHealth: 100,
-            damage: 10,
-            speed: 5,
-            color: '#6a11cb'
-        };
-        
-        // Weapons
-        let weapons = [
-            { name: 'Basic Sword', damage: 5, cost: 50, owned: true },
-            { name: 'Steel Axe', damage: 10, cost: 100, owned: false },
-            { name: 'Magic Staff', damage: 15, cost: 200, owned: false },
-            { name: 'Dragon Blade', damage: 25, cost: 500, owned: false }
-        ];
-        
-        // Items (passive upgrades)
-        let items = [
-            { name: 'Health Potion', effect: 'maxHealth', value: 50, cost: 80, owned: false },
-            { name: 'Speed Boots', effect: 'speed', value: 2, cost: 120, owned: false },
-            { name: 'Damage Ring', effect: 'damage', value: 5, cost: 150, owned: false },
-            { name: 'Armor', effect: 'maxHealth', value: 100, cost: 250, owned: false }
-        ];
-        
-        // Monsters
-        let monsters = [];
-        let bullets = [];
-        let lastShot = 0;
-        const shotDelay = 300; // ms
-        
-        // Shop items for current session
-        let currentShopItems = [];
-        
-        // Initialize shop
-        function initShop() {
-            shopContainer.innerHTML = '';
-            currentShopItems = [];
-            
-            // Add weapons to shop
-            weapons.forEach(weapon => {
-                if (!weapon.owned) {
-                    currentShopItems.push({
-                        type: 'weapon',
-                        name: weapon.name,
-                        cost: weapon.cost,
-                        description: `Damage +${weapon.damage}`,
-                        effect: weapon
-                    });
-                }
-            });
-            
-            // Add items to shop
-            items.forEach(item => {
-                if (!item.owned) {
-                    currentShopItems.push({
-                        type: 'item',
-                        name: item.name,
-                        cost: item.cost,
-                        description: `${item.effect === 'maxHealth' ? 'Health +' : item.effect === 'speed' ? 'Speed +' : 'Damage +'}${item.value}`,
-                        effect: item
-                    });
-                }
-            });
-            
-            // If no items available, add a heal option
-            if (currentShopItems.length === 0) {
-                currentShopItems.push({
-                    type: 'heal',
-                    name: 'Full Heal',
-                    cost: 50,
-                    description: 'Restore all health',
-                    effect: 'heal'
-                });
-            }
-            
-            // Display shop items
-            currentShopItems.forEach((shopItem, index) => {
-                const shopElement = document.createElement('div');
-                shopElement.className = 'shop-item';
-                shopElement.innerHTML = `
-                    <div>
-                        <div class="shop-item-name">${shopItem.name}</div>
-                        <div style="font-size: 0.8rem; color: #a0a0e0;">${shopItem.description}</div>
-                    </div>
-                    <div class="shop-item-cost">${shopItem.cost} <i class="fas fa-coins" style="color: #ffcc00;"></i></div>
-                `;
-                
-                shopElement.addEventListener('click', () => {
-                    purchaseItem(index);
-                });
-                
-                shopContainer.appendChild(shopElement);
-            });
-            
-            // Show shop container
-            shopContainer.style.display = 'flex';
-        }
-        
-        // Purchase item from shop
-        function purchaseItem(index) {
-            const shopItem = currentShopItems[index];
-            
-            if (gold < shopItem.cost) {
-                // Not enough gold
-                alert(`Not enough gold! You need ${shopItem.cost} gold.`);
-                return;
-            }
-            
-            // Deduct gold
-            gold -= shopItem.cost;
-            updateUI();
-            
-            // Apply effect
-            if (shopItem.type === 'weapon') {
-                player.damage += shopItem.effect.damage;
-                shopItem.effect.owned = true;
-            } else if (shopItem.type === 'item') {
-                if (shopItem.effect.effect === 'maxHealth') {
-                    player.maxHealth += shopItem.effect.value;
-                    player.health = player.maxHealth;
-                } else if (shopItem.effect.effect === 'speed') {
-                    player.speed += shopItem.effect.value;
-                } else if (shopItem.effect.effect === 'damage') {
-                    player.damage += shopItem.effect.value;
-                }
-                shopItem.effect.owned = true;
-            } else if (shopItem.type === 'heal') {
-                player.health = player.maxHealth;
-            }
-            
-            // Update UI
-            updateUI();
-            
-            // Remove purchased item from shop
-            shopContainer.removeChild(shopContainer.children[index]);
-            currentShopItems.splice(index, 1);
-            
-            // If shop is empty, add heal option
-            if (currentShopItems.length === 0) {
-                const shopElement = document.createElement('div');
-                shopElement.className = 'shop-item';
-                shopElement.innerHTML = `
-                    <div>
-                        <div class="shop-item-name">Full Heal</div>
-                        <div style="font-size: 0.8rem; color: #a0a0e0;">Restore all health</div>
-                    </div>
-                    <div class="shop-item-cost">50 <i class="fas fa-coins" style="color: #ffcc00;"></i></div>
-                `;
-                
-                shopElement.addEventListener('click', () => {
-                    if (gold >= 50) {
-                        gold -= 50;
-                        player.health = player.maxHealth;
-                        updateUI();
-                        alert('Health fully restored!');
-                    } else {
-                        alert('Not enough gold! You need 50 gold.');
-                    }
-                });
-                
-                shopContainer.appendChild(shopElement);
-            }
-        }
-        
-        // Start a new wave
-        function startWave() {
-            gameState = 'wave';
-            shopContainer.style.display = 'none';
-            gameOverlay.style.display = 'none';
-            
-            // Clear existing monsters
-            monsters = [];
-            
-            // Create monsters based on wave number
-            const monsterCount = 5 + wave * 2;
-            
-            for (let i = 0; i < monsterCount; i++) {
-                // Determine monster type based on wave
-                let type, health, speed, color;
-                const rand = Math.random();
-                
-                if (wave > 5 && rand > 0.7) {
-                    // Elite monster
-                    type = 'elite';
-                    health = 30 + wave * 5;
-                    speed = 2;
-                    color = '#ff5555';
-                } else if (wave > 3 && rand > 0.5) {
-                    // Fast monster
-                    type = 'fast';
-                    health = 10 + wave * 2;
-                    speed = 4;
-                    color = '#55ff55';
-                } else {
-                    // Normal monster
-                    type = 'normal';
-                    health = 15 + wave * 3;
-                    speed = 2.5;
-                    color = '#5555ff';
-                }
-                
-                // Random spawn position outside the screen
-                let x, y;
-                const side = Math.floor(Math.random() * 4);
-                
-                switch(side) {
-                    case 0: // Top
-                        x = Math.random() * canvas.width;
-                        y = -50;
-                        break;
-                    case 1: // Right
-                        x = canvas.width + 50;
-                        y = Math.random() * canvas.height;
-                        break;
-                    case 2: // Bottom
-                        x = Math.random() * canvas.width;
-                        y = canvas.height + 50;
-                        break;
-                    case 3: // Left
-                        x = -50;
-                        y = Math.random() * canvas.height;
-                        break;
-                }
-                
-                monsters.push({
-                    x, y,
-                    radius: type === 'elite' ? 25 : 15,
-                    health,
-                    maxHealth: health,
-                    speed,
-                    color,
-                    type,
-                    damage: type === 'elite' ? 15 : 5
-                });
-            }
-            
-            // Update wave display
-            waveInfo.textContent = `Wave ${wave}`;
-            waveValue.textContent = wave;
-            
-            // Start wave animation
-            waveInfo.style.opacity = 1;
-            setTimeout(() => {
-                waveInfo.style.opacity = 0.5;
-            }, 2000);
-        }
-        
-        // End wave and show shop
-        function endWave() {
-            gameState = 'shop';
-            
-            // Calculate gold reward
-            const waveReward = 50 + wave * 20;
-            gold += waveReward;
-            
-            // Show overlay
-            overlayTitle.textContent = 'Wave Complete!';
-            overlayText.textContent = `You survived wave ${wave}! You earned ${waveReward} gold.`;
-            continueBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Enter Shop';
-            gameOverlay.style.display = 'flex';
-            
-            // Increment wave
-            wave++;
-            updateUI();
-        }
-        
-        // Game over
-        function gameOver() {
-            gameState = 'gameover';
-            overlayTitle.textContent = 'Game Over!';
-            overlayText.textContent = `You survived ${wave - 1} waves and killed ${kills} monsters.`;
-            continueBtn.innerHTML = '<i class="fas fa-redo"></i> Try Again';
-            gameOverlay.style.display = 'flex';
-        }
-        
-        // Restart game
-        function restartGame() {
-            // Reset player stats
-            player = {
-                x: canvas.width / 2,
-                y: canvas.height / 2,
-                radius: 20,
-                health: 100,
-                maxHealth: 100,
-                damage: 10,
-                speed: 5,
-                color: '#6a11cb'
-            };
-            
-            // Reset weapons and items
-            weapons.forEach(weapon => {
-                if (weapon.name !== 'Basic Sword') weapon.owned = false;
-            });
-            
-            items.forEach(item => {
-                item.owned = false;
-            });
-            
-            // Reset game state
-            wave = 1;
-            gold = 100;
-            kills = 0;
-            monsters = [];
-            bullets = [];
-            
-            // Update UI
-            updateUI();
-            
-            // Show shop
-            gameState = 'shop';
-            gameOverlay.style.display = 'none';
-            initShop();
-            shopContainer.style.display = 'flex';
-        }
-        
-        // Update UI elements
-        function updateUI() {
-            healthValue.textContent = `${player.health}/${player.maxHealth}`;
-            damageValue.textContent = player.damage;
-            speedValue.textContent = player.speed;
-            goldValue.textContent = gold;
-            waveValue.textContent = wave;
-            killsValue.textContent = kills;
-            
-            // Update health bar
-            const healthPercent = (player.health / player.maxHealth) * 100;
-            healthBar.style.width = `${healthPercent}%`;
-            
-            // Change health bar color based on health
-            if (healthPercent > 60) {
-                healthBar.style.background = 'linear-gradient(90deg, #11998e, #38ef7d)';
-            } else if (healthPercent > 30) {
-                healthBar.style.background = 'linear-gradient(90deg, #f7971e, #ffd200)';
-            } else {
-                healthBar.style.background = 'linear-gradient(90deg, #ff416c, #ff4b2b)';
-            }
-        }
-        
-        // Get mouse position relative to canvas
-        let mouseX = canvas.width / 2;
-        let mouseY = canvas.height / 2;
-        
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
-        });
-        
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            mouseX = e.touches[0].clientX - rect.left;
-            mouseY = e.touches[0].clientY - rect.top;
-        }, { passive: false });
-        
-        // Shoot bullet
-        function shoot() {
-            const currentTime = Date.now();
-            if (currentTime - lastShot < shotDelay) return;
-            
-            lastShot = currentTime;
-            
-            // Calculate direction towards mouse
-            const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-            
-            bullets.push({
-                x: player.x,
-                y: player.y,
-                radius: 5,
-                speed: 10,
-                damage: player.damage,
-                color: '#ffcc00',
-                angle
-            });
-        }
-        
-        // Game loop
-        function gameLoop() {
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw background grid
-            drawGrid();
-            
-            if (gameState === 'wave') {
-                // Update player position (move towards mouse)
-                const dx = mouseX - player.x;
-                const dy = mouseY - player.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance > player.speed) {
-                    player.x += (dx / distance) * player.speed;
-                    player.y += (dy / distance) * player.speed;
-                } else {
-                    player.x = mouseX;
-                    player.y = mouseY;
-                }
-                
-                // Keep player within bounds
-                player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-                player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
-                
-                // Auto-shoot at monsters
-                if (monsters.length > 0) {
-                    // Find closest monster
-                    let closestMonster = null;
-                    let closestDistance = Infinity;
-                    
-                    monsters.forEach(monster => {
-                        const dx = monster.x - player.x;
-                        const dy = monster.y - player.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (distance < closestDistance) {
-                            closestDistance = distance;
-                            closestMonster = monster;
-                        }
-                    });
-                    
-                    // Shoot at closest monster
-                    if (closestMonster && closestDistance < 300) {
-                        const currentTime = Date.now();
-                        if (currentTime - lastShot >= shotDelay) {
-                            lastShot = currentTime;
-                            
-                            const angle = Math.atan2(closestMonster.y - player.y, closestMonster.x - player.x);
-                            
-                            bullets.push({
-                                x: player.x,
-                                y: player.y,
-                                radius: 5,
-                                speed: 10,
-                                damage: player.damage,
-                                color: '#ffcc00',
-                                angle
-                            });
-                        }
-                    }
-                }
-                
-                // Update bullets
-                for (let i = bullets.length - 1; i >= 0; i--) {
-                    const bullet = bullets[i];
-                    
-                    // Move bullet
-                    bullet.x += Math.cos(bullet.angle) * bullet.speed;
-                    bullet.y += Math.sin(bullet.angle) * bullet.speed;
-                    
-                    // Remove bullet if out of bounds
-                    if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
-                        bullets.splice(i, 1);
-                        continue;
-                    }
-                    
-                    // Check collision with monsters
-                    for (let j = monsters.length - 1; j >= 0; j--) {
-                        const monster = monsters[j];
-                        const dx = bullet.x - monster.x;
-                        const dy = bullet.y - monster.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (distance < bullet.radius + monster.radius) {
-                            // Hit monster
-                            monster.health -= bullet.damage;
-                            
-                            // Remove bullet
-                            bullets.splice(i, 1);
-                            
-                            // Check if monster is dead
-                            if (monster.health <= 0) {
-                                // Remove monster and add gold
-                                monsters.splice(j, 1);
-                                gold += monster.type === 'elite' ? 30 : 10;
-                                kills++;
-                                
-                                // Update UI
-                                updateUI();
-                            }
-                            
-                            break;
-                        }
-                    }
-                }
-                
-                // Update monsters
-                for (let i = monsters.length - 1; i >= 0; i--) {
-                    const monster = monsters[i];
-                    
-                    // Move monster towards player
-                    const dx = player.x - monster.x;
-                    const dy = player.y - monster.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    monster.x += (dx / distance) * monster.speed;
-                    monster.y += (dy / distance) * monster.speed;
-                    
-                    // Check collision with player
-                    if (distance < player.radius + monster.radius) {
-                        // Player takes damage
-                        player.health -= monster.damage;
-                        
-                        // Remove monster
-                        monsters.splice(i, 1);
-                        
-                        // Update UI
-                        updateUI();
-                        
-                        // Check if player is dead
-                        if (player.health <= 0) {
-                            gameOver();
-                        }
-                    }
-                }
-                
-                // Check if wave is complete
-                if (monsters.length === 0) {
-                    endWave();
-                }
-            }
-            
-            // Draw player
-            drawPlayer();
-            
-            // Draw bullets
-            bullets.forEach(bullet => {
-                drawBullet(bullet);
-            });
-            
-            // Draw monsters
-            monsters.forEach(monster => {
-                drawMonster(monster);
-            });
-            
-            // Draw wave info
-            if (gameState === 'wave' && waveInfo.style.opacity > 0) {
-                waveInfo.style.opacity = parseFloat(waveInfo.style.opacity) - 0.01;
-            }
-            
-            requestAnimationFrame(gameLoop);
-        }
-        
-        // Draw grid background
-        function drawGrid() {
-            ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
-            ctx.lineWidth = 1;
-            
-            // Vertical lines
-            for (let x = 0; x < canvas.width; x += 50) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-                ctx.stroke();
-            }
-            
-            // Horizontal lines
-            for (let y = 0; y < canvas.height; y += 50) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-                ctx.stroke();
-            }
-        }
-        
-        // Draw player character
-        function drawPlayer() {
-            // Draw player body
-            ctx.fillStyle = player.color;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw player outline
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Draw player eyes (looking towards mouse)
-            const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-            const eyeDistance = player.radius * 0.4;
-            const eyeRadius = player.radius * 0.3;
-            
-            // Left eye
-            const leftEyeX = player.x + Math.cos(angle - 0.3) * eyeDistance;
-            const leftEyeY = player.y + Math.sin(angle - 0.3) * eyeDistance;
-            
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(leftEyeX, leftEyeY, eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Right eye
-            const rightEyeX = player.x + Math.cos(angle + 0.3) * eyeDistance;
-            const rightEyeY = player.y + Math.sin(angle + 0.3) * eyeDistance;
-            
-            ctx.beginPath();
-            ctx.arc(rightEyeX, rightEyeY, eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw pupil
-            ctx.fillStyle = '#000000';
-            const pupilX = player.x + Math.cos(angle) * (eyeDistance + eyeRadius * 0.5);
-            const pupilY = player.y + Math.sin(angle) * (eyeDistance + eyeRadius * 0.5);
-            
-            ctx.beginPath();
-            ctx.arc(pupilX, pupilY, eyeRadius * 0.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        // Draw bullet
-        function drawBullet(bullet) {
-            ctx.fillStyle = bullet.color;
-            ctx.beginPath();
-            ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Add glow effect
-            ctx.shadowColor = bullet.color;
-            ctx.shadowBlur = 10;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-        
-        // Draw monster
-        function drawMonster(monster) {
-            // Draw monster body
-            ctx.fillStyle = monster.color;
-            ctx.beginPath();
-            ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw monster outline
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Draw monster eyes
-            const eyeRadius = monster.radius * 0.3;
-            
-            // Left eye
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(monster.x - monster.radius * 0.4, monster.y - monster.radius * 0.3, eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Right eye
-            ctx.beginPath();
-            ctx.arc(monster.x + monster.radius * 0.4, monster.y - monster.radius * 0.3, eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw pupils
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(monster.x - monster.radius * 0.4, monster.y - monster.radius * 0.3, eyeRadius * 0.5, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.arc(monster.x + monster.radius * 0.4, monster.y - monster.radius * 0.3, eyeRadius * 0.5, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw monster mouth
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(monster.x, monster.y + monster.radius * 0.2, monster.radius * 0.5, 0.2 * Math.PI, 0.8 * Math.PI);
-            ctx.stroke();
-            
-            // Draw health bar
-            const healthPercent = monster.health / monster.maxHealth;
-            const barWidth = monster.radius * 2;
-            const barHeight = 5;
-            const barX = monster.x - monster.radius;
-            const barY = monster.y - monster.radius - 10;
-            
-            // Background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-            
-            // Health fill
-            if (healthPercent > 0.6) {
-                ctx.fillStyle = '#00ff00';
-            } else if (healthPercent > 0.3) {
-                ctx.fillStyle = '#ffff00';
-            } else {
-                ctx.fillStyle = '#ff0000';
-            }
-            
-            ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
-            
-            // Health bar border
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(barX, barY, barWidth, barHeight);
-        }
-        
-        // Event listeners
-        startBtn.addEventListener('click', () => {
-            if (gameState === 'shop') {
-                startWave();
-            }
-        });
-        
-        continueBtn.addEventListener('click', () => {
-            if (gameState === 'shop') {
-                gameOverlay.style.display = 'none';
-                initShop();
-            } else if (gameState === 'gameover') {
-                restartGame();
-            }
-        });
-        
-        restartBtn.addEventListener('click', restartGame);
-        
-        // Initialize game
-        function init() {
-            updateUI();
-            initShop();
-            gameLoop();
-            
-            // Center player
-            player.x = canvas.width / 2;
-            player.y = canvas.height / 2;
-        }
-        
-        // Start the game
-        init();
-    </script>
+    <div class="overlay" id="gameOverlay">
+        <div class="overlay-content">
+            <h2 class="overlay-title" id="overlayTitle">Wave Complete!</h2>
+            <p class="overlay-text" id="overlayText">You survived! Visit the shop to upgrade your arsenal.</p>
+            <div class="controls">
+                <button class="btn btn-primary" id="continueBtn">
+                    <span class="icon">🛒</span> Continue to Shop
+                </button>
+                <button class="btn btn-secondary" id="restartBtn">
+                    <span class="icon">🔄</span> Restart Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load the game data files -->
+    <script src="game-data.js"></script>
+    <script src="game-logic.js"></script>
 </body>
 </html>
