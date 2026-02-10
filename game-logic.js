@@ -8,6 +8,7 @@ let wave = 1;
 let gold = GAME_DATA.PLAYER_START.gold;
 let kills = 0;
 let shopItems = [];
+let spawnIndicators = [];
 
 // Game Objects
 const player = {
@@ -51,6 +52,7 @@ const weaponsGrid = document.getElementById('weaponsGrid');
 const shopItemsContainer = document.getElementById('shopItems');
 const startGameBtn = document.getElementById('startGameBtn');
 const restartBtn = document.getElementById('restartBtn');
+const nextWaveBtn = document.getElementById('nextWaveBtn');
 
 // UI Elements
 const healthValue = document.getElementById('healthValue');
@@ -98,6 +100,7 @@ function initGame() {
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
+    spawnIndicators = [];
     
     // Generate initial shop
     shopItems = generateShopItems();
@@ -116,9 +119,34 @@ function initGame() {
     updateShopDisplay();
 }
 
+// Show spawn indicators
+function showSpawnIndicators() {
+    const waveConfig = getWaveConfig(wave);
+    spawnIndicators = [];
+    
+    for (let i = 0; i < waveConfig.monsters; i++) {
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+        
+        switch(side) {
+            case 0: x = -50; y = Math.random() * canvas.height; break;
+            case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
+            case 2: x = Math.random() * canvas.width; y = -50; break;
+            case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+        }
+        
+        spawnIndicators.push({
+            x, y,
+            timer: 2000, // Show for 2 seconds
+            startTime: Date.now()
+        });
+    }
+}
+
 // Start wave
 function startWave() {
     gameState = 'wave';
+    const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.style.opacity = 1;
     
@@ -127,12 +155,17 @@ function startWave() {
     player.projectiles = [];
     player.meleeAttacks = [];
     
-    // Spawn monsters based on wave number
-    const monsterCount = 5 + wave * 2;
+    // Show spawn indicators
+    showSpawnIndicators();
     
-    for (let i = 0; i < monsterCount; i++) {
-        spawnMonster();
-    }
+    // Spawn monsters after delay
+    setTimeout(() => {
+        // Spawn monsters based on wave configuration
+        for (let i = 0; i < waveConfig.monsters; i++) {
+            spawnMonster();
+        }
+        spawnIndicators = []; // Clear indicators after spawning
+    }, 2000);
     
     // Fade out wave display
     setTimeout(() => {
@@ -140,7 +173,32 @@ function startWave() {
     }, 2000);
 }
 
-// Rest of the functions remain the same as before...
+// Spawn monster
+function spawnMonster() {
+    const waveConfig = getWaveConfig(wave);
+    const side = Math.floor(Math.random() * 4);
+    let x, y;
+    
+    switch(side) {
+        case 0: x = -50; y = Math.random() * canvas.height; break;
+        case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
+        case 2: x = Math.random() * canvas.width; y = -50; break;
+        case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+    }
+    
+    monsters.push({
+        x, y,
+        radius: 15 + Math.random() * 10,
+        health: waveConfig.monsterHealth,
+        maxHealth: waveConfig.monsterHealth,
+        damage: waveConfig.monsterDamage,
+        speed: 1 + wave * 0.1,
+        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+        type: Math.random() > 0.7 ? 'fast' : 'normal',
+        lastAttack: 0,
+        attackCooldown: GAME_DATA.MONSTER_ATTACK_COOLDOWN
+    });
+}
 
 // Update UI
 function updateUI() {
@@ -289,35 +347,6 @@ function applyItemEffect(item) {
     }
 }
 
-// Spawn monster
-function spawnMonster() {
-    const side = Math.floor(Math.random() * 4);
-    let x, y;
-    
-    switch(side) {
-        case 0: x = -50; y = Math.random() * canvas.height; break;
-        case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
-        case 2: x = Math.random() * canvas.width; y = -50; break;
-        case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
-    }
-    
-    // Monster stats scale with wave
-    const baseHealth = 20 + wave * 5;
-    const baseDamage = 3 + wave;
-    const baseSpeed = 1 + wave * 0.1;
-    
-    monsters.push({
-        x, y,
-        radius: 15 + Math.random() * 10,
-        health: baseHealth,
-        maxHealth: baseHealth,
-        damage: baseDamage,
-        speed: Math.min(3, baseSpeed),
-        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-        type: Math.random() > 0.7 ? 'fast' : 'normal'
-    });
-}
-
 // Show stat buff selection
 function showStatBuffs() {
     gameState = 'statSelect';
@@ -364,6 +393,9 @@ function selectStatBuff(buff) {
     shopItems = generateShopItems();
     updateShopDisplay();
     updateUI();
+    
+    // Show next wave button
+    nextWaveBtn.style.display = 'block';
 }
 
 // End wave
@@ -371,8 +403,8 @@ function endWave() {
     gameState = 'statSelect';
     
     // Calculate gold reward
-    const waveReward = 30 + wave * 10;
-    gold += Math.floor(waveReward * (1 + player.goldMultiplier));
+    const waveConfig = getWaveConfig(wave);
+    gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
     
     // Show stat buff selection
     showStatBuffs();
@@ -426,6 +458,9 @@ function gameLoop() {
         updateGame();
     }
     
+    // Draw spawn indicators
+    drawSpawnIndicators();
+    
     // Draw everything
     drawMonsters();
     drawProjectiles();
@@ -433,6 +468,46 @@ function gameLoop() {
     drawPlayer();
     
     requestAnimationFrame(gameLoop);
+}
+
+// Draw spawn indicators
+function drawSpawnIndicators() {
+    const currentTime = Date.now();
+    
+    for (let i = spawnIndicators.length - 1; i >= 0; i--) {
+        const indicator = spawnIndicators[i];
+        const elapsed = currentTime - indicator.startTime;
+        
+        if (elapsed > indicator.timer) {
+            spawnIndicators.splice(i, 1);
+            continue;
+        }
+        
+        // Draw X mark
+        ctx.save();
+        ctx.translate(indicator.x, indicator.y);
+        
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        
+        // Draw X
+        ctx.beginPath();
+        ctx.moveTo(-15, -15);
+        ctx.lineTo(15, 15);
+        ctx.moveTo(15, -15);
+        ctx.lineTo(-15, 15);
+        ctx.stroke();
+        
+        // Draw circle around X
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.restore();
+    }
 }
 
 // Update game state during wave
@@ -471,7 +546,7 @@ function updateGame() {
     updateMonsters();
     
     // Check if wave is complete
-    if (monsters.length === 0) {
+    if (monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
         endWave();
     }
@@ -566,6 +641,7 @@ function updateProjectiles() {
                 if (monster.health <= 0) {
                     monsters.splice(j, 1);
                     kills++;
+                    const waveConfig = getWaveConfig(wave);
                     gold += Math.floor(10 * (1 + player.goldMultiplier));
                 }
                 
@@ -627,6 +703,8 @@ function updateMeleeAttacks() {
 }
 
 function updateMonsters() {
+    const currentTime = Date.now();
+    
     monsters.forEach(monster => {
         // Move towards player
         const dx = player.x - monster.x;
@@ -636,18 +714,21 @@ function updateMonsters() {
         monster.x += (dx / distance) * monster.speed;
         monster.y += (dy / distance) * monster.speed;
         
-        // Check collision with player
+        // Check collision with player (with attack cooldown)
         if (distance < player.radius + monster.radius) {
-            player.health -= monster.damage;
-            
-            if (player.health <= 0) {
-                gameOver();
+            if (currentTime - monster.lastAttack >= monster.attackCooldown) {
+                player.health -= monster.damage;
+                monster.lastAttack = currentTime;
+                
+                if (player.health <= 0) {
+                    gameOver();
+                }
             }
         }
     });
 }
 
-// Drawing functions (same as before)
+// Drawing functions (same as before with minor adjustments)
 function drawGrid() {
     ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
     ctx.lineWidth = 1;
@@ -773,6 +854,15 @@ canvas.addEventListener('mousemove', (e) => {
 
 // Start game button
 startGameBtn.addEventListener('click', initGame);
+
+// Next wave button
+nextWaveBtn.addEventListener('click', () => {
+    if (gameState === 'shop') {
+        gameState = 'wave';
+        startWave();
+        nextWaveBtn.style.display = 'none';
+    }
+});
 
 // Restart button
 restartBtn.addEventListener('click', () => {
