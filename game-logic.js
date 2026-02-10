@@ -229,8 +229,8 @@ function spawnMonster() {
 // Update UI
 function updateUI() {
     healthValue.textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
-    damageValue.textContent = player.baseDamage;
-    speedValue.textContent = player.speed;
+    damageValue.textContent = Math.floor(player.baseDamage);
+    speedValue.textContent = player.speed.toFixed(1);
     goldValue.textContent = gold;
     waveValue.textContent = wave;
     killsValue.textContent = kills;
@@ -292,7 +292,7 @@ function updateWeaponDisplay() {
                 <div class="weapon-level">${weapon.type === 'melee' ? '⚔️' : '🔫'}</div>
                 <div class="melee-type">${weapon.getTypeDescription()}</div>
                 ${weapon.usesAmmo ? `<div class="ammo-display">${weapon.currentAmmo}/${weapon.magazineSize}</div>` : ''}
-                <div class="weapon-info">${weapon.getDisplayName()}<br>Dmg: ${weapon.baseDamage}<br>Spd: ${weapon.attackSpeed}/s</div>
+                <div class="weapon-info">${weapon.getDisplayName()}<br>Dmg: ${weapon.baseDamage}<br>Spd: ${weapon.attackSpeed.toFixed(1)}/s</div>
                 <div class="cooldown-bar">
                     <div class="cooldown-fill" style="width: ${cooldownPercent}%; 
                          ${weapon.isReloading ? 'background: linear-gradient(90deg, #ff0000, #ff8800);' : ''}"></div>
@@ -589,19 +589,54 @@ function showStatBuffs() {
     waveCompleteOverlay.style.display = 'flex';
 }
 
-// Select stat buff
+// Select stat buff - FIXED VERSION
 function selectStatBuff(buff) {
+    console.log('Selected buff:', buff);
+    
+    // Apply the buff effects directly to player stats
     if (buff.effect.maxHealth) {
         player.maxHealth += buff.effect.maxHealth;
-        player.health += buff.effect.health || 0;
+        if (buff.effect.health) {
+            player.health += buff.effect.health;
+        } else {
+            player.health += buff.effect.maxHealth; // Heal when getting max health boost
+        }
     }
-    if (buff.effect.damage) player.baseDamage += buff.effect.damage;
-    if (buff.effect.speed) player.speed += buff.effect.speed;
-    if (buff.effect.lifeSteal) player.lifeSteal += buff.effect.lifeSteal;
-    if (buff.effect.criticalChance) player.criticalChance += buff.effect.criticalChance;
-    if (buff.effect.goldMultiplier) player.goldMultiplier += buff.effect.goldMultiplier;
-    if (buff.effect.healthRegen) player.healthRegen += buff.effect.healthRegen;
-    if (buff.effect.damageReduction) player.damageReduction += buff.effect.damageReduction;
+    
+    if (buff.effect.damage) {
+        player.baseDamage += buff.effect.damage;
+        console.log('Damage increased to:', player.baseDamage);
+    }
+    
+    if (buff.effect.speed) {
+        player.speed += buff.effect.speed;
+        console.log('Speed increased to:', player.speed);
+    }
+    
+    if (buff.effect.lifeSteal) {
+        player.lifeSteal += buff.effect.lifeSteal;
+        console.log('Life steal increased to:', player.lifeSteal);
+    }
+    
+    if (buff.effect.criticalChance) {
+        player.criticalChance += buff.effect.criticalChance;
+        console.log('Critical chance increased to:', player.criticalChance);
+    }
+    
+    if (buff.effect.goldMultiplier) {
+        player.goldMultiplier += buff.effect.goldMultiplier;
+        console.log('Gold multiplier increased to:', player.goldMultiplier);
+    }
+    
+    if (buff.effect.healthRegen) {
+        player.healthRegen += buff.effect.healthRegen;
+        console.log('Health regen increased to:', player.healthRegen);
+    }
+    
+    if (buff.effect.damageReduction) {
+        player.damageReduction += buff.effect.damageReduction;
+        console.log('Damage reduction increased to:', player.damageReduction);
+    }
     
     showMessage(`Selected: ${buff.name}`);
     
@@ -610,7 +645,7 @@ function selectStatBuff(buff) {
     
     shopItems = generateShopItems();
     updateShopDisplay();
-    updateUI();
+    updateUI(); // Make sure UI updates after applying buffs
     
     nextWaveBtn.style.display = 'block';
     scrapWeaponBtn.style.display = 'none';
@@ -1358,10 +1393,16 @@ function updateMonsters() {
         
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
-                player.health -= monster.damage;
+                // Apply player's damage reduction to monster damage
+                let actualDamage = monster.damage;
+                if (player.damageReduction > 0) {
+                    actualDamage *= (1 - player.damageReduction);
+                }
+                
+                player.health -= actualDamage;
                 monster.lastAttack = currentTime;
                 
-                createDamageIndicator(player.x, player.y, monster.damage, false);
+                createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
                 
                 if (player.health <= 0) {
                     gameOver();
