@@ -103,7 +103,8 @@ const GAME_DATA = {
             projectileSpeed: 10,
             cost: 0, // Starting weapon
             description: 'Basic starting weapon',
-            projectileColor: '#FFD700'
+            projectileColor: '#FFD700',
+            animation: 'bullet'
         },
         {
             id: 'shotgun',
@@ -116,7 +117,8 @@ const GAME_DATA = {
             projectileSpeed: 8,
             cost: 80,
             description: 'Close range, high damage',
-            projectileColor: '#FF6B6B'
+            projectileColor: '#FF6B6B',
+            animation: 'shotgun'
         },
         {
             id: 'machinegun',
@@ -129,7 +131,8 @@ const GAME_DATA = {
             projectileSpeed: 15,
             cost: 120,
             description: 'Very fast attacks',
-            projectileColor: '#4ECDC4'
+            projectileColor: '#4ECDC4',
+            animation: 'bullet'
         },
         {
             id: 'laser',
@@ -142,7 +145,8 @@ const GAME_DATA = {
             projectileSpeed: 20,
             cost: 150,
             description: 'Fast, accurate shots',
-            projectileColor: '#00FF00'
+            projectileColor: '#00FF00',
+            animation: 'laser'
         },
         
         // Melee weapons - NEW TYPES
@@ -158,7 +162,10 @@ const GAME_DATA = {
             cost: 60,
             description: 'Single target melee',
             swingColor: '#C0C0C0',
-            swingAngle: 60 // Narrow arc
+            swingAngle: 60, // Narrow arc
+            animation: 'swordSwing',
+            trailColor: '#FFFFFF',
+            sparkleColor: '#FFD700'
         },
         {
             id: 'axe',
@@ -172,7 +179,10 @@ const GAME_DATA = {
             cost: 100,
             description: '360° area damage',
             swingColor: '#8B4513',
-            swingAngle: 360 // Full circle
+            swingAngle: 360, // Full circle
+            animation: 'axeSpin',
+            trailColor: '#8B4513',
+            shockwaveColor: '#FFA500'
         },
         {
             id: 'dagger',
@@ -186,7 +196,10 @@ const GAME_DATA = {
             cost: 70,
             description: 'Fast single attacks',
             swingColor: '#4682B4',
-            swingAngle: 45
+            swingAngle: 45,
+            animation: 'daggerStab',
+            trailColor: '#4682B4',
+            sparkleColor: '#00FFFF'
         },
         {
             id: 'hammer',
@@ -200,7 +213,10 @@ const GAME_DATA = {
             cost: 130,
             description: 'Slow but powerful AOE',
             swingColor: '#D2691E',
-            swingAngle: 360
+            swingAngle: 360,
+            animation: 'hammerSmash',
+            trailColor: '#D2691E',
+            shockwaveColor: '#FF4500'
         },
         {
             id: 'spear',
@@ -215,7 +231,10 @@ const GAME_DATA = {
             description: 'Pierces through enemies',
             swingColor: '#32CD32',
             swingAngle: 30,
-            pierceCount: 2 // Hits up to 2 enemies
+            pierceCount: 2, // Hits up to 2 enemies
+            animation: 'spearThrust',
+            trailColor: '#32CD32',
+            sparkleColor: '#90EE90'
         }
     ],
 
@@ -349,6 +368,7 @@ class WeaponInstance {
         this.description = weaponData.description;
         this.cost = weaponData.cost || 0;
         this.lastAttack = 0;
+        this.animation = weaponData.animation || 'default';
         
         if (this.type === 'ranged') {
             this.projectileSpeed = weaponData.projectileSpeed;
@@ -357,6 +377,9 @@ class WeaponInstance {
             this.swingColor = weaponData.swingColor;
             this.swingAngle = weaponData.swingAngle || 90;
             this.pierceCount = weaponData.pierceCount || 1;
+            this.trailColor = weaponData.trailColor || '#FFFFFF';
+            this.sparkleColor = weaponData.sparkleColor || '#FFD700';
+            this.shockwaveColor = weaponData.shockwaveColor || '#FFA500';
         }
     }
 
@@ -378,7 +401,8 @@ class WeaponInstance {
                 range: this.range,
                 damage: this.baseDamage,
                 color: this.projectileColor,
-                weaponId: this.id
+                weaponId: this.id,
+                animation: this.animation
             };
         } else {
             // Melee weapons create a temporary attack area
@@ -391,12 +415,16 @@ class WeaponInstance {
                 damage: this.baseDamage,
                 color: this.swingColor,
                 startTime: Date.now(),
-                duration: 200, // ms
+                duration: 300, // ms - increased for better animation
                 swingAngle: this.swingAngle,
                 meleeType: this.meleeType,
                 angle: angle, // Direction player is facing
                 pierceCount: this.pierceCount,
-                weaponId: this.id
+                weaponId: this.id,
+                animation: this.animation,
+                trailColor: this.trailColor,
+                sparkleColor: this.sparkleColor,
+                shockwaveColor: this.shockwaveColor
             };
         }
     }
