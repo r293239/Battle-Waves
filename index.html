@@ -66,6 +66,7 @@
             overflow: hidden;
             border: 3px solid #4a4a9a;
             box-shadow: 0 0 30px rgba(74, 74, 154, 0.3);
+            min-height: 600px;
         }
 
         canvas {
@@ -175,28 +176,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
             position: relative;
-        }
-
-        .weapon-slot:hover {
-            background: rgba(50, 50, 100, 0.6);
-            border-color: #ffcc00;
-        }
-
-        .weapon-slot.active {
-            background: rgba(80, 80, 160, 0.3);
-            border: 2px solid #ffcc00;
+            font-size: 2rem;
         }
 
         .weapon-slot.occupied {
             background: rgba(60, 60, 120, 0.4);
             border: 2px solid #ff6b6b;
-        }
-
-        .weapon-icon {
-            font-size: 2rem;
         }
 
         .weapon-level {
@@ -227,11 +213,16 @@
             align-items: center;
         }
 
-        .shop-item:hover {
+        .shop-item:hover:not(.empty) {
             transform: translateY(-2px);
             border-color: #ffcc00;
             background: rgba(70, 70, 140, 0.7);
             box-shadow: 0 5px 15px rgba(255, 204, 0, 0.2);
+        }
+
+        .shop-item.empty {
+            opacity: 0.5;
+            cursor: default;
         }
 
         .item-info {
@@ -320,7 +311,7 @@
             padding: 40px;
             border-radius: 20px;
             border: 3px solid #ffcc00;
-            max-width: 500px;
+            max-width: 600px;
             text-align: center;
         }
 
@@ -338,6 +329,50 @@
             line-height: 1.6;
         }
 
+        .stat-buffs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-buff {
+            background: rgba(50, 50, 100, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #5555aa;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .stat-buff:hover {
+            transform: translateY(-3px);
+            border-color: #ffcc00;
+            background: rgba(70, 70, 140, 0.8);
+            box-shadow: 0 5px 15px rgba(255, 204, 0, 0.2);
+        }
+
+        .buff-name {
+            color: #ffcc00;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .buff-description {
+            color: #aaaaff;
+            font-size: 0.9rem;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            color: #aaaaff;
+            font-size: 0.9rem;
+            text-align: center;
+            line-height: 1.5;
+        }
+
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
@@ -350,16 +385,10 @@
             .weapons-grid {
                 grid-template-columns: repeat(3, 1fr);
             }
-        }
-
-        .merge-info {
-            margin-top: 10px;
-            color: #aaaaff;
-            font-size: 0.9rem;
-            text-align: center;
-            padding: 10px;
-            background: rgba(50, 50, 100, 0.3);
-            border-radius: 8px;
+            
+            .stat-buffs {
+                grid-template-columns: 1fr;
+            }
         }
 
         .item-tag {
@@ -384,13 +413,18 @@
             color: #00bfff;
             border-color: #00bfff;
         }
+
+        .empty-slot {
+            color: #5555aa;
+            font-size: 1.5rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="game-header">
             <h1 class="game-title">Rogue Spud</h1>
-            <p class="game-subtitle">Survive the monster horde, merge weapons, and upgrade your arsenal!</p>
+            <p class="game-subtitle">Survive waves of monsters, upgrade your stats, and buy powerful weapons!</p>
         </div>
 
         <div class="game-area">
@@ -406,19 +440,19 @@
                 <div class="stats-grid">
                     <div class="stat-item">
                         <div class="stat-label">Health</div>
-                        <div class="stat-value" id="healthValue">100/100</div>
+                        <div class="stat-value" id="healthValue">20/20</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Damage</div>
-                        <div class="stat-value" id="damageValue">15</div>
+                        <div class="stat-value" id="damageValue">5</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Speed</div>
-                        <div class="stat-value" id="speedValue">5</div>
+                        <div class="stat-value" id="speedValue">3</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Gold</div>
-                        <div class="stat-value" id="goldValue">100</div>
+                        <div class="stat-value" id="goldValue">50</div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-label">Wave</div>
@@ -440,8 +474,8 @@
             <div class="panel-section">
                 <h3 class="section-title">Weapons (6 Slots)</h3>
                 <div class="weapons-grid" id="weaponsGrid"></div>
-                <div class="merge-info">
-                    Click a weapon slot, then click another of the same type to merge and upgrade!
+                <div class="instructions">
+                    Start with Handgun in slot 1. Weapons auto-attack closest enemies.
                 </div>
             </div>
 
@@ -449,27 +483,34 @@
                 <h3 class="section-title">Shop (4 Items)</h3>
                 <div class="shop-items" id="shopItems"></div>
                 <div class="controls">
-                    <button class="btn btn-secondary" id="refreshShop">
-                        <span class="icon">🔄</span> Refresh (25g)
-                    </button>
                     <button class="btn btn-primary" id="startWave">
-                        <span class="icon">⚔️</span> Start Wave
+                        <span class="icon">⚔️</span> Start Next Wave
                     </button>
+                </div>
+                <div class="instructions">
+                    Buy items to fill empty slots. Purchased items are replaced with empty slots.
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="overlay" id="gameOverlay">
+    <!-- Wave Complete Overlay (Stat Buffs) -->
+    <div class="overlay" id="waveCompleteOverlay">
         <div class="overlay-content">
-            <h2 class="overlay-title" id="overlayTitle">Wave Complete!</h2>
-            <p class="overlay-text" id="overlayText">You survived! Visit the shop to upgrade your arsenal.</p>
+            <h2 class="overlay-title">Wave Complete!</h2>
+            <p class="overlay-text">Choose one stat buff for the next wave:</p>
+            <div class="stat-buffs" id="statBuffs"></div>
+        </div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div class="overlay" id="gameOverOverlay">
+        <div class="overlay-content">
+            <h2 class="overlay-title">Game Over!</h2>
+            <p class="overlay-text" id="gameOverText">You survived 0 waves with 0 kills.</p>
             <div class="controls">
-                <button class="btn btn-primary" id="continueBtn">
-                    <span class="icon">🛒</span> Continue to Shop
-                </button>
-                <button class="btn btn-secondary" id="restartBtn">
-                    <span class="icon">🔄</span> Restart Game
+                <button class="btn btn-primary" id="restartBtn">
+                    <span class="icon">🔄</span> Play Again
                 </button>
             </div>
         </div>
