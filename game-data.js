@@ -91,6 +91,7 @@ const GAME_DATA = {
 
     // Weapons available in shop
     WEAPONS: [
+        // Ranged weapons
         {
             id: 'handgun',
             name: 'Handgun',
@@ -131,30 +132,6 @@ const GAME_DATA = {
             projectileColor: '#4ECDC4'
         },
         {
-            id: 'sword',
-            name: 'Iron Sword',
-            icon: '⚔️',
-            type: 'melee',
-            baseDamage: 8,
-            attackSpeed: 1.2,
-            range: 50,
-            cost: 60,
-            description: 'Basic melee weapon',
-            swingColor: '#C0C0C0'
-        },
-        {
-            id: 'axe',
-            name: 'Battle Axe',
-            icon: '🪓',
-            type: 'melee',
-            baseDamage: 12,
-            attackSpeed: 0.8,
-            range: 60,
-            cost: 100,
-            description: 'Slow but powerful',
-            swingColor: '#8B4513'
-        },
-        {
             id: 'laser',
             name: 'Laser Gun',
             icon: '⚡',
@@ -166,6 +143,79 @@ const GAME_DATA = {
             cost: 150,
             description: 'Fast, accurate shots',
             projectileColor: '#00FF00'
+        },
+        
+        // Melee weapons - NEW TYPES
+        {
+            id: 'sword',
+            name: 'Iron Sword',
+            icon: '⚔️',
+            type: 'melee',
+            meleeType: 'single', // Single target
+            baseDamage: 12,
+            attackSpeed: 1.2,
+            range: 50,
+            cost: 60,
+            description: 'Single target melee',
+            swingColor: '#C0C0C0',
+            swingAngle: 60 // Narrow arc
+        },
+        {
+            id: 'axe',
+            name: 'Battle Axe',
+            icon: '🪓',
+            type: 'melee',
+            meleeType: 'aoe', // Area of effect
+            baseDamage: 8, // Lower damage because it hits multiple
+            attackSpeed: 0.8,
+            range: 60,
+            cost: 100,
+            description: '360° area damage',
+            swingColor: '#8B4513',
+            swingAngle: 360 // Full circle
+        },
+        {
+            id: 'dagger',
+            name: 'Swift Dagger',
+            icon: '🗡️',
+            type: 'melee',
+            meleeType: 'single', // Single target
+            baseDamage: 8,
+            attackSpeed: 2.0, // Very fast
+            range: 40,
+            cost: 70,
+            description: 'Fast single attacks',
+            swingColor: '#4682B4',
+            swingAngle: 45
+        },
+        {
+            id: 'hammer',
+            name: 'War Hammer',
+            icon: '🔨',
+            type: 'melee',
+            meleeType: 'aoe', // Area of effect
+            baseDamage: 15, // High damage but slow
+            attackSpeed: 0.5,
+            range: 70,
+            cost: 130,
+            description: 'Slow but powerful AOE',
+            swingColor: '#D2691E',
+            swingAngle: 360
+        },
+        {
+            id: 'spear',
+            name: 'Long Spear',
+            icon: '🔱',
+            type: 'melee',
+            meleeType: 'pierce', // Pierces through enemies
+            baseDamage: 10,
+            attackSpeed: 1.0,
+            range: 80, // Longer range
+            cost: 110,
+            description: 'Pierces through enemies',
+            swingColor: '#32CD32',
+            swingAngle: 30,
+            pierceCount: 2 // Hits up to 2 enemies
         }
     ],
 
@@ -292,10 +342,12 @@ class WeaponInstance {
         this.name = weaponData.name;
         this.icon = weaponData.icon;
         this.type = weaponData.type;
+        this.meleeType = weaponData.meleeType || 'single';
         this.baseDamage = weaponData.baseDamage;
         this.attackSpeed = weaponData.attackSpeed;
         this.range = weaponData.range;
         this.description = weaponData.description;
+        this.cost = weaponData.cost || 0;
         this.lastAttack = 0;
         
         if (this.type === 'ranged') {
@@ -303,6 +355,8 @@ class WeaponInstance {
             this.projectileColor = weaponData.projectileColor;
         } else {
             this.swingColor = weaponData.swingColor;
+            this.swingAngle = weaponData.swingAngle || 90;
+            this.pierceCount = weaponData.pierceCount || 1;
         }
     }
 
@@ -323,10 +377,12 @@ class WeaponInstance {
                 speed: this.projectileSpeed,
                 range: this.range,
                 damage: this.baseDamage,
-                color: this.projectileColor
+                color: this.projectileColor,
+                weaponId: this.id
             };
         } else {
             // Melee weapons create a temporary attack area
+            const angle = Math.atan2(targetY - playerY, targetX - playerX);
             return {
                 type: 'melee',
                 x: playerX,
@@ -335,8 +391,27 @@ class WeaponInstance {
                 damage: this.baseDamage,
                 color: this.swingColor,
                 startTime: Date.now(),
-                duration: 200 // ms
+                duration: 200, // ms
+                swingAngle: this.swingAngle,
+                meleeType: this.meleeType,
+                angle: angle, // Direction player is facing
+                pierceCount: this.pierceCount,
+                weaponId: this.id
             };
         }
+    }
+    
+    // Get scrap value (50% of original cost)
+    getScrapValue() {
+        return Math.floor(this.cost * 0.5);
+    }
+    
+    // Get weapon type description
+    getTypeDescription() {
+        if (this.type === 'ranged') return 'RANGED';
+        if (this.meleeType === 'single') return 'SINGLE';
+        if (this.meleeType === 'aoe') return 'AOE 360°';
+        if (this.meleeType === 'pierce') return 'PIERCE';
+        return 'MELEE';
     }
 }
