@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Waves - Monster Defense</title>
+    <title>Rogue Spud - Monster Defense</title>
     <style>
         * {
             margin: 0;
@@ -178,11 +178,24 @@
             justify-content: center;
             position: relative;
             font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .weapon-slot:hover {
+            background: rgba(50, 50, 100, 0.6);
+            border-color: #ffcc00;
         }
 
         .weapon-slot.occupied {
             background: rgba(60, 60, 120, 0.4);
             border: 2px solid #ff6b6b;
+        }
+
+        .weapon-slot.selected {
+            border: 3px solid #ffcc00;
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+            transform: scale(1.05);
         }
 
         .weapon-level {
@@ -290,6 +303,16 @@
         .btn-secondary:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(74, 74, 154, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 65, 108, 0.4);
         }
 
         .overlay {
@@ -414,6 +437,24 @@
             border-color: #00bfff;
         }
 
+        .single-tag {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border-color: #ff6b6b;
+        }
+
+        .aoe-tag {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border-color: #00ff00;
+        }
+
+        .pierce-tag {
+            background: rgba(148, 0, 211, 0.2);
+            color: #9400d3;
+            border-color: #9400d3;
+        }
+
         .empty-slot {
             color: #5555aa;
             font-size: 1.5rem;
@@ -488,6 +529,109 @@
             margin-top: 20px;
             width: 100%;
         }
+        
+        .scrap-weapon-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        .weapon-info {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffcc00;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            display: none;
+        }
+        
+        .weapon-slot:hover .weapon-info {
+            display: block;
+        }
+        
+        .melee-type {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 0.7rem;
+            background: rgba(255, 165, 0, 0.3);
+            color: #ffa500;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .weapon-details {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: #aaaaff;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .damage-indicator {
+            position: absolute;
+            color: #ff0000;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-30px); }
+        }
+
+        .monster-count {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 1.2rem;
+            color: #ffcc00;
+            text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+            z-index: 5;
+        }
+
+        .gold-popup {
+            position: absolute;
+            color: #ffd700;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUpGold 1s forwards;
+        }
+
+        @keyframes floatUpGold {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-40px); }
+        }
+
+        .health-popup {
+            position: absolute;
+            color: #00ff00;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUpHealth 1s forwards;
+        }
+
+        @keyframes floatUpHealth {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
     </style>
 </head>
 <body>
@@ -500,6 +644,7 @@
         <div class="game-area">
             <div class="canvas-container">
                 <div class="wave-display" id="waveDisplay">Wave 1</div>
+                <div class="monster-count" id="monsterCount"></div>
                 <canvas id="gameCanvas" width="800" height="600"></canvas>
             </div>
         </div>
@@ -544,8 +689,11 @@
             <div class="panel-section">
                 <h3 class="section-title">Weapons (6 Slots)</h3>
                 <div class="weapons-grid" id="weaponsGrid"></div>
+                <button class="btn btn-danger scrap-weapon-btn" id="scrapWeaponBtn" style="display: none;">
+                    <span class="icon">🗑️</span> Scrap Selected Weapon (50% gold back)
+                </button>
                 <div class="instructions">
-                    Start with Handgun in slot 1. Weapons auto-attack closest enemies.
+                    Click a weapon to select it, then click Scrap button to remove it for 50% gold back.
                 </div>
             </div>
 
@@ -587,6 +735,14 @@
                 <div class="feature">
                     <div class="feature-icon">📈</div>
                     <div class="feature-text">Choose stat upgrades</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🗡️</div>
+                    <div class="feature-text">Melee weapons: Sword (single), Axe (360°)</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🗑️</div>
+                    <div class="feature-text">Scrap weapons for 50% gold back</div>
                 </div>
             </div>
             
