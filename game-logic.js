@@ -3,7 +3,7 @@
 // ============================================
 
 // Game State
-let gameState = 'shop'; // 'wave', 'statSelect', 'shop', 'gameover'
+let gameState = 'start'; // 'start', 'wave', 'statSelect', 'shop', 'gameover'
 let wave = 1;
 let gold = GAME_DATA.PLAYER_START.gold;
 let kills = 0;
@@ -42,13 +42,14 @@ let mouseY = 300;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const waveDisplay = document.getElementById('waveDisplay');
+const startScreen = document.getElementById('startScreen');
 const waveCompleteOverlay = document.getElementById('waveCompleteOverlay');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const gameOverText = document.getElementById('gameOverText');
 const statBuffs = document.getElementById('statBuffs');
 const weaponsGrid = document.getElementById('weaponsGrid');
 const shopItemsContainer = document.getElementById('shopItems');
-const startWaveBtn = document.getElementById('startWave');
+const startGameBtn = document.getElementById('startGameBtn');
 const restartBtn = document.getElementById('restartBtn');
 
 // UI Elements
@@ -91,7 +92,7 @@ function initGame() {
     wave = 1;
     gold = GAME_DATA.PLAYER_START.gold;
     kills = 0;
-    gameState = 'shop';
+    gameState = 'wave';
     
     // Clear game objects
     monsters = [];
@@ -101,18 +102,45 @@ function initGame() {
     // Generate initial shop
     shopItems = generateShopItems();
     
+    // Hide start screen, show game
+    startScreen.style.display = 'none';
+    waveCompleteOverlay.style.display = 'none';
+    gameOverOverlay.style.display = 'none';
+    
+    // Start first wave
+    startWave();
+    
     // Update UI
     updateUI();
     updateWeaponDisplay();
     updateShopDisplay();
-    
-    // Hide overlays
-    waveCompleteOverlay.style.display = 'none';
-    gameOverOverlay.style.display = 'none';
-    
-    // Start game loop
-    gameLoop();
 }
+
+// Start wave
+function startWave() {
+    gameState = 'wave';
+    waveDisplay.textContent = `Wave ${wave}`;
+    waveDisplay.style.opacity = 1;
+    
+    // Clear game objects
+    monsters = [];
+    player.projectiles = [];
+    player.meleeAttacks = [];
+    
+    // Spawn monsters based on wave number
+    const monsterCount = 5 + wave * 2;
+    
+    for (let i = 0; i < monsterCount; i++) {
+        spawnMonster();
+    }
+    
+    // Fade out wave display
+    setTimeout(() => {
+        waveDisplay.style.opacity = 0.5;
+    }, 2000);
+}
+
+// Rest of the functions remain the same as before...
 
 // Update UI
 function updateUI() {
@@ -259,32 +287,6 @@ function applyItemEffect(item) {
             player.health += 30;
             break;
     }
-}
-
-// Start wave
-function startWave() {
-    if (gameState !== 'shop') return;
-    
-    gameState = 'wave';
-    waveDisplay.textContent = `Wave ${wave}`;
-    waveDisplay.style.opacity = 1;
-    
-    // Clear game objects
-    monsters = [];
-    player.projectiles = [];
-    player.meleeAttacks = [];
-    
-    // Spawn monsters based on wave number
-    const monsterCount = 5 + wave * 2;
-    
-    for (let i = 0; i < monsterCount; i++) {
-        spawnMonster();
-    }
-    
-    // Fade out wave display
-    setTimeout(() => {
-        waveDisplay.style.opacity = 0.5;
-    }, 2000);
 }
 
 // Spawn monster
@@ -645,7 +647,7 @@ function updateMonsters() {
     });
 }
 
-// Drawing functions
+// Drawing functions (same as before)
 function drawGrid() {
     ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
     ctx.lineWidth = 1;
@@ -769,8 +771,14 @@ canvas.addEventListener('mousemove', (e) => {
     mouseY = e.clientY - rect.top;
 });
 
-startWaveBtn.addEventListener('click', startWave);
-restartBtn.addEventListener('click', initGame);
+// Start game button
+startGameBtn.addEventListener('click', initGame);
+
+// Restart button
+restartBtn.addEventListener('click', () => {
+    gameOverOverlay.style.display = 'none';
+    initGame();
+});
 
 // Add CSS for fade animation
 const style = document.createElement('style');
@@ -783,5 +791,5 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Initialize the game when page loads
-window.addEventListener('load', initGame);
+// Start game loop immediately
+gameLoop();
