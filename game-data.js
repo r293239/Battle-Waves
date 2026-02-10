@@ -543,12 +543,18 @@ class WeaponInstance {
             return false;
         }
         
+        // Check if weapon has ammo (if it uses ammo)
         if (this.usesAmmo && this.currentAmmo <= 0) {
+            // Auto-reload when out of ammo
             this.startReload();
             return false;
         }
         
-        return currentTime - this.lastAttack >= (1000 / this.attackSpeed);
+        // Check attack cooldown
+        const timeSinceLastAttack = currentTime - this.lastAttack;
+        const attackCooldown = 1000 / this.attackSpeed;
+        
+        return timeSinceLastAttack >= attackCooldown;
     }
 
     startReload() {
@@ -560,7 +566,9 @@ class WeaponInstance {
         this.reloadStart = Date.now();
         
         // Show reload indicator
-        showReloadIndicator(this.name);
+        if (typeof showReloadIndicator === 'function') {
+            showReloadIndicator(this.name);
+        }
         
         setTimeout(() => {
             this.currentAmmo = this.magazineSize;
