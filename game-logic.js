@@ -1,5 +1,5 @@
 // ============================================
-// GAME LOGIC
+// GAME LOGIC - With Enhanced Melee Animations
 // ============================================
 
 // Game State
@@ -10,6 +10,7 @@ let kills = 0;
 let shopItems = [];
 let spawnIndicators = [];
 let selectedWeaponIndex = -1;
+let visualEffects = []; // For animations
 
 // Game Objects
 const player = {
@@ -44,6 +45,7 @@ let mouseY = 300;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const waveDisplay = document.getElementById('waveDisplay');
+const monsterCount = document.getElementById('monsterCount');
 const startScreen = document.getElementById('startScreen');
 const waveCompleteOverlay = document.getElementById('waveCompleteOverlay');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
@@ -98,6 +100,7 @@ function initGame() {
     kills = 0;
     gameState = 'wave';
     selectedWeaponIndex = -1;
+    visualEffects = [];
     
     // Clear game objects
     monsters = [];
@@ -158,6 +161,7 @@ function startWave() {
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
+    visualEffects = [];
     
     // Hide scrap button during wave
     scrapWeaponBtn.style.display = 'none';
@@ -228,6 +232,9 @@ function updateUI() {
     } else {
         healthFill.style.background = 'linear-gradient(90deg, #ff416c, #ff4b2b)';
     }
+    
+    // Update monster count
+    monsterCount.textContent = `Monsters: ${monsters.length}`;
 }
 
 // Update weapon display
@@ -242,8 +249,7 @@ function updateWeaponDisplay() {
             const weapon = player.weapons[i];
             slot.classList.add('occupied');
             if (selectedWeaponIndex === i) {
-                slot.style.borderColor = '#ffcc00';
-                slot.style.boxShadow = '0 0 10px #ffcc00';
+                slot.classList.add('selected');
             }
             
             slot.innerHTML = `
@@ -332,8 +338,12 @@ function updateShopDisplay() {
                 <div class="item-info">
                     <div class="item-name">
                         ${data.icon} ${data.name}
-                        <span class="item-tag ${shopItem.type === 'weapon' ? (data.type === 'melee' ? 'melee-tag' : 'ranged-tag') : ''}">
-                            ${shopItem.type === 'weapon' ? (data.type === 'melee' ? data.meleeType === 'aoe' ? 'AOE' : data.meleeType === 'pierce' ? 'PIERCE' : 'SINGLE' : 'RANGED') : 'ITEM'}
+                        <span class="item-tag ${shopItem.type === 'weapon' ? (data.type === 'melee' ? 
+                            (data.meleeType === 'aoe' ? 'aoe-tag' : 
+                             data.meleeType === 'pierce' ? 'pierce-tag' : 'single-tag') : 'ranged-tag') : ''}">
+                            ${shopItem.type === 'weapon' ? (data.type === 'melee' ? 
+                                (data.meleeType === 'aoe' ? 'AOE' : 
+                                 data.meleeType === 'pierce' ? 'PIERCE' : 'SINGLE') : 'RANGED') : 'ITEM'}
                         </span>
                     </div>
                     <div class="item-effect">${data.description}</div>
@@ -518,6 +528,11 @@ function showMessage(text) {
     }, 2000);
 }
 
+// Add visual effect
+function addVisualEffect(effect) {
+    visualEffects.push(effect);
+}
+
 // Game Loop
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -536,6 +551,7 @@ function gameLoop() {
     drawMonsters();
     drawProjectiles();
     drawMeleeAttacks();
+    drawVisualEffects();
     drawPlayer();
     
     requestAnimationFrame(gameLoop);
@@ -616,6 +632,9 @@ function updateGame() {
     // Update monsters
     updateMonsters();
     
+    // Update visual effects
+    updateVisualEffects();
+    
     // Check if wave is complete
     if (monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
@@ -653,10 +672,145 @@ function updateWeapons() {
                     player.projectiles.push(attack);
                 } else {
                     player.meleeAttacks.push(attack);
+                    
+                    // Add weapon-specific visual effects
+                    createWeaponAnimation(weapon, player.x, player.y, closestMonster.x, closestMonster.y);
                 }
             }
         }
     });
+}
+
+// Create weapon-specific animation
+function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
+    const angle = Math.atan2(targetY - playerY, targetX - playerX);
+    
+    switch(weapon.animation) {
+        case 'swordSwing':
+            // Sword swing with trail effect
+            for (let i = 0; i < 5; i++) {
+                addVisualEffect({
+                    type: 'swordTrail',
+                    x: playerX,
+                    y: playerY,
+                    angle: angle + (Math.random() - 0.5) * 0.5,
+                    size: 20 + Math.random() * 10,
+                    color: weapon.trailColor,
+                    startTime: Date.now(),
+                    duration: 200 + Math.random() * 100
+                });
+            }
+            // Sparkles at impact point
+            for (let i = 0; i < 3; i++) {
+                addVisualEffect({
+                    type: 'sparkle',
+                    x: playerX + Math.cos(angle) * weapon.range,
+                    y: playerY + Math.sin(angle) * weapon.range,
+                    color: weapon.sparkleColor,
+                    startTime: Date.now(),
+                    duration: 300
+                });
+            }
+            break;
+            
+        case 'axeSpin':
+            // Axe spin with shockwave
+            addVisualEffect({
+                type: 'shockwave',
+                x: playerX,
+                y: playerY,
+                color: weapon.shockwaveColor,
+                startTime: Date.now(),
+                duration: 400
+            });
+            // Spinning blade effects
+            for (let i = 0; i < 8; i++) {
+                const bladeAngle = (Math.PI * 2 * i) / 8;
+                addVisualEffect({
+                    type: 'blade',
+                    x: playerX,
+                    y: playerY,
+                    angle: bladeAngle,
+                    color: weapon.trailColor,
+                    startTime: Date.now(),
+                    duration: 400
+                });
+            }
+            break;
+            
+        case 'daggerStab':
+            // Dagger thrust with fast trail
+            addVisualEffect({
+                type: 'daggerTrail',
+                x: playerX,
+                y: playerY,
+                angle: angle,
+                color: weapon.trailColor,
+                startTime: Date.now(),
+                duration: 150
+            });
+            // Quick sparkles
+            addVisualEffect({
+                type: 'sparkle',
+                x: playerX + Math.cos(angle) * weapon.range,
+                y: playerY + Math.sin(angle) * weapon.range,
+                color: weapon.sparkleColor,
+                startTime: Date.now(),
+                duration: 200
+            });
+            break;
+            
+        case 'hammerSmash':
+            // Hammer smash with ground impact
+            addVisualEffect({
+                type: 'shockwave',
+                x: playerX,
+                y: playerY,
+                color: weapon.shockwaveColor,
+                startTime: Date.now(),
+                duration: 500,
+                intensity: 2
+            });
+            // Debris particles
+            for (let i = 0; i < 12; i++) {
+                const particleAngle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * weapon.range;
+                addVisualEffect({
+                    type: 'particle',
+                    x: playerX + Math.cos(particleAngle) * distance,
+                    y: playerY + Math.sin(particleAngle) * distance,
+                    color: weapon.trailColor,
+                    startTime: Date.now(),
+                    duration: 400 + Math.random() * 200
+                });
+            }
+            break;
+            
+        case 'spearThrust':
+            // Spear thrust with piercing effect
+            addVisualEffect({
+                type: 'spearTrail',
+                x: playerX,
+                y: playerY,
+                angle: angle,
+                color: weapon.trailColor,
+                startTime: Date.now(),
+                duration: 250
+            });
+            // Glow effect along the path
+            for (let i = 0; i < 3; i++) {
+                const progress = 0.3 + i * 0.3;
+                addVisualEffect({
+                    type: 'glow',
+                    x: playerX + Math.cos(angle) * weapon.range * progress,
+                    y: playerY + Math.sin(angle) * weapon.range * progress,
+                    color: weapon.sparkleColor,
+                    startTime: Date.now(),
+                    duration: 300
+                });
+            }
+            break;
+    }
 }
 
 function updateProjectiles() {
@@ -687,10 +841,12 @@ function updateProjectiles() {
             if (distance < 5 + monster.radius) {
                 // Calculate damage
                 let damage = projectile.damage;
+                let isCritical = false;
                 
                 // Critical chance
                 if (Math.random() < player.criticalChance) {
                     damage *= 2;
+                    isCritical = true;
                 }
                 
                 // Apply damage reduction
@@ -700,20 +856,49 @@ function updateProjectiles() {
                 
                 monster.health -= damage;
                 
+                // Show damage indicator
+                createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
+                
                 // Life steal
                 if (player.lifeSteal > 0) {
-                    player.health = Math.min(player.maxHealth, player.health + damage * player.lifeSteal);
+                    const healAmount = damage * player.lifeSteal;
+                    player.health = Math.min(player.maxHealth, player.health + healAmount);
+                    createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
                 // Remove projectile
                 player.projectiles.splice(i, 1);
                 
+                // Add hit effect
+                addVisualEffect({
+                    type: 'hit',
+                    x: monster.x,
+                    y: monster.y,
+                    color: projectile.color,
+                    startTime: Date.now(),
+                    duration: 200
+                });
+                
                 // Check if monster is dead
                 if (monster.health <= 0) {
+                    // Add death effect
+                    addVisualEffect({
+                        type: 'death',
+                        x: monster.x,
+                        y: monster.y,
+                        color: monster.color,
+                        startTime: Date.now(),
+                        duration: 300
+                    });
+                    
                     monsters.splice(j, 1);
                     kills++;
                     const waveConfig = getWaveConfig(wave);
-                    gold += Math.floor(10 * (1 + player.goldMultiplier));
+                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
+                    gold += goldEarned;
+                    
+                    // Show gold popup
+                    createGoldPopup(monster.x, monster.y, goldEarned);
                 }
                 
                 break;
@@ -757,10 +942,12 @@ function updateMeleeAttacks() {
                 
                 // Calculate damage
                 let damage = attack.damage;
+                let isCritical = false;
                 
                 // Critical chance
                 if (Math.random() < player.criticalChance) {
                     damage *= 2;
+                    isCritical = true;
                 }
                 
                 // Apply damage reduction
@@ -770,12 +957,27 @@ function updateMeleeAttacks() {
                 
                 monster.health -= damage;
                 
+                // Show damage indicator
+                createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
+                
                 // Life steal
                 if (player.lifeSteal > 0) {
-                    player.health = Math.min(player.maxHealth, player.health + damage * player.lifeSteal);
+                    const healAmount = damage * player.lifeSteal;
+                    player.health = Math.min(player.maxHealth, player.health + healAmount);
+                    createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
                 hits++;
+                
+                // Add blood/hit effect for melee
+                addVisualEffect({
+                    type: 'blood',
+                    x: monster.x,
+                    y: monster.y,
+                    color: '#FF0000',
+                    startTime: Date.now(),
+                    duration: 300
+                });
                 
                 // Check pierce limit for pierce weapons
                 if (attack.meleeType === 'pierce' && hits >= attack.pierceCount) {
@@ -784,9 +986,23 @@ function updateMeleeAttacks() {
                 
                 // Check if monster is dead
                 if (monster.health <= 0) {
+                    // Add death effect
+                    addVisualEffect({
+                        type: 'death',
+                        x: monster.x,
+                        y: monster.y,
+                        color: monster.color,
+                        startTime: Date.now(),
+                        duration: 300
+                    });
+                    
                     monsters.splice(j, 1);
                     kills++;
-                    gold += Math.floor(10 * (1 + player.goldMultiplier));
+                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
+                    gold += goldEarned;
+                    
+                    // Show gold popup
+                    createGoldPopup(monster.x, monster.y, goldEarned);
                     
                     // Adjust index since we removed a monster
                     j--;
@@ -794,6 +1010,65 @@ function updateMeleeAttacks() {
             }
         }
     }
+}
+
+// Create damage indicator
+function createDamageIndicator(x, y, damage, isCritical) {
+    const indicator = document.createElement('div');
+    indicator.className = 'damage-indicator';
+    indicator.textContent = damage.toString();
+    if (isCritical) {
+        indicator.textContent = 'CRIT! ' + damage;
+        indicator.style.color = '#FFD700';
+        indicator.style.fontSize = '1.5rem';
+    }
+    
+    indicator.style.left = (x + Math.random() * 20 - 10) + 'px';
+    indicator.style.top = (y + Math.random() * 20 - 10) + 'px';
+    
+    document.querySelector('.canvas-container').appendChild(indicator);
+    
+    setTimeout(() => {
+        if (indicator.parentNode) {
+            indicator.parentNode.removeChild(indicator);
+        }
+    }, 1000);
+}
+
+// Create gold popup
+function createGoldPopup(x, y, amount) {
+    const popup = document.createElement('div');
+    popup.className = 'gold-popup';
+    popup.textContent = '+' + amount + 'g';
+    
+    popup.style.left = (x + Math.random() * 20 - 10) + 'px';
+    popup.style.top = (y + Math.random() * 20 - 10) + 'px';
+    
+    document.querySelector('.canvas-container').appendChild(popup);
+    
+    setTimeout(() => {
+        if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+        }
+    }, 1000);
+}
+
+// Create health popup
+function createHealthPopup(x, y, amount) {
+    const popup = document.createElement('div');
+    popup.className = 'health-popup';
+    popup.textContent = '+' + amount + ' HP';
+    
+    popup.style.left = (x + Math.random() * 20 - 10) + 'px';
+    popup.style.top = (y + Math.random() * 20 - 10) + 'px';
+    
+    document.querySelector('.canvas-container').appendChild(popup);
+    
+    setTimeout(() => {
+        if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+        }
+    }, 1000);
 }
 
 function updateMonsters() {
@@ -814,11 +1089,153 @@ function updateMonsters() {
                 player.health -= monster.damage;
                 monster.lastAttack = currentTime;
                 
+                // Show player damage indicator
+                createDamageIndicator(player.x, player.y, monster.damage, false);
+                
                 if (player.health <= 0) {
                     gameOver();
                 }
             }
         }
+    });
+}
+
+// Update visual effects
+function updateVisualEffects() {
+    const currentTime = Date.now();
+    
+    for (let i = visualEffects.length - 1; i >= 0; i--) {
+        const effect = visualEffects[i];
+        
+        if (currentTime - effect.startTime > effect.duration) {
+            visualEffects.splice(i, 1);
+            continue;
+        }
+    }
+}
+
+// Draw visual effects
+function drawVisualEffects() {
+    const currentTime = Date.now();
+    
+    visualEffects.forEach(effect => {
+        const progress = (currentTime - effect.startTime) / effect.duration;
+        const alpha = 1 - progress;
+        
+        ctx.save();
+        
+        switch(effect.type) {
+            case 'swordTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle + progress * Math.PI);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(effect.size * (1 - progress), 0);
+                ctx.stroke();
+                break;
+                
+            case 'shockwave':
+                ctx.translate(effect.x, effect.y);
+                const scale = progress * (effect.intensity || 1);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 30 * scale, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'blade':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle + progress * Math.PI * 2);
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.fillRect(-5, -15, 10, 30);
+                break;
+                
+            case 'daggerTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const trailLength = 40 * (1 - progress);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(trailLength, 0);
+                ctx.stroke();
+                break;
+                
+            case 'particle':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 2 + progress * 3, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'spearTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const spearLength = 60 * (1 - progress);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(spearLength, 0);
+                ctx.stroke();
+                break;
+                
+            case 'glow':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 10 + progress * 5, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'hit':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                for (let i = 0; i < 5; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = progress * 20;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+                
+            case 'blood':
+                ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.7})`;
+                for (let i = 0; i < 8; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = progress * 30;
+                    const size = 1 + Math.random() * 3;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+                
+            case 'death':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                const particles = 12;
+                for (let i = 0; i < particles; i++) {
+                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
+                    const distance = progress * 40;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+        }
+        
+        ctx.restore();
     });
 }
 
@@ -884,6 +1301,36 @@ function drawMonsters() {
         ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
+        // Draw eyes
+        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
+        const eyeRadius = monster.radius * 0.2;
+        
+        // Left eye
+        const leftEyeX = monster.x + Math.cos(angleToPlayer - 0.3) * (monster.radius * 0.6);
+        const leftEyeY = monster.y + Math.sin(angleToPlayer - 0.3) * (monster.radius * 0.6);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(leftEyeX, leftEyeY, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Right eye
+        const rightEyeX = monster.x + Math.cos(angleToPlayer + 0.3) * (monster.radius * 0.6);
+        const rightEyeY = monster.y + Math.sin(angleToPlayer + 0.3) * (monster.radius * 0.6);
+        
+        ctx.beginPath();
+        ctx.arc(rightEyeX, rightEyeY, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw pupils
+        ctx.fillStyle = '#000000';
+        const pupilX = monster.x + Math.cos(angleToPlayer) * (monster.radius * 0.7);
+        const pupilY = monster.y + Math.sin(angleToPlayer) * (monster.radius * 0.7);
+        
+        ctx.beginPath();
+        ctx.arc(pupilX, pupilY, eyeRadius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        
         // Draw health bar
         const healthPercent = monster.health / monster.maxHealth;
         const barWidth = monster.radius * 2;
@@ -922,28 +1369,48 @@ function drawMeleeAttacks() {
     
     player.meleeAttacks.forEach(attack => {
         const progress = (currentTime - attack.startTime) / attack.duration;
-        const alpha = 0.5 * (1 - progress);
+        const alpha = 0.6 * (1 - progress * 0.5);
         
         ctx.save();
         ctx.translate(attack.x, attack.y);
         
         // Draw different shapes based on melee type
         if (attack.swingAngle >= 360) {
-            // Full circle for AOE weapons
-            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
+            // Full circle for AOE weapons with pulsing effect
+            const pulse = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
+            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha * 0.3})`;
+            ctx.beginPath();
+            ctx.arc(0, 0, attack.radius * pulse, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Outer ring
+            ctx.strokeStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
+            ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(0, 0, attack.radius, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.stroke();
         } else {
-            // Arc for directional weapons
-            ctx.rotate(attack.angle - (attack.swingAngle * Math.PI / 360));
+            // Arc for directional weapons with swinging animation
+            const swingProgress = progress * 2;
+            const currentAngle = attack.angle - (attack.swingAngle * Math.PI / 360) + 
+                                (swingProgress * attack.swingAngle * Math.PI / 180);
             
-            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
+            ctx.rotate(currentAngle);
+            
+            // Main attack arc
+            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha * 0.4})`;
             ctx.beginPath();
             ctx.moveTo(0, 0);
             ctx.arc(0, 0, attack.radius, -attack.swingAngle * Math.PI / 360, attack.swingAngle * Math.PI / 360);
             ctx.closePath();
             ctx.fill();
+            
+            // Edge glow
+            ctx.strokeStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, attack.radius, -attack.swingAngle * Math.PI / 360, attack.swingAngle * Math.PI / 360);
+            ctx.stroke();
         }
         
         ctx.restore();
