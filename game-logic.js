@@ -1,5 +1,5 @@
 // ============================================
-// GAME LOGIC - With Enhanced Melee Animations
+// GAME LOGIC - With Enhanced Weapons System
 // ============================================
 
 // Game State
@@ -10,7 +10,9 @@ let kills = 0;
 let shopItems = [];
 let spawnIndicators = [];
 let selectedWeaponIndex = -1;
-let visualEffects = []; // For animations
+let visualEffects = [];
+let mergeTargetIndex = -1;
+let lastFrameTime = Date.now();
 
 // Game Objects
 const player = {
@@ -34,7 +36,10 @@ const player = {
     // Weapons (max 6 slots)
     weapons: [],
     projectiles: [],
-    meleeAttacks: []
+    meleeAttacks: [],
+    
+    // Ammo
+    ammoPack: false
 };
 
 let monsters = [];
@@ -57,6 +62,9 @@ const startGameBtn = document.getElementById('startGameBtn');
 const restartBtn = document.getElementById('restartBtn');
 const nextWaveBtn = document.getElementById('nextWaveBtn');
 const scrapWeaponBtn = document.getElementById('scrapWeaponBtn');
+const mergeWeaponBtn = document.getElementById('mergeWeaponBtn');
+const mergeInfo = document.getElementById('mergeInfo');
+const reloadIndicator = document.getElementById('reloadIndicator');
 
 // UI Elements
 const healthValue = document.getElementById('healthValue');
@@ -87,7 +95,8 @@ function initGame() {
         lastRegen: Date.now(),
         weapons: [],
         projectiles: [],
-        meleeAttacks: []
+        meleeAttacks: [],
+        ammoPack: false
     });
     
     // Give starting weapon
@@ -100,6 +109,7 @@ function initGame() {
     kills = 0;
     gameState = 'wave';
     selectedWeaponIndex = -1;
+    mergeTargetIndex = -1;
     visualEffects = [];
     
     // Clear game objects
@@ -116,6 +126,9 @@ function initGame() {
     waveCompleteOverlay.style.display = 'none';
     gameOverOverlay.style.display = 'none';
     scrapWeaponBtn.style.display = 'none';
+    mergeWeaponBtn.style.display = 'none';
+    mergeInfo.style.display = 'none';
+    reloadIndicator.style.display = 'none';
     
     // Start first wave
     startWave();
@@ -144,7 +157,7 @@ function showSpawnIndicators() {
         
         spawnIndicators.push({
             x, y,
-            timer: 2000, // Show for 2 seconds
+            timer: 2000,
             startTime: Date.now()
         });
     }
@@ -163,20 +176,21 @@ function startWave() {
     player.meleeAttacks = [];
     visualEffects = [];
     
-    // Hide scrap button during wave
+    // Hide buttons during wave
     scrapWeaponBtn.style.display = 'none';
+    mergeWeaponBtn.style.display = 'none';
     selectedWeaponIndex = -1;
+    mergeTargetIndex = -1;
     
     // Show spawn indicators
     showSpawnIndicators();
     
     // Spawn monsters after delay
     setTimeout(() => {
-        // Spawn monsters based on wave configuration
         for (let i = 0; i < waveConfig.monsters; i++) {
             spawnMonster();
         }
-        spawnIndicators = []; // Clear indicators after spawning
+        spawnIndicators = [];
     }, 2000);
     
     // Fade out wave display
@@ -224,7 +238,6 @@ function updateUI() {
     const healthPercent = (player.health / player.maxHealth) * 100;
     healthFill.style.width = `${healthPercent}%`;
     
-    // Update health bar color
     if (healthPercent > 60) {
         healthFill.style.background = 'linear-gradient(90deg, #11998e, #38ef7d)';
     } else if (healthPercent > 30) {
@@ -233,13 +246,13 @@ function updateUI() {
         healthFill.style.background = 'linear-gradient(90deg, #ff416c, #ff4b2b)';
     }
     
-    // Update monster count
     monsterCount.textContent = `Monsters: ${monsters.length}`;
 }
 
 // Update weapon display
 function updateWeaponDisplay() {
     weaponsGrid.innerHTML = '';
+    const currentTime = Date.now();
     
     for (let i = 0; i < 6; i++) {
         const slot = document.createElement('div');
@@ -248,18 +261,45 @@ function updateWeaponDisplay() {
         if (i < player.weapons.length) {
             const weapon = player.weapons[i];
             slot.classList.add('occupied');
+            
             if (selectedWeaponIndex === i) {
                 slot.classList.add('selected');
             }
             
+            if (mergeTargetIndex === i) {
+                slot.style.borderColor = '#00ff00';
+                slot.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.5)';
+            }
+            
+            // Calculate cooldown percentage
+            let cooldownPercent = 100;
+            if (weapon.lastAttack > 0) {
+                const timeSinceLastAttack = currentTime - weapon.lastAttack;
+                const cooldownTime = 1000 / weapon.attackSpeed;
+                cooldownPercent = Math.min(100, (timeSinceLastAttack / cooldownTime) * 100);
+            }
+            
+            // Calculate reload percentage for weapons with ammo
+            let reloadPercent = 0;
+            if (weapon.usesAmmo && weapon.isReloading) {
+                const timeSinceReloadStart = currentTime - weapon.reloadStart;
+                reloadPercent = Math.min(100, (timeSinceReloadStart / weapon.reloadTime) * 100);
+            }
+            
             slot.innerHTML = `
                 <div>${weapon.icon}</div>
+                ${weapon.tier > 1 ? `<div class="tier-badge">${weapon.tier}</div>` : ''}
                 <div class="weapon-level">${weapon.type === 'melee' ? '⚔️' : '🔫'}</div>
                 <div class="melee-type">${weapon.getTypeDescription()}</div>
-                <div class="weapon-info">${weapon.name}<br>Dmg: ${weapon.baseDamage}<br>Spd: ${weapon.attackSpeed}/s</div>
+                ${weapon.usesAmmo ? `<div class="ammo-display">${weapon.currentAmmo}/${weapon.magazineSize}</div>` : ''}
+                <div class="weapon-info">${weapon.getDisplayName()}<br>Dmg: ${weapon.baseDamage}<br>Spd: ${weapon.attackSpeed}/s</div>
+                <div class="cooldown-bar">
+                    <div class="cooldown-fill" style="width: ${cooldownPercent}%; 
+                         ${weapon.isReloading ? 'background: linear-gradient(90deg, #ff0000, #ff8800);' : ''}"></div>
+                </div>
             `;
             
-            // Add click handler for weapon selection
+            // Add click handler for weapon selection/merging
             slot.addEventListener('click', () => selectWeapon(i));
         } else {
             slot.innerHTML = '<div class="empty-slot">+</div>';
@@ -269,23 +309,117 @@ function updateWeaponDisplay() {
     }
 }
 
-// Select weapon for scrapping
+// Select weapon for scrapping or merging
 function selectWeapon(index) {
-    if (gameState !== 'shop') return;
+    if (gameState !== 'shop' && gameState !== 'statSelect') return;
     
     if (index >= player.weapons.length) return;
     
-    // Toggle selection
-    if (selectedWeaponIndex === index) {
+    const weapon = player.weapons[index];
+    
+    if (selectedWeaponIndex === -1) {
+        // First weapon selected
+        selectedWeaponIndex = index;
+        scrapWeaponBtn.innerHTML = `<span class="icon">🗑️</span> Scrap ${weapon.getDisplayName()} (Get ${weapon.getScrapValue()} gold)`;
+        scrapWeaponBtn.style.display = 'block';
+        mergeWeaponBtn.style.display = 'none';
+        mergeInfo.style.display = 'none';
+        mergeTargetIndex = -1;
+    } else if (selectedWeaponIndex === index) {
+        // Clicked same weapon again, deselect
         selectedWeaponIndex = -1;
         scrapWeaponBtn.style.display = 'none';
+        mergeWeaponBtn.style.display = 'none';
+        mergeInfo.style.display = 'none';
+        mergeTargetIndex = -1;
     } else {
-        selectedWeaponIndex = index;
-        const weapon = player.weapons[index];
-        scrapWeaponBtn.innerHTML = `<span class="icon">🗑️</span> Scrap ${weapon.name} (Get ${weapon.getScrapValue()} gold)`;
-        scrapWeaponBtn.style.display = 'block';
+        // Second weapon selected for merging
+        const firstWeapon = player.weapons[selectedWeaponIndex];
+        
+        if (firstWeapon.id === weapon.id && firstWeapon.tier === weapon.tier) {
+            // Same type and tier, can merge
+            mergeTargetIndex = index;
+            const mergeCost = firstWeapon.getMergeCost(weapon);
+            
+            if (mergeCost > 0 && firstWeapon.tier < 5) {
+                mergeWeaponBtn.innerHTML = `<span class="icon">🔄</span> Merge ${firstWeapon.getDisplayName()} + ${weapon.getDisplayName()} (Cost: ${mergeCost} gold)`;
+                mergeWeaponBtn.style.display = 'block';
+                
+                mergeInfo.textContent = `Merge to create ${firstWeapon.name} Tier ${firstWeapon.tier + 1}!`;
+                mergeInfo.style.display = 'block';
+                setTimeout(() => {
+                    mergeInfo.style.display = 'none';
+                }, 3000);
+            } else {
+                mergeInfo.textContent = firstWeapon.tier >= 5 ? 'Max tier reached!' : 'Cannot merge these weapons';
+                mergeInfo.style.display = 'block';
+                setTimeout(() => {
+                    mergeInfo.style.display = 'none';
+                }, 2000);
+            }
+        } else {
+            // Different weapons, switch selection
+            selectedWeaponIndex = index;
+            scrapWeaponBtn.innerHTML = `<span class="icon">🗑️</span> Scrap ${weapon.getDisplayName()} (Get ${weapon.getScrapValue()} gold)`;
+            scrapWeaponBtn.style.display = 'block';
+            mergeWeaponBtn.style.display = 'none';
+            mergeInfo.style.display = 'none';
+            mergeTargetIndex = -1;
+        }
     }
     
+    updateWeaponDisplay();
+}
+
+// Merge selected weapons
+function mergeWeapons() {
+    if (selectedWeaponIndex === -1 || mergeTargetIndex === -1) return;
+    
+    const weapon1 = player.weapons[selectedWeaponIndex];
+    const weapon2 = player.weapons[mergeTargetIndex];
+    
+    if (weapon1.id !== weapon2.id || weapon1.tier !== weapon2.tier) {
+        showMessage("Can only merge identical weapons of same tier!");
+        return;
+    }
+    
+    if (weapon1.tier >= 5) {
+        showMessage("Maximum tier (5) reached!");
+        return;
+    }
+    
+    const mergeCost = weapon1.getMergeCost(weapon2);
+    
+    if (gold < mergeCost) {
+        showMessage(`Need ${mergeCost} gold to merge!`);
+        return;
+    }
+    
+    gold -= mergeCost;
+    
+    // Create merged weapon
+    const mergedWeapon = weapon1.merge(weapon2);
+    
+    if (!mergedWeapon) {
+        showMessage("Merge failed!");
+        return;
+    }
+    
+    // Replace first weapon with merged version
+    player.weapons[selectedWeaponIndex] = mergedWeapon;
+    
+    // Remove second weapon
+    player.weapons.splice(mergeTargetIndex, 1);
+    
+    // Reset selection
+    selectedWeaponIndex = -1;
+    mergeTargetIndex = -1;
+    scrapWeaponBtn.style.display = 'none';
+    mergeWeaponBtn.style.display = 'none';
+    
+    showMessage(`Merged to create ${mergedWeapon.getDisplayName()}!`);
+    
+    updateUI();
     updateWeaponDisplay();
 }
 
@@ -294,28 +428,23 @@ function scrapWeapon() {
     if (selectedWeaponIndex === -1 || selectedWeaponIndex >= player.weapons.length) return;
     
     const weapon = player.weapons[selectedWeaponIndex];
-    const scrapValue = weapon.getScrapValue();
     
     // Don't allow scrapping starting handgun
-    if (weapon.id === 'handgun') {
-        showMessage("Cannot scrap starting weapon!");
+    if (weapon.id === 'handgun' && player.weapons.length === 1) {
+        showMessage("Cannot scrap your only weapon!");
         return;
     }
     
-    // Add gold
+    const scrapValue = weapon.getScrapValue();
     gold += scrapValue;
     
-    // Remove weapon
     player.weapons.splice(selectedWeaponIndex, 1);
     
-    // Reset selection
     selectedWeaponIndex = -1;
     scrapWeaponBtn.style.display = 'none';
     
-    // Show message
-    showMessage(`Scrapped ${weapon.name} for ${scrapValue} gold!`);
+    showMessage(`Scrapped ${weapon.getDisplayName()} for ${scrapValue} gold!`);
     
-    // Update displays
     updateUI();
     updateWeaponDisplay();
 }
@@ -324,7 +453,6 @@ function scrapWeapon() {
 function updateShopDisplay() {
     shopItemsContainer.innerHTML = '';
     
-    // Always show 4 slots
     for (let i = 0; i < 4; i++) {
         const shopItem = shopItems[i];
         const itemElement = document.createElement('div');
@@ -334,17 +462,25 @@ function updateShopDisplay() {
             const data = shopItem.data;
             const cost = data.cost;
             
+            // Determine tag type
+            let tagClass = '';
+            if (shopItem.type === 'weapon') {
+                if (data.type === 'melee') {
+                    if (data.meleeType === 'aoe') tagClass = 'aoe-tag';
+                    else if (data.meleeType === 'pierce') tagClass = 'pierce-tag';
+                    else tagClass = 'single-tag';
+                } else {
+                    if (data.id === 'shotgun') tagClass = 'shotgun-tag';
+                    else if (data.id === 'laser') tagClass = 'energy-tag';
+                    else tagClass = 'ranged-tag';
+                }
+            }
+            
             itemElement.innerHTML = `
                 <div class="item-info">
                     <div class="item-name">
                         ${data.icon} ${data.name}
-                        <span class="item-tag ${shopItem.type === 'weapon' ? (data.type === 'melee' ? 
-                            (data.meleeType === 'aoe' ? 'aoe-tag' : 
-                             data.meleeType === 'pierce' ? 'pierce-tag' : 'single-tag') : 'ranged-tag') : ''}">
-                            ${shopItem.type === 'weapon' ? (data.type === 'melee' ? 
-                                (data.meleeType === 'aoe' ? 'AOE' : 
-                                 data.meleeType === 'pierce' ? 'PIERCE' : 'SINGLE') : 'RANGED') : 'ITEM'}
-                        </span>
+                        ${tagClass ? `<span class="item-tag ${tagClass}">${shopItem.type === 'weapon' ? (data.id === 'shotgun' ? 'SHOTGUN' : data.id === 'laser' ? 'ENERGY' : data.type === 'melee' ? data.meleeType.toUpperCase() : 'RANGED') : 'ITEM'}</span>` : ''}
                     </div>
                     <div class="item-effect">${data.description}</div>
                 </div>
@@ -382,24 +518,20 @@ function purchaseItem(index) {
     gold -= data.cost;
     
     if (shopItem.type === 'weapon') {
-        // Check if we have space for more weapons
         if (player.weapons.length >= 6) {
             showMessage('No empty weapon slots!');
-            gold += data.cost; // Refund
+            gold += data.cost;
             return;
         }
         
-        // Add weapon
         player.weapons.push(new WeaponInstance(data));
         showMessage(`Purchased ${data.name}!`);
         
     } else {
-        // Apply item effect
         applyItemEffect(data);
         showMessage(`Purchased ${data.name}!`);
     }
     
-    // Replace purchased item with null (empty slot)
     shopItems[index] = null;
     
     updateUI();
@@ -422,6 +554,16 @@ function applyItemEffect(item) {
         case 'health_upgrade':
             player.maxHealth += 30;
             player.health += 30;
+            break;
+        case 'ammo_pack':
+            // Reload all weapons
+            player.weapons.forEach(weapon => {
+                if (weapon.usesAmmo) {
+                    weapon.currentAmmo = weapon.magazineSize;
+                    weapon.isReloading = false;
+                }
+            });
+            showMessage("All weapons reloaded!");
             break;
     }
 }
@@ -449,7 +591,6 @@ function showStatBuffs() {
 
 // Select stat buff
 function selectStatBuff(buff) {
-    // Apply buff effects
     if (buff.effect.maxHealth) {
         player.maxHealth += buff.effect.maxHealth;
         player.health += buff.effect.health || 0;
@@ -464,30 +605,35 @@ function selectStatBuff(buff) {
     
     showMessage(`Selected: ${buff.name}`);
     
-    // Go to shop
     waveCompleteOverlay.style.display = 'none';
     gameState = 'shop';
     
-    // Generate new shop items
     shopItems = generateShopItems();
     updateShopDisplay();
     updateUI();
     
-    // Show next wave button and scrap button
     nextWaveBtn.style.display = 'block';
     scrapWeaponBtn.style.display = 'none';
+    mergeWeaponBtn.style.display = 'none';
     selectedWeaponIndex = -1;
+    mergeTargetIndex = -1;
 }
 
 // End wave
 function endWave() {
     gameState = 'statSelect';
     
-    // Calculate gold reward
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
     
-    // Show stat buff selection
+    // Reload all weapons for free between waves
+    player.weapons.forEach(weapon => {
+        if (weapon.usesAmmo) {
+            weapon.currentAmmo = weapon.magazineSize;
+            weapon.isReloading = false;
+        }
+    });
+    
     showStatBuffs();
 }
 
@@ -528,6 +674,18 @@ function showMessage(text) {
     }, 2000);
 }
 
+// Show reload indicator
+function showReloadIndicator(weaponName) {
+    if (gameState === 'wave') {
+        reloadIndicator.textContent = `${weaponName} - RELOADING...`;
+        reloadIndicator.style.display = 'block';
+        
+        setTimeout(() => {
+            reloadIndicator.style.display = 'none';
+        }, 1000);
+    }
+}
+
 // Add visual effect
 function addVisualEffect(effect) {
     visualEffects.push(effect);
@@ -535,13 +693,17 @@ function addVisualEffect(effect) {
 
 // Game Loop
 function gameLoop() {
+    const currentTime = Date.now();
+    const deltaTime = currentTime - lastFrameTime;
+    lastFrameTime = currentTime;
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Draw grid background
     drawGrid();
     
     if (gameState === 'wave') {
-        updateGame();
+        updateGame(deltaTime);
     }
     
     // Draw spawn indicators
@@ -553,6 +715,11 @@ function gameLoop() {
     drawMeleeAttacks();
     drawVisualEffects();
     drawPlayer();
+    
+    // Update weapon cooldown displays
+    if (gameState === 'wave' || gameState === 'shop' || gameState === 'statSelect') {
+        updateWeaponDisplay();
+    }
     
     requestAnimationFrame(gameLoop);
 }
@@ -570,7 +737,6 @@ function drawSpawnIndicators() {
             continue;
         }
         
-        // Draw X mark
         ctx.save();
         ctx.translate(indicator.x, indicator.y);
         
@@ -578,7 +744,6 @@ function drawSpawnIndicators() {
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         
-        // Draw X
         ctx.beginPath();
         ctx.moveTo(-15, -15);
         ctx.lineTo(15, 15);
@@ -586,7 +751,6 @@ function drawSpawnIndicators() {
         ctx.lineTo(-15, 15);
         ctx.stroke();
         
-        // Draw circle around X
         ctx.beginPath();
         ctx.arc(0, 0, 20, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
@@ -598,8 +762,8 @@ function drawSpawnIndicators() {
 }
 
 // Update game state during wave
-function updateGame() {
-    // Update player position (move towards mouse)
+function updateGame(deltaTime) {
+    // Update player position
     const dx = mouseX - player.x;
     const dy = mouseY - player.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -609,7 +773,6 @@ function updateGame() {
         player.y += (dy / distance) * player.speed;
     }
     
-    // Keep player in bounds
     player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
     player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
     
@@ -668,16 +831,69 @@ function updateWeapons() {
             
             if (closestMonster) {
                 const attack = weapon.attack(player.x, player.y, closestMonster.x, closestMonster.y);
-                if (weapon.type === 'ranged') {
+                
+                if (weapon.id === 'shotgun') {
+                    // Shotgun returns array of pellets
+                    player.projectiles.push(...attack);
+                    createShotgunAnimation(player.x, player.y, closestMonster.x, closestMonster.y, weapon);
+                } else if (weapon.type === 'ranged') {
                     player.projectiles.push(attack);
+                    if (weapon.id === 'laser') {
+                        createEnergyAnimation(player.x, player.y, closestMonster.x, closestMonster.y);
+                    }
                 } else {
                     player.meleeAttacks.push(attack);
-                    
-                    // Add weapon-specific visual effects
                     createWeaponAnimation(weapon, player.x, player.y, closestMonster.x, closestMonster.y);
                 }
             }
         }
+    });
+}
+
+// Create shotgun animation
+function createShotgunAnimation(playerX, playerY, targetX, targetY, weapon) {
+    const angle = Math.atan2(targetY - playerY, targetX - playerX);
+    
+    // Create blast effect
+    addVisualEffect({
+        type: 'shotgunBlast',
+        x: playerX,
+        y: playerY,
+        angle: angle,
+        color: weapon.projectileColor,
+        startTime: Date.now(),
+        duration: 200,
+        intensity: weapon.tier
+    });
+    
+    // Create individual pellet trails
+    for (let i = 0; i < weapon.pelletCount; i++) {
+        const spread = (Math.random() - 0.5) * (weapon.spreadAngle * Math.PI / 180);
+        const pelletAngle = angle + spread;
+        
+        addVisualEffect({
+            type: 'pelletTrail',
+            x: playerX,
+            y: playerY,
+            angle: pelletAngle,
+            color: weapon.projectileColor,
+            startTime: Date.now(),
+            duration: 150
+        });
+    }
+}
+
+// Create energy gun animation
+function createEnergyAnimation(playerX, playerY, targetX, targetY) {
+    addVisualEffect({
+        type: 'energyBeam',
+        x: playerX,
+        y: playerY,
+        targetX: targetX,
+        targetY: targetY,
+        color: '#00FFFF',
+        startTime: Date.now(),
+        duration: 100
     });
 }
 
@@ -687,7 +903,6 @@ function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
     
     switch(weapon.animation) {
         case 'swordSwing':
-            // Sword swing with trail effect
             for (let i = 0; i < 5; i++) {
                 addVisualEffect({
                     type: 'swordTrail',
@@ -700,7 +915,6 @@ function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
                     duration: 200 + Math.random() * 100
                 });
             }
-            // Sparkles at impact point
             for (let i = 0; i < 3; i++) {
                 addVisualEffect({
                     type: 'sparkle',
@@ -714,20 +928,11 @@ function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
             break;
             
         case 'axeSpin':
-            // Axe spin with shockwave
-            addVisualEffect({
-                type: 'shockwave',
-                x: playerX,
-                y: playerY,
-                color: weapon.shockwaveColor,
-                startTime: Date.now(),
-                duration: 400
-            });
-            // Spinning blade effects
+            // Spinning axe with multiple blades
             for (let i = 0; i < 8; i++) {
                 const bladeAngle = (Math.PI * 2 * i) / 8;
                 addVisualEffect({
-                    type: 'blade',
+                    type: 'spinningBlade',
                     x: playerX,
                     y: playerY,
                     angle: bladeAngle,
@@ -736,10 +941,32 @@ function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
                     duration: 400
                 });
             }
+            // Shockwave effect
+            addVisualEffect({
+                type: 'shockwaveRing',
+                x: playerX,
+                y: playerY,
+                color: weapon.shockwaveColor,
+                startTime: Date.now(),
+                duration: 500,
+                intensity: weapon.shockwaveIntensity
+            });
+            // Ground cracks
+            for (let i = 0; i < 6; i++) {
+                const crackAngle = Math.random() * Math.PI * 2;
+                addVisualEffect({
+                    type: 'groundCrack',
+                    x: playerX + Math.cos(crackAngle) * (weapon.range * 0.7),
+                    y: playerY + Math.sin(crackAngle) * (weapon.range * 0.7),
+                    angle: crackAngle,
+                    color: '#8B4513',
+                    startTime: Date.now(),
+                    duration: 600
+                });
+            }
             break;
             
         case 'daggerStab':
-            // Dagger thrust with fast trail
             addVisualEffect({
                 type: 'daggerTrail',
                 x: playerX,
@@ -749,7 +976,6 @@ function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
                 startTime: Date.now(),
                 duration: 150
             });
-            // Quick sparkles
             addVisualEffect({
                 type: 'sparkle',
                 x: playerX + Math.cos(angle) * weapon.range,
@@ -761,33 +987,55 @@ function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
             break;
             
         case 'hammerSmash':
-            // Hammer smash with ground impact
+            // Hammer impact effect
             addVisualEffect({
-                type: 'shockwave',
+                type: 'hammerImpact',
+                x: playerX,
+                y: playerY,
+                color: weapon.trailColor,
+                startTime: Date.now(),
+                duration: 500
+            });
+            // Massive shockwave
+            addVisualEffect({
+                type: 'shockwaveRing',
                 x: playerX,
                 y: playerY,
                 color: weapon.shockwaveColor,
                 startTime: Date.now(),
-                duration: 500,
-                intensity: 2
+                duration: 700,
+                intensity: weapon.shockwaveIntensity * 1.5
             });
-            // Debris particles
-            for (let i = 0; i < 12; i++) {
-                const particleAngle = Math.random() * Math.PI * 2;
+            // Debris and ground cracks
+            for (let i = 0; i < 16; i++) {
+                const debrisAngle = Math.random() * Math.PI * 2;
                 const distance = Math.random() * weapon.range;
                 addVisualEffect({
                     type: 'particle',
-                    x: playerX + Math.cos(particleAngle) * distance,
-                    y: playerY + Math.sin(particleAngle) * distance,
+                    x: playerX + Math.cos(debrisAngle) * distance,
+                    y: playerY + Math.sin(debrisAngle) * distance,
                     color: weapon.trailColor,
                     startTime: Date.now(),
-                    duration: 400 + Math.random() * 200
+                    duration: 500 + Math.random() * 300
+                });
+            }
+            // Radial ground cracks
+            for (let i = 0; i < 8; i++) {
+                const crackAngle = (Math.PI * 2 * i) / 8;
+                addVisualEffect({
+                    type: 'groundCrack',
+                    x: playerX,
+                    y: playerY,
+                    angle: crackAngle,
+                    color: '#654321',
+                    startTime: Date.now(),
+                    duration: 800,
+                    length: weapon.range
                 });
             }
             break;
             
         case 'spearThrust':
-            // Spear thrust with piercing effect
             addVisualEffect({
                 type: 'spearTrail',
                 x: playerX,
@@ -797,8 +1045,7 @@ function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
                 startTime: Date.now(),
                 duration: 250
             });
-            // Glow effect along the path
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < weapon.pierceCount; i++) {
                 const progress = 0.3 + i * 0.3;
                 addVisualEffect({
                     type: 'glow',
@@ -831,6 +1078,49 @@ function updateProjectiles() {
             continue;
         }
         
+        // Check for bounces (energy gun)
+        if (projectile.bounceCount > 0 && projectile.targetsHit) {
+            // Find next target for bounce
+            let nextTarget = null;
+            let nextTargetDistance = Infinity;
+            
+            monsters.forEach(monster => {
+                // Skip already hit monsters
+                if (projectile.targetsHit.includes(monster)) return;
+                
+                const dx = projectile.x - monster.x;
+                const dy = projectile.y - monster.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < nextTargetDistance && distance < projectile.bounceRange) {
+                    nextTargetDistance = distance;
+                    nextTarget = monster;
+                }
+            });
+            
+            if (nextTarget) {
+                // Change direction to bounce to next target
+                projectile.angle = Math.atan2(nextTarget.y - projectile.y, nextTarget.x - projectile.x);
+                
+                // Add bounce effect
+                addVisualEffect({
+                    type: 'energyBounce',
+                    x: projectile.x,
+                    y: projectile.y,
+                    color: projectile.color,
+                    startTime: Date.now(),
+                    duration: 100
+                });
+                
+                // Add target to hit list
+                projectile.targetsHit.push(nextTarget);
+                projectile.bounceCount--;
+                
+                // Continue without checking collision this frame
+                continue;
+            }
+        }
+        
         // Check collision with monsters
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
@@ -838,38 +1128,40 @@ function updateProjectiles() {
             const dy = projectile.y - monster.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < 5 + monster.radius) {
+            if (distance < (projectile.isPellet ? 3 : 5) + monster.radius) {
                 // Calculate damage
                 let damage = projectile.damage;
                 let isCritical = false;
                 
-                // Critical chance
                 if (Math.random() < player.criticalChance) {
                     damage *= 2;
                     isCritical = true;
                 }
                 
-                // Apply damage reduction
                 if (player.damageReduction > 0) {
                     damage *= (1 - player.damageReduction);
                 }
                 
                 monster.health -= damage;
                 
-                // Show damage indicator
                 createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
                 
-                // Life steal
                 if (player.lifeSteal > 0) {
                     const healAmount = damage * player.lifeSteal;
                     player.health = Math.min(player.maxHealth, player.health + healAmount);
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Remove projectile
-                player.projectiles.splice(i, 1);
+                // Remove projectile (unless it bounces)
+                if (!projectile.bounceCount || !projectile.targetsHit) {
+                    player.projectiles.splice(i, 1);
+                } else {
+                    // For energy gun, add monster to hit list
+                    if (!projectile.targetsHit.includes(monster)) {
+                        projectile.targetsHit.push(monster);
+                    }
+                }
                 
-                // Add hit effect
                 addVisualEffect({
                     type: 'hit',
                     x: monster.x,
@@ -879,9 +1171,7 @@ function updateProjectiles() {
                     duration: 200
                 });
                 
-                // Check if monster is dead
                 if (monster.health <= 0) {
-                    // Add death effect
                     addVisualEffect({
                         type: 'death',
                         x: monster.x,
@@ -893,11 +1183,9 @@ function updateProjectiles() {
                     
                     monsters.splice(j, 1);
                     kills++;
-                    const waveConfig = getWaveConfig(wave);
                     const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
                     gold += goldEarned;
                     
-                    // Show gold popup
                     createGoldPopup(monster.x, monster.y, goldEarned);
                 }
                 
@@ -913,7 +1201,6 @@ function updateMeleeAttacks() {
     for (let i = player.meleeAttacks.length - 1; i >= 0; i--) {
         const attack = player.meleeAttacks[i];
         
-        // Check if attack duration is over
         if (currentTime - attack.startTime > attack.duration) {
             player.meleeAttacks.splice(i, 1);
             continue;
@@ -921,7 +1208,6 @@ function updateMeleeAttacks() {
         
         let hits = 0;
         
-        // Check collision with monsters based on melee type
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             const dx = monster.x - attack.x;
@@ -929,38 +1215,32 @@ function updateMeleeAttacks() {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < attack.radius + monster.radius) {
-                // Check if monster is within swing angle (for non-360° attacks)
                 if (attack.swingAngle < 360) {
                     const monsterAngle = Math.atan2(dy, dx);
                     const angleDiff = Math.abs(monsterAngle - attack.angle);
                     const normalizedDiff = Math.abs((angleDiff + Math.PI) % (2 * Math.PI) - Math.PI);
                     
                     if (normalizedDiff > (attack.swingAngle * Math.PI / 360)) {
-                        continue; // Monster is outside swing arc
+                        continue;
                     }
                 }
                 
-                // Calculate damage
                 let damage = attack.damage;
                 let isCritical = false;
                 
-                // Critical chance
                 if (Math.random() < player.criticalChance) {
                     damage *= 2;
                     isCritical = true;
                 }
                 
-                // Apply damage reduction
                 if (player.damageReduction > 0) {
                     damage *= (1 - player.damageReduction);
                 }
                 
                 monster.health -= damage;
                 
-                // Show damage indicator
                 createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
                 
-                // Life steal
                 if (player.lifeSteal > 0) {
                     const healAmount = damage * player.lifeSteal;
                     player.health = Math.min(player.maxHealth, player.health + healAmount);
@@ -969,7 +1249,6 @@ function updateMeleeAttacks() {
                 
                 hits++;
                 
-                // Add blood/hit effect for melee
                 addVisualEffect({
                     type: 'blood',
                     x: monster.x,
@@ -979,14 +1258,11 @@ function updateMeleeAttacks() {
                     duration: 300
                 });
                 
-                // Check pierce limit for pierce weapons
                 if (attack.meleeType === 'pierce' && hits >= attack.pierceCount) {
                     break;
                 }
                 
-                // Check if monster is dead
                 if (monster.health <= 0) {
-                    // Add death effect
                     addVisualEffect({
                         type: 'death',
                         x: monster.x,
@@ -1001,10 +1277,8 @@ function updateMeleeAttacks() {
                     const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
                     gold += goldEarned;
                     
-                    // Show gold popup
                     createGoldPopup(monster.x, monster.y, goldEarned);
                     
-                    // Adjust index since we removed a monster
                     j--;
                 }
             }
@@ -1075,7 +1349,6 @@ function updateMonsters() {
     const currentTime = Date.now();
     
     monsters.forEach(monster => {
-        // Move towards player
         const dx = player.x - monster.x;
         const dy = player.y - monster.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1083,13 +1356,11 @@ function updateMonsters() {
         monster.x += (dx / distance) * monster.speed;
         monster.y += (dy / distance) * monster.speed;
         
-        // Check collision with player (with attack cooldown)
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 player.health -= monster.damage;
                 monster.lastAttack = currentTime;
                 
-                // Show player damage indicator
                 createDamageIndicator(player.x, player.y, monster.damage, false);
                 
                 if (player.health <= 0) {
@@ -1137,21 +1408,33 @@ function drawVisualEffects() {
                 ctx.stroke();
                 break;
                 
-            case 'shockwave':
+            case 'shockwaveRing':
                 ctx.translate(effect.x, effect.y);
                 const scale = progress * (effect.intensity || 1);
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.5})`;
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.7})`;
+                ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.arc(0, 0, 30 * scale, 0, Math.PI * 2);
+                ctx.arc(0, 0, 20 * scale, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(0, 0, 40 * scale, 0, Math.PI * 2);
                 ctx.stroke();
                 break;
                 
-            case 'blade':
+            case 'spinningBlade':
                 ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle + progress * Math.PI * 2);
+                ctx.rotate(effect.angle + progress * Math.PI * 4);
                 ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.fillRect(-5, -15, 10, 30);
+                // Draw blade shape
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(20, -5);
+                ctx.lineTo(20, 5);
+                ctx.lineTo(0, 10);
+                ctx.closePath();
+                ctx.fill();
                 break;
                 
             case 'daggerTrail':
@@ -1166,10 +1449,93 @@ function drawVisualEffects() {
                 ctx.stroke();
                 break;
                 
-            case 'particle':
+            case 'hammerImpact':
+                ctx.translate(effect.x, effect.y);
+                const hammerScale = 1 + Math.sin(progress * Math.PI) * 0.5;
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                // Draw hammer head
+                ctx.beginPath();
+                ctx.arc(0, 0, 25 * hammerScale, 0, Math.PI * 2);
+                ctx.fill();
+                // Draw hammer handle
+                ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
+                ctx.fillRect(-5, 25 * hammerScale, 10, 30 * hammerScale);
+                break;
+                
+            case 'groundCrack':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle || 0);
+                const crackLength = effect.length || 30;
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                // Jagged crack line
+                for (let i = 0; i < 5; i++) {
+                    const segment = (i + 1) / 5;
+                    const x = crackLength * segment * (1 - progress * 0.5);
+                    const y = (Math.random() - 0.5) * 10;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                break;
+                
+            case 'shotgunBlast':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const blastSize = 30 * (1 + Math.sin(progress * Math.PI));
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                // Draw blast cone
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, blastSize, -0.3, 0.3);
+                ctx.closePath();
+                ctx.fill();
+                break;
+                
+            case 'pelletTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const pelletLength = 50 * (1 - progress);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(pelletLength, 0);
+                ctx.stroke();
+                break;
+                
+            case 'energyBeam':
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(effect.x, effect.y);
+                ctx.lineTo(effect.targetX, effect.targetY);
+                ctx.stroke();
+                // Glow effect
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
+                ctx.lineWidth = 8;
+                ctx.beginPath();
+                ctx.moveTo(effect.x, effect.y);
+                ctx.lineTo(effect.targetX, effect.targetY);
+                ctx.stroke();
+                break;
+                
+            case 'energyBounce':
+                ctx.translate(effect.x, effect.y);
+                const bounceScale = 1 + Math.sin(progress * Math.PI * 4) * 0.3;
                 ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
                 ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 2 + progress * 3, 0, Math.PI * 2);
+                ctx.arc(0, 0, 10 * bounceScale, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'particle':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                const size = 2 + progress * 3;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, size, 0, Math.PI * 2);
                 ctx.fill();
                 break;
                 
@@ -1244,7 +1610,6 @@ function drawGrid() {
     ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
     ctx.lineWidth = 1;
     
-    // Vertical lines
     for (let x = 0; x < canvas.width; x += 50) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
@@ -1252,7 +1617,6 @@ function drawGrid() {
         ctx.stroke();
     }
     
-    // Horizontal lines
     for (let y = 0; y < canvas.height; y += 50) {
         ctx.beginPath();
         ctx.moveTo(0, y);
@@ -1262,20 +1626,17 @@ function drawGrid() {
 }
 
 function drawPlayer() {
-    // Draw player body
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
     ctx.fill();
     
-    // Draw player outline
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
     ctx.stroke();
     
-    // Draw direction indicator
     const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
     const indicatorX = player.x + Math.cos(angle) * (player.radius + 5);
     const indicatorY = player.y + Math.sin(angle) * (player.radius + 5);
@@ -1288,24 +1649,20 @@ function drawPlayer() {
 
 function drawMonsters() {
     monsters.forEach(monster => {
-        // Draw monster body
         ctx.fillStyle = monster.color;
         ctx.beginPath();
         ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw monster outline
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Draw eyes
         const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
         const eyeRadius = monster.radius * 0.2;
         
-        // Left eye
         const leftEyeX = monster.x + Math.cos(angleToPlayer - 0.3) * (monster.radius * 0.6);
         const leftEyeY = monster.y + Math.sin(angleToPlayer - 0.3) * (monster.radius * 0.6);
         
@@ -1314,7 +1671,6 @@ function drawMonsters() {
         ctx.arc(leftEyeX, leftEyeY, eyeRadius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Right eye
         const rightEyeX = monster.x + Math.cos(angleToPlayer + 0.3) * (monster.radius * 0.6);
         const rightEyeY = monster.y + Math.sin(angleToPlayer + 0.3) * (monster.radius * 0.6);
         
@@ -1322,7 +1678,6 @@ function drawMonsters() {
         ctx.arc(rightEyeX, rightEyeY, eyeRadius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw pupils
         ctx.fillStyle = '#000000';
         const pupilX = monster.x + Math.cos(angleToPlayer) * (monster.radius * 0.7);
         const pupilY = monster.y + Math.sin(angleToPlayer) * (monster.radius * 0.7);
@@ -1331,7 +1686,6 @@ function drawMonsters() {
         ctx.arc(pupilX, pupilY, eyeRadius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Draw health bar
         const healthPercent = monster.health / monster.maxHealth;
         const barWidth = monster.radius * 2;
         const barHeight = 4;
@@ -1350,10 +1704,9 @@ function drawProjectiles() {
     player.projectiles.forEach(projectile => {
         ctx.fillStyle = projectile.color;
         ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+        ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
         ctx.fill();
         
-        // Add trail effect
         ctx.strokeStyle = projectile.color;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -1374,30 +1727,34 @@ function drawMeleeAttacks() {
         ctx.save();
         ctx.translate(attack.x, attack.y);
         
-        // Draw different shapes based on melee type
         if (attack.swingAngle >= 360) {
-            // Full circle for AOE weapons with pulsing effect
             const pulse = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
             ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha * 0.3})`;
             ctx.beginPath();
             ctx.arc(0, 0, attack.radius * pulse, 0, Math.PI * 2);
             ctx.fill();
             
-            // Outer ring
             ctx.strokeStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(0, 0, attack.radius, 0, Math.PI * 2);
             ctx.stroke();
+            
+            // Tier visual effect
+            if (attack.tier > 1) {
+                ctx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, attack.radius * 1.1, 0, Math.PI * 2);
+                ctx.stroke();
+            }
         } else {
-            // Arc for directional weapons with swinging animation
             const swingProgress = progress * 2;
             const currentAngle = attack.angle - (attack.swingAngle * Math.PI / 360) + 
                                 (swingProgress * attack.swingAngle * Math.PI / 180);
             
             ctx.rotate(currentAngle);
             
-            // Main attack arc
             ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha * 0.4})`;
             ctx.beginPath();
             ctx.moveTo(0, 0);
@@ -1405,7 +1762,6 @@ function drawMeleeAttacks() {
             ctx.closePath();
             ctx.fill();
             
-            // Edge glow
             ctx.strokeStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -1442,17 +1798,41 @@ nextWaveBtn.addEventListener('click', () => {
         startWave();
         nextWaveBtn.style.display = 'none';
         scrapWeaponBtn.style.display = 'none';
+        mergeWeaponBtn.style.display = 'none';
         selectedWeaponIndex = -1;
+        mergeTargetIndex = -1;
     }
 });
 
 // Scrap weapon button
 scrapWeaponBtn.addEventListener('click', scrapWeapon);
 
+// Merge weapon button
+mergeWeaponBtn.addEventListener('click', mergeWeapons);
+
 // Restart button
 restartBtn.addEventListener('click', () => {
     gameOverOverlay.style.display = 'none';
     initGame();
+});
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    if (e.key === ' ') {
+        // Space to start next wave in shop mode
+        if (gameState === 'shop' && nextWaveBtn.style.display !== 'none') {
+            nextWaveBtn.click();
+        }
+    } else if (e.key === 'r') {
+        // R to reload all weapons (in shop mode)
+        if (gameState === 'shop') {
+            player.weapons.forEach(weapon => {
+                if (weapon.usesAmmo && !weapon.isReloading) {
+                    weapon.startReload();
+                }
+            });
+        }
+    }
 });
 
 // Add CSS for fade animation
@@ -1466,5 +1846,5 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Start game loop immediately
+// Start game loop
 gameLoop();
