@@ -98,18 +98,20 @@ const GAME_DATA = {
             icon: '🔫',
             type: 'ranged',
             baseDamage: 5,
-            attackSpeed: 1.0, // attacks per second
+            attackSpeed: 1.0,
             range: 300,
             projectileSpeed: 10,
-            cost: 0, // Starting weapon
+            cost: 0,
             description: 'Basic starting weapon',
             projectileColor: '#FFD700',
             animation: 'bullet',
-            maxTier: 5,
+            usesAmmo: true,
+            magazineSize: 8,
+            reloadTime: 1500,
             tierMultipliers: {
-                damage: 1.5, // Each tier increases damage by 50%
-                attackSpeed: 0.9, // Each tier reduces attack delay by 10%
-                range: 1.1 // Each tier increases range by 10%
+                damage: [1, 1.2, 1.4, 1.7, 2.1, 2.5],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
             }
         },
         {
@@ -117,22 +119,25 @@ const GAME_DATA = {
             name: 'Shotgun',
             icon: '💥',
             type: 'ranged',
-            baseDamage: 3, // Per pellet
-            attackSpeed: 0.5,
-            range: 150,
+            meleeType: 'shotgun',
+            baseDamage: 3,
+            attackSpeed: 0.8,
+            range: 200,
             projectileSpeed: 8,
             cost: 80,
-            description: 'Fires 10 pellets in wide spread',
+            description: '10 pellets in wide arc, 3 damage each',
             projectileColor: '#FF6B6B',
             animation: 'shotgun',
-            pelletCount: 10, // Number of pellets per shot
-            spreadAngle: 30, // Spread angle in degrees
-            maxTier: 5,
+            pelletCount: 10,
+            spreadAngle: 60,
+            usesAmmo: true,
+            magazineSize: 6,
+            reloadTime: 2000,
             tierMultipliers: {
-                damage: 1.4,
-                attackSpeed: 0.85,
-                range: 1.05,
-                pelletCount: 1.2 // Each tier adds 20% more pellets
+                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
+                attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
+                pelletCount: [1, 1, 1, 1.2, 1.4, 1.6],
+                magazine: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
             }
         },
         {
@@ -148,16 +153,18 @@ const GAME_DATA = {
             description: 'Very fast attacks',
             projectileColor: '#4ECDC4',
             animation: 'bullet',
-            maxTier: 5,
+            usesAmmo: true,
+            magazineSize: 30,
+            reloadTime: 2500,
             tierMultipliers: {
-                damage: 1.3,
-                attackSpeed: 1.2, // Each tier increases attack speed by 20%
-                range: 1.05
+                damage: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
+                magazine: [1, 1.3, 1.6, 1.9, 2.2, 2.5]
             }
         },
         {
             id: 'laser',
-            name: 'Laser Gun',
+            name: 'Energy Gun',
             icon: '⚡',
             type: 'ranged',
             baseDamage: 8,
@@ -165,40 +172,44 @@ const GAME_DATA = {
             range: 350,
             projectileSpeed: 20,
             cost: 150,
-            description: 'Fast, accurate shots',
-            projectileColor: '#00FF00',
+            description: 'Bounces between enemies',
+            projectileColor: '#00FFFF',
             animation: 'laser',
-            maxTier: 5,
+            bounceCount: 3,
+            bounceRange: 100,
+            usesAmmo: true,
+            magazineSize: 15,
+            reloadTime: 1800,
             tierMultipliers: {
-                damage: 1.6,
-                attackSpeed: 0.95,
-                range: 1.15
+                damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                bounceCount: [1, 1, 2, 2, 3, 4],
+                magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
             }
         },
         
-        // Melee weapons - NEW TYPES
+        // Melee weapons
         {
             id: 'sword',
             name: 'Iron Sword',
             icon: '⚔️',
             type: 'melee',
-            meleeType: 'single', // Single target
+            meleeType: 'single',
             baseDamage: 12,
             attackSpeed: 1.2,
             range: 50,
             cost: 60,
             description: 'Single target melee',
             swingColor: '#C0C0C0',
-            swingAngle: 60, // Narrow arc
+            swingAngle: 60,
             animation: 'swordSwing',
             trailColor: '#FFFFFF',
             sparkleColor: '#FFD700',
-            maxTier: 5,
+            usesAmmo: false,
             tierMultipliers: {
-                damage: 1.8, // High damage scaling for melee
-                attackSpeed: 0.95,
-                range: 1.15,
-                swingAngle: 1.1 // Swing angle increases with tier
+                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
             }
         },
         {
@@ -206,22 +217,24 @@ const GAME_DATA = {
             name: 'Battle Axe',
             icon: '🪓',
             type: 'melee',
-            meleeType: 'aoe', // Area of effect
-            baseDamage: 8, // Lower damage because it hits multiple
+            meleeType: 'aoe',
+            baseDamage: 8,
             attackSpeed: 0.8,
             range: 60,
             cost: 100,
-            description: '360° area damage',
+            description: '360° area damage with shockwave',
             swingColor: '#8B4513',
-            swingAngle: 360, // Full circle
+            swingAngle: 360,
             animation: 'axeSpin',
             trailColor: '#8B4513',
             shockwaveColor: '#FFA500',
-            maxTier: 5,
+            shockwaveIntensity: 1.5,
+            usesAmmo: false,
             tierMultipliers: {
-                damage: 1.7,
-                attackSpeed: 0.9,
-                range: 1.2 // AOE range increases significantly
+                damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5],
+                attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
+                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                shockwaveIntensity: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
             }
         },
         {
@@ -229,9 +242,9 @@ const GAME_DATA = {
             name: 'Swift Dagger',
             icon: '🗡️',
             type: 'melee',
-            meleeType: 'single', // Single target
+            meleeType: 'single',
             baseDamage: 8,
-            attackSpeed: 2.0, // Very fast
+            attackSpeed: 2.0,
             range: 40,
             cost: 70,
             description: 'Fast single attacks',
@@ -240,11 +253,11 @@ const GAME_DATA = {
             animation: 'daggerStab',
             trailColor: '#4682B4',
             sparkleColor: '#00FFFF',
-            maxTier: 5,
+            usesAmmo: false,
             tierMultipliers: {
-                damage: 1.4,
-                attackSpeed: 1.3, // Gets even faster with tiers
-                range: 1.05
+                damage: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
+                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
+                range: [1, 1.05, 1.1, 1.15, 1.2, 1.25]
             }
         },
         {
@@ -252,22 +265,24 @@ const GAME_DATA = {
             name: 'War Hammer',
             icon: '🔨',
             type: 'melee',
-            meleeType: 'aoe', // Area of effect
-            baseDamage: 15, // High damage but slow
+            meleeType: 'aoe',
+            baseDamage: 15,
             attackSpeed: 0.5,
             range: 70,
             cost: 130,
-            description: 'Slow but powerful AOE',
+            description: 'Massive ground slam with shockwave',
             swingColor: '#D2691E',
             swingAngle: 360,
             animation: 'hammerSmash',
             trailColor: '#D2691E',
             shockwaveColor: '#FF4500',
-            maxTier: 5,
+            shockwaveIntensity: 2.0,
+            usesAmmo: false,
             tierMultipliers: {
-                damage: 2.0, // Highest damage scaling
-                attackSpeed: 0.85, // Gets slightly faster
-                range: 1.25 // Large AOE increase
+                damage: [1, 1.5, 2.0, 2.6, 3.3, 4.0],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                range: [1, 1.15, 1.3, 1.45, 1.6, 1.75],
+                shockwaveIntensity: [1, 1.3, 1.6, 1.9, 2.2, 2.5]
             }
         },
         {
@@ -275,24 +290,24 @@ const GAME_DATA = {
             name: 'Long Spear',
             icon: '🔱',
             type: 'melee',
-            meleeType: 'pierce', // Pierces through enemies
+            meleeType: 'pierce',
             baseDamage: 10,
             attackSpeed: 1.0,
-            range: 80, // Longer range
+            range: 80,
             cost: 110,
             description: 'Pierces through enemies',
             swingColor: '#32CD32',
             swingAngle: 30,
-            pierceCount: 2, // Hits up to 2 enemies
+            pierceCount: 2,
             animation: 'spearThrust',
             trailColor: '#32CD32',
             sparkleColor: '#90EE90',
-            maxTier: 5,
+            usesAmmo: false,
             tierMultipliers: {
-                damage: 1.6,
-                attackSpeed: 1.1,
-                range: 1.15,
-                pierceCount: 0.5 // Each tier adds 0.5 pierce (so +1 every 2 tiers)
+                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                pierceCount: [1, 1, 2, 2, 3, 4],
+                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
             }
         }
     ],
@@ -330,6 +345,14 @@ const GAME_DATA = {
             type: 'permanent',
             cost: 120,
             description: 'Permanently +30 max health'
+        },
+        {
+            id: 'ammo_pack',
+            name: 'Ammo Pack',
+            icon: '📦',
+            type: 'consumable',
+            cost: 30,
+            description: 'Fully reload all ranged weapons'
         }
     ]
 };
@@ -421,24 +444,35 @@ class WeaponInstance {
         this.icon = weaponData.icon;
         this.type = weaponData.type;
         this.meleeType = weaponData.meleeType || 'single';
+        this.tier = tier;
         this.baseDamage = weaponData.baseDamage;
         this.attackSpeed = weaponData.attackSpeed;
         this.range = weaponData.range;
         this.description = weaponData.description;
         this.cost = weaponData.cost || 0;
-        this.tier = tier;
-        this.maxTier = weaponData.maxTier || 5;
-        this.tierMultipliers = weaponData.tierMultipliers || {
-            damage: 1.5,
-            attackSpeed: 0.9,
-            range: 1.1
-        };
         this.lastAttack = 0;
         this.animation = weaponData.animation || 'default';
+        
+        // Ammo system
+        this.usesAmmo = weaponData.usesAmmo || false;
+        if (this.usesAmmo) {
+            this.magazineSize = weaponData.magazineSize;
+            this.currentAmmo = this.magazineSize;
+            this.reloadTime = weaponData.reloadTime;
+            this.isReloading = false;
+            this.reloadStart = 0;
+        }
         
         // Shotgun specific properties
         this.pelletCount = weaponData.pelletCount || 1;
         this.spreadAngle = weaponData.spreadAngle || 0;
+        
+        // Energy gun bounce properties
+        this.bounceCount = weaponData.bounceCount || 0;
+        this.bounceRange = weaponData.bounceRange || 0;
+        
+        // Melee properties
+        this.pierceCount = weaponData.pierceCount || 1;
         
         if (this.type === 'ranged') {
             this.projectileSpeed = weaponData.projectileSpeed;
@@ -446,75 +480,129 @@ class WeaponInstance {
         } else {
             this.swingColor = weaponData.swingColor;
             this.swingAngle = weaponData.swingAngle || 90;
-            this.pierceCount = weaponData.pierceCount || 1;
             this.trailColor = weaponData.trailColor || '#FFFFFF';
             this.sparkleColor = weaponData.sparkleColor || '#FFD700';
             this.shockwaveColor = weaponData.shockwaveColor || '#FFA500';
+            this.shockwaveIntensity = weaponData.shockwaveIntensity || 1;
         }
+        
+        // Tier multipliers
+        this.tierMultipliers = weaponData.tierMultipliers || {};
+        
+        // Apply tier bonuses
+        this.applyTierBonuses();
     }
 
-    // Calculate stats based on tier
-    get damage() {
-        return Math.floor(this.baseDamage * Math.pow(this.tierMultipliers.damage, this.tier - 1));
-    }
-
-    get currentAttackSpeed() {
-        return this.attackSpeed * Math.pow(this.tierMultipliers.attackSpeed, this.tier - 1);
-    }
-
-    get currentRange() {
-        return Math.floor(this.range * Math.pow(this.tierMultipliers.range, this.tier - 1));
-    }
-
-    get currentPelletCount() {
-        if (this.pelletCount > 1) {
-            return Math.floor(this.pelletCount * Math.pow(this.tierMultipliers.pelletCount || 1, this.tier - 1));
+    applyTierBonuses() {
+        if (this.tier > 1 && this.tierMultipliers) {
+            // Damage multiplier
+            if (this.tierMultipliers.damage) {
+                this.baseDamage = Math.round(this.baseDamage * this.tierMultipliers.damage[this.tier]);
+            }
+            
+            // Attack speed multiplier
+            if (this.tierMultipliers.attackSpeed) {
+                this.attackSpeed = this.attackSpeed * this.tierMultipliers.attackSpeed[this.tier];
+            }
+            
+            // Range multiplier
+            if (this.tierMultipliers.range) {
+                this.range = Math.round(this.range * this.tierMultipliers.range[this.tier]);
+            }
+            
+            // Magazine size multiplier (for ranged weapons with ammo)
+            if (this.usesAmmo && this.tierMultipliers.magazine) {
+                this.magazineSize = Math.round(this.magazineSize * this.tierMultipliers.magazine[this.tier]);
+                this.currentAmmo = this.magazineSize;
+            }
+            
+            // Pellet count multiplier (for shotgun)
+            if (this.pelletCount && this.tierMultipliers.pelletCount) {
+                this.pelletCount = Math.round(this.pelletCount * this.tierMultipliers.pelletCount[this.tier]);
+            }
+            
+            // Bounce count multiplier (for energy gun)
+            if (this.bounceCount && this.tierMultipliers.bounceCount) {
+                this.bounceCount = Math.round(this.bounceCount * this.tierMultipliers.bounceCount[this.tier]);
+            }
+            
+            // Pierce count multiplier (for spear)
+            if (this.pierceCount && this.tierMultipliers.pierceCount) {
+                this.pierceCount = Math.round(this.pierceCount * this.tierMultipliers.pierceCount[this.tier]);
+            }
+            
+            // Shockwave intensity multiplier (for AOE weapons)
+            if (this.shockwaveIntensity && this.tierMultipliers.shockwaveIntensity) {
+                this.shockwaveIntensity = this.shockwaveIntensity * this.tierMultipliers.shockwaveIntensity[this.tier];
+            }
         }
-        return 1;
-    }
-
-    get currentSwingAngle() {
-        if (this.swingAngle) {
-            return Math.min(360, this.swingAngle * Math.pow(this.tierMultipliers.swingAngle || 1, this.tier - 1));
-        }
-        return 90;
-    }
-
-    get currentPierceCount() {
-        if (this.pierceCount > 1) {
-            return Math.floor(this.pierceCount + (this.tier - 1) * (this.tierMultipliers.pierceCount || 0));
-        }
-        return 1;
     }
 
     canAttack(currentTime) {
-        return currentTime - this.lastAttack >= (1000 / this.currentAttackSpeed);
+        if (this.isReloading) {
+            return false;
+        }
+        
+        if (this.usesAmmo && this.currentAmmo <= 0) {
+            this.startReload();
+            return false;
+        }
+        
+        return currentTime - this.lastAttack >= (1000 / this.attackSpeed);
+    }
+
+    startReload() {
+        if (!this.usesAmmo || this.isReloading || this.currentAmmo === this.magazineSize) {
+            return;
+        }
+        
+        this.isReloading = true;
+        this.reloadStart = Date.now();
+        
+        // Show reload indicator
+        showReloadIndicator(this.name);
+        
+        setTimeout(() => {
+            this.currentAmmo = this.magazineSize;
+            this.isReloading = false;
+        }, this.reloadTime);
+    }
+
+    useAmmo() {
+        if (!this.usesAmmo) return;
+        
+        this.currentAmmo--;
+        if (this.currentAmmo <= 0) {
+            this.startReload();
+        }
     }
 
     attack(playerX, playerY, targetX, targetY) {
+        if (this.usesAmmo && !this.isReloading) {
+            this.useAmmo();
+        }
+        
         this.lastAttack = Date.now();
         
         if (this.type === 'ranged') {
-            const angle = Math.atan2(targetY - playerY, targetX - playerX);
-            
-            // For shotgun, create multiple projectiles
-            if (this.pelletCount > 1) {
+            if (this.id === 'shotgun') {
+                // Shotgun fires multiple pellets
                 const attacks = [];
-                const pelletCount = this.currentPelletCount;
+                const mainAngle = Math.atan2(targetY - playerY, targetX - playerX);
                 
-                for (let i = 0; i < pelletCount; i++) {
-                    // Calculate spread angle for this pellet
-                    const spread = (Math.random() - 0.5) * this.spreadAngle * (Math.PI / 180);
-                    const pelletAngle = angle + spread;
+                for (let i = 0; i < this.pelletCount; i++) {
+                    // Random spread within the spread angle
+                    const spread = (Math.random() - 0.5) * (this.spreadAngle * Math.PI / 180);
+                    const angle = mainAngle + spread;
                     
                     attacks.push({
                         type: 'ranged',
                         x: playerX,
                         y: playerY,
-                        angle: pelletAngle,
+                        angle: angle,
                         speed: this.projectileSpeed,
-                        range: this.currentRange,
-                        damage: this.damage, // Each pellet does the full damage
+                        range: this.range,
+                        damage: this.baseDamage,
                         color: this.projectileColor,
                         weaponId: this.id,
                         animation: this.animation,
@@ -523,114 +611,105 @@ class WeaponInstance {
                 }
                 return attacks;
             } else {
-                // Single projectile for other ranged weapons
-                return [{
+                const angle = Math.atan2(targetY - playerY, targetX - playerX);
+                return {
                     type: 'ranged',
                     x: playerX,
                     y: playerY,
                     angle: angle,
                     speed: this.projectileSpeed,
-                    range: this.currentRange,
-                    damage: this.damage,
+                    range: this.range,
+                    damage: this.baseDamage,
                     color: this.projectileColor,
                     weaponId: this.id,
                     animation: this.animation,
-                    isPellet: false
-                }];
+                    bounceCount: this.bounceCount,
+                    bounceRange: this.bounceRange,
+                    targetsHit: []
+                };
             }
         } else {
             // Melee weapons create a temporary attack area
             const angle = Math.atan2(targetY - playerY, targetX - playerX);
-            return [{
+            return {
                 type: 'melee',
                 x: playerX,
                 y: playerY,
-                radius: this.currentRange,
-                damage: this.damage,
+                radius: this.range,
+                damage: this.baseDamage,
                 color: this.swingColor,
                 startTime: Date.now(),
-                duration: 300, // ms - increased for better animation
-                swingAngle: this.currentSwingAngle,
+                duration: 300,
+                swingAngle: this.swingAngle,
                 meleeType: this.meleeType,
-                angle: angle, // Direction player is facing
-                pierceCount: this.currentPierceCount,
+                angle: angle,
+                pierceCount: this.pierceCount,
                 weaponId: this.id,
                 animation: this.animation,
                 trailColor: this.trailColor,
                 sparkleColor: this.sparkleColor,
                 shockwaveColor: this.shockwaveColor,
+                shockwaveIntensity: this.shockwaveIntensity,
                 tier: this.tier
-            }];
+            };
         }
     }
     
     // Get scrap value (50% of original cost * tier multiplier)
     getScrapValue() {
         const baseValue = Math.floor(this.cost * 0.5);
-        return Math.floor(baseValue * Math.pow(1.5, this.tier - 1));
+        const tierMultiplier = 1 + (this.tier - 1) * 0.5; // 50% more per tier
+        return Math.floor(baseValue * tierMultiplier);
     }
     
     // Get weapon type description
     getTypeDescription() {
-        if (this.type === 'ranged') return 'RANGED';
+        if (this.type === 'ranged') {
+            if (this.id === 'shotgun') return 'SHOTGUN';
+            if (this.id === 'laser') return 'ENERGY';
+            return 'RANGED';
+        }
         if (this.meleeType === 'single') return 'SINGLE';
         if (this.meleeType === 'aoe') return 'AOE 360°';
         if (this.meleeType === 'pierce') return 'PIERCE';
         return 'MELEE';
     }
     
-    // Get tier color
-    getTierColor() {
-        const colors = {
-            1: '#ffffff',
-            2: '#00ff00',
-            3: '#00ffff',
-            4: '#ff00ff',
-            5: '#ffcc00'
-        };
-        return colors[this.tier] || '#ffffff';
-    }
-    
-    // Get tier name
-    getTierName() {
-        const names = {
-            1: 'I',
-            2: 'II',
-            3: 'III',
-            4: 'IV',
-            5: 'V'
-        };
-        return names[this.tier] || this.tier.toString();
-    }
-    
-    // Check if can merge with another weapon
-    canMergeWith(otherWeapon) {
-        return this.id === otherWeapon.id && 
-               this.tier === otherWeapon.tier && 
-               this.tier < this.maxTier;
-    }
-    
-    // Merge with another weapon to increase tier
-    merge() {
-        if (this.tier < this.maxTier) {
-            this.tier++;
-            return true;
-        }
-        return false;
-    }
-    
-    // Get next tier stats preview
-    getNextTierStats() {
-        if (this.tier >= this.maxTier) return null;
+    // Get display name with tier
+    getDisplayName() {
+        if (this.tier === 1) return this.name;
         
-        return {
-            damage: Math.floor(this.baseDamage * Math.pow(this.tierMultipliers.damage, this.tier)),
-            attackSpeed: this.attackSpeed * Math.pow(this.tierMultipliers.attackSpeed, this.tier),
-            range: Math.floor(this.range * Math.pow(this.tierMultipliers.range, this.tier)),
-            pelletCount: this.pelletCount > 1 ? 
-                Math.floor(this.pelletCount * Math.pow(this.tierMultipliers.pelletCount || 1, this.tier)) : 
-                1,
-            tier: this.tier + 1
-        };
+        const tierNames = ['', 'II', 'III', 'IV', 'V', 'VI'];
+        return `${this.name} ${tierNames[this.tier]}`;
+    }
+    
+    // Get merge cost (based on tier and base cost)
+    getMergeCost(otherWeapon) {
+        if (this.id !== otherWeapon.id || this.tier !== otherWeapon.tier) {
+            return 0; // Can't merge different weapons or different tiers
+        }
+        
+        if (this.tier >= 5) {
+            return 0; // Max tier reached
+        }
+        
+        return Math.floor(this.cost * 0.3 * this.tier);
+    }
+    
+    // Merge with another weapon of same type and tier
+    merge(otherWeapon) {
+        if (this.id !== otherWeapon.id || this.tier !== otherWeapon.tier) {
+            return null; // Can't merge
+        }
+        
+        if (this.tier >= 5) {
+            return null; // Max tier reached
+        }
+        
+        // Create new weapon with tier + 1
+        const baseWeaponData = getWeaponById(this.id);
+        const mergedWeapon = new WeaponInstance(baseWeaponData, this.tier + 1);
+        
+        return mergedWeapon;
     }
 }
