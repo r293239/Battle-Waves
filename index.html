@@ -573,20 +573,80 @@
             border-radius: 10px;
         }
 
-        .damage-indicator {
-            position: absolute;
-            color: #ff0000;
-            font-size: 1rem;
-            font-weight: bold;
-            text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
-            z-index: 100;
-            pointer-events: none;
-            animation: floatUp 1s forwards;
-        }
-
+        /* Animation keyframes */
         @keyframes floatUp {
             0% { opacity: 1; transform: translateY(0); }
             100% { opacity: 0; transform: translateY(-30px); }
+        }
+
+        @keyframes floatUpGold {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-40px); }
+        }
+
+        @keyframes floatUpHealth {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        @keyframes swordSwing {
+            0% { transform: rotate(-30deg) scale(0.8); opacity: 0; }
+            20% { transform: rotate(0deg) scale(1); opacity: 1; }
+            50% { transform: rotate(45deg) scale(1.2); opacity: 0.8; }
+            80% { transform: rotate(90deg) scale(1); opacity: 0.5; }
+            100% { transform: rotate(120deg) scale(0.8); opacity: 0; }
+        }
+
+        @keyframes axeSpin {
+            0% { transform: rotate(0deg) scale(0.5); opacity: 0; }
+            20% { transform: rotate(90deg) scale(0.8); opacity: 0.7; }
+            50% { transform: rotate(180deg) scale(1); opacity: 1; }
+            80% { transform: rotate(270deg) scale(0.8); opacity: 0.7; }
+            100% { transform: rotate(360deg) scale(0.5); opacity: 0; }
+        }
+
+        @keyframes daggerStab {
+            0% { transform: translateX(0) scale(0.5); opacity: 0; }
+            30% { transform: translateX(20px) scale(1); opacity: 1; }
+            70% { transform: translateX(40px) scale(1.2); opacity: 0.8; }
+            100% { transform: translateX(60px) scale(0.5); opacity: 0; }
+        }
+
+        @keyframes hammerSmash {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            20% { transform: translateY(-30px) scale(0.8); opacity: 0.7; }
+            50% { transform: translateY(0) scale(1.5); opacity: 1; }
+            80% { transform: translateY(10px) scale(1); opacity: 0.7; }
+            100% { transform: translateY(20px) scale(0.5); opacity: 0; }
+        }
+
+        @keyframes spearThrust {
+            0% { transform: translateX(0) scale(0.5); opacity: 0; }
+            30% { transform: translateX(30px) scale(1); opacity: 1; }
+            60% { transform: translateX(60px) scale(1.3); opacity: 0.8; }
+            100% { transform: translateX(90px) scale(0.5); opacity: 0; }
+        }
+
+        @keyframes shockwave {
+            0% { transform: scale(0.1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        @keyframes bladeTrail {
+            0% { transform: scale(0.8) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1.5) rotate(45deg); opacity: 0; }
+        }
+
+        @keyframes sparkle {
+            0% { transform: scale(0) rotate(0deg); opacity: 1; }
+            50% { transform: scale(1) rotate(180deg); opacity: 0.7; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes bloodSpray {
+            0% { transform: scale(0) translateY(0); opacity: 1; }
+            50% { transform: scale(1) translateY(-10px); opacity: 0.7; }
+            100% { transform: scale(0) translateY(-20px); opacity: 0; }
         }
 
         .monster-count {
@@ -601,6 +661,17 @@
             z-index: 5;
         }
 
+        .damage-indicator {
+            position: absolute;
+            color: #ff0000;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+        }
+
         .gold-popup {
             position: absolute;
             color: #ffd700;
@@ -612,11 +683,6 @@
             animation: floatUpGold 1s forwards;
         }
 
-        @keyframes floatUpGold {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-40px); }
-        }
-
         .health-popup {
             position: absolute;
             color: #00ff00;
@@ -626,11 +692,6 @@
             z-index: 100;
             pointer-events: none;
             animation: floatUpHealth 1s forwards;
-        }
-
-        @keyframes floatUpHealth {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-20px); }
         }
     </style>
 </head>
