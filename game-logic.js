@@ -9,6 +9,7 @@ let gold = GAME_DATA.PLAYER_START.gold;
 let kills = 0;
 let shopItems = [];
 let spawnIndicators = [];
+let selectedWeaponIndex = -1;
 
 // Game Objects
 const player = {
@@ -53,6 +54,7 @@ const shopItemsContainer = document.getElementById('shopItems');
 const startGameBtn = document.getElementById('startGameBtn');
 const restartBtn = document.getElementById('restartBtn');
 const nextWaveBtn = document.getElementById('nextWaveBtn');
+const scrapWeaponBtn = document.getElementById('scrapWeaponBtn');
 
 // UI Elements
 const healthValue = document.getElementById('healthValue');
@@ -95,6 +97,7 @@ function initGame() {
     gold = GAME_DATA.PLAYER_START.gold;
     kills = 0;
     gameState = 'wave';
+    selectedWeaponIndex = -1;
     
     // Clear game objects
     monsters = [];
@@ -109,6 +112,7 @@ function initGame() {
     startScreen.style.display = 'none';
     waveCompleteOverlay.style.display = 'none';
     gameOverOverlay.style.display = 'none';
+    scrapWeaponBtn.style.display = 'none';
     
     // Start first wave
     startWave();
@@ -154,6 +158,10 @@ function startWave() {
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
+    
+    // Hide scrap button during wave
+    scrapWeaponBtn.style.display = 'none';
+    selectedWeaponIndex = -1;
     
     // Show spawn indicators
     showSpawnIndicators();
@@ -233,16 +241,77 @@ function updateWeaponDisplay() {
         if (i < player.weapons.length) {
             const weapon = player.weapons[i];
             slot.classList.add('occupied');
+            if (selectedWeaponIndex === i) {
+                slot.style.borderColor = '#ffcc00';
+                slot.style.boxShadow = '0 0 10px #ffcc00';
+            }
+            
             slot.innerHTML = `
                 <div>${weapon.icon}</div>
                 <div class="weapon-level">${weapon.type === 'melee' ? '⚔️' : '🔫'}</div>
+                <div class="melee-type">${weapon.getTypeDescription()}</div>
+                <div class="weapon-info">${weapon.name}<br>Dmg: ${weapon.baseDamage}<br>Spd: ${weapon.attackSpeed}/s</div>
             `;
+            
+            // Add click handler for weapon selection
+            slot.addEventListener('click', () => selectWeapon(i));
         } else {
             slot.innerHTML = '<div class="empty-slot">+</div>';
         }
         
         weaponsGrid.appendChild(slot);
     }
+}
+
+// Select weapon for scrapping
+function selectWeapon(index) {
+    if (gameState !== 'shop') return;
+    
+    if (index >= player.weapons.length) return;
+    
+    // Toggle selection
+    if (selectedWeaponIndex === index) {
+        selectedWeaponIndex = -1;
+        scrapWeaponBtn.style.display = 'none';
+    } else {
+        selectedWeaponIndex = index;
+        const weapon = player.weapons[index];
+        scrapWeaponBtn.innerHTML = `<span class="icon">🗑️</span> Scrap ${weapon.name} (Get ${weapon.getScrapValue()} gold)`;
+        scrapWeaponBtn.style.display = 'block';
+    }
+    
+    updateWeaponDisplay();
+}
+
+// Scrap selected weapon
+function scrapWeapon() {
+    if (selectedWeaponIndex === -1 || selectedWeaponIndex >= player.weapons.length) return;
+    
+    const weapon = player.weapons[selectedWeaponIndex];
+    const scrapValue = weapon.getScrapValue();
+    
+    // Don't allow scrapping starting handgun
+    if (weapon.id === 'handgun') {
+        showMessage("Cannot scrap starting weapon!");
+        return;
+    }
+    
+    // Add gold
+    gold += scrapValue;
+    
+    // Remove weapon
+    player.weapons.splice(selectedWeaponIndex, 1);
+    
+    // Reset selection
+    selectedWeaponIndex = -1;
+    scrapWeaponBtn.style.display = 'none';
+    
+    // Show message
+    showMessage(`Scrapped ${weapon.name} for ${scrapValue} gold!`);
+    
+    // Update displays
+    updateUI();
+    updateWeaponDisplay();
 }
 
 // Update shop display
@@ -264,7 +333,7 @@ function updateShopDisplay() {
                     <div class="item-name">
                         ${data.icon} ${data.name}
                         <span class="item-tag ${shopItem.type === 'weapon' ? (data.type === 'melee' ? 'melee-tag' : 'ranged-tag') : ''}">
-                            ${shopItem.type === 'weapon' ? (data.type === 'melee' ? 'MELEE' : 'RANGED') : 'ITEM'}
+                            ${shopItem.type === 'weapon' ? (data.type === 'melee' ? data.meleeType === 'aoe' ? 'AOE' : data.meleeType === 'pierce' ? 'PIERCE' : 'SINGLE' : 'RANGED') : 'ITEM'}
                         </span>
                     </div>
                     <div class="item-effect">${data.description}</div>
@@ -394,8 +463,10 @@ function selectStatBuff(buff) {
     updateShopDisplay();
     updateUI();
     
-    // Show next wave button
+    // Show next wave button and scrap button
     nextWaveBtn.style.display = 'block';
+    scrapWeaponBtn.style.display = 'none';
+    selectedWeaponIndex = -1;
 }
 
 // End wave
@@ -663,7 +734,9 @@ function updateMeleeAttacks() {
             continue;
         }
         
-        // Check collision with monsters
+        let hits = 0;
+        
+        // Check collision with monsters based on melee type
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             const dx = monster.x - attack.x;
@@ -671,6 +744,17 @@ function updateMeleeAttacks() {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < attack.radius + monster.radius) {
+                // Check if monster is within swing angle (for non-360° attacks)
+                if (attack.swingAngle < 360) {
+                    const monsterAngle = Math.atan2(dy, dx);
+                    const angleDiff = Math.abs(monsterAngle - attack.angle);
+                    const normalizedDiff = Math.abs((angleDiff + Math.PI) % (2 * Math.PI) - Math.PI);
+                    
+                    if (normalizedDiff > (attack.swingAngle * Math.PI / 360)) {
+                        continue; // Monster is outside swing arc
+                    }
+                }
+                
                 // Calculate damage
                 let damage = attack.damage;
                 
@@ -691,11 +775,21 @@ function updateMeleeAttacks() {
                     player.health = Math.min(player.maxHealth, player.health + damage * player.lifeSteal);
                 }
                 
+                hits++;
+                
+                // Check pierce limit for pierce weapons
+                if (attack.meleeType === 'pierce' && hits >= attack.pierceCount) {
+                    break;
+                }
+                
                 // Check if monster is dead
                 if (monster.health <= 0) {
                     monsters.splice(j, 1);
                     kills++;
                     gold += Math.floor(10 * (1 + player.goldMultiplier));
+                    
+                    // Adjust index since we removed a monster
+                    j--;
                 }
             }
         }
@@ -728,7 +822,7 @@ function updateMonsters() {
     });
 }
 
-// Drawing functions (same as before with minor adjustments)
+// Drawing functions
 function drawGrid() {
     ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
     ctx.lineWidth = 1;
@@ -830,10 +924,29 @@ function drawMeleeAttacks() {
         const progress = (currentTime - attack.startTime) / attack.duration;
         const alpha = 0.5 * (1 - progress);
         
-        ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
-        ctx.beginPath();
-        ctx.arc(attack.x, attack.y, attack.radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
+        ctx.translate(attack.x, attack.y);
+        
+        // Draw different shapes based on melee type
+        if (attack.swingAngle >= 360) {
+            // Full circle for AOE weapons
+            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(0, 0, attack.radius, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Arc for directional weapons
+            ctx.rotate(attack.angle - (attack.swingAngle * Math.PI / 360));
+            
+            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, attack.radius, -attack.swingAngle * Math.PI / 360, attack.swingAngle * Math.PI / 360);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        ctx.restore();
     });
 }
 
@@ -861,8 +974,13 @@ nextWaveBtn.addEventListener('click', () => {
         gameState = 'wave';
         startWave();
         nextWaveBtn.style.display = 'none';
+        scrapWeaponBtn.style.display = 'none';
+        selectedWeaponIndex = -1;
     }
 });
+
+// Scrap weapon button
+scrapWeaponBtn.addEventListener('click', scrapWeapon);
 
 // Restart button
 restartBtn.addEventListener('click', () => {
