@@ -12,6 +12,23 @@ const GAME_DATA = {
         gold: 50
     },
 
+    // Monster attack cooldown in milliseconds
+    MONSTER_ATTACK_COOLDOWN: 1000,
+
+    // Wave configurations
+    WAVES: [
+        { number: 1, monsters: 5, monsterHealth: 20, monsterDamage: 2, goldReward: 50 },
+        { number: 2, monsters: 7, monsterHealth: 25, monsterDamage: 3, goldReward: 60 },
+        { number: 3, monsters: 9, monsterHealth: 30, monsterDamage: 4, goldReward: 70 },
+        { number: 4, monsters: 11, monsterHealth: 35, monsterDamage: 5, goldReward: 80 },
+        { number: 5, monsters: 13, monsterHealth: 40, monsterDamage: 6, goldReward: 90 },
+        { number: 6, monsters: 15, monsterHealth: 45, monsterDamage: 7, goldReward: 100 },
+        { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110 },
+        { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120 },
+        { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130 },
+        { number: 10, monsters: 23, monsterHealth: 65, monsterDamage: 11, goldReward: 140 }
+    ],
+
     // Stat buffs that appear after each wave
     STAT_BUFFS: [
         {
@@ -247,6 +264,25 @@ function generateStatBuffs() {
 // Helper function to get weapon by ID
 function getWeaponById(id) {
     return GAME_DATA.WEAPONS.find(w => w.id === id);
+}
+
+// Get wave configuration
+function getWaveConfig(waveNumber) {
+    // Use predefined waves for first 10 waves, then scale
+    if (waveNumber <= GAME_DATA.WAVES.length) {
+        return GAME_DATA.WAVES[waveNumber - 1];
+    } else {
+        // Scale after wave 10
+        const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
+        const scaleFactor = 1 + (waveNumber - 10) * 0.2;
+        return {
+            number: waveNumber,
+            monsters: Math.floor(baseWave.monsters * scaleFactor),
+            monsterHealth: Math.floor(baseWave.monsterHealth * scaleFactor),
+            monsterDamage: Math.floor(baseWave.monsterDamage * scaleFactor),
+            goldReward: Math.floor(baseWave.goldReward * scaleFactor)
+        };
+    }
 }
 
 // Weapon instance class
