@@ -32,7 +32,10 @@ let wave = 1;
 let gold = CONFIG.PLAYER.START_GOLD;
 let kills = 0;
 let selectedWeaponSlot = null;
-let currentShopItems = [];
+
+// Global mouse position
+let mouseX = 400;
+let mouseY = 300;
 
 // Player Object
 const player = {
@@ -44,28 +47,27 @@ const player = {
     speed: CONFIG.PLAYER.SPEED,
     color: '#ff6b6b',
     baseDamage: CONFIG.PLAYER.BASE_DAMAGE,
+    
+    // Stats from items
     criticalChance: 0,
     lifeSteal: 0,
     goldMultiplier: 1,
-    explosiveDamage: 0,
+    cleave: 0,
+    bleed: 0,
+    pierce: 0,
+    homing: 0,
     
     get totalDamage() {
         return this.baseDamage;
     },
     
-    weapons: [],
+    weapons: Array(6).fill(null), // Fixed: Initialize with 6 slots
     projectiles: [],
-    stats: {
-        damage: 0,
-        speed: 0,
-        maxHealth: 0
-    }
+    meleeAttacks: []
 };
 
 // Monsters
 let monsters = [];
-let mouseX = 400;
-let mouseY = 300;
 
 // DOM Elements
 const canvas = document.getElementById('gameCanvas');
@@ -90,42 +92,64 @@ const waveValue = document.getElementById('waveValue');
 const killsValue = document.getElementById('killsValue');
 const healthFill = document.getElementById('healthFill');
 
-// Initialize Weapon Slots
+// Initialize Weapon Slots (FIXED)
 function initWeaponSlots() {
     weaponsGrid.innerHTML = '';
+    
     for (let i = 0; i < CONFIG.WEAPONS.SLOTS; i++) {
         const slot = document.createElement('div');
         slot.className = 'weapon-slot';
         slot.dataset.index = i;
         
-        if (i === 0) {
+        if (i === 0 && !player.weapons[i]) {
             // Starting weapon
             const handgun = getWeaponById('handgun');
             const weaponInstance = new WeaponInstance(handgun, 1);
-            player.weapons[0] = weaponInstance;
-            
-            slot.classList.add('occupied');
-            slot.innerHTML = `
-                <div class="weapon-icon">${handgun.icon}</div>
-                <div class="weapon-level">Lvl ${weaponInstance.level}</div>
-            `;
-        } else {
-            slot.innerHTML = '<div class="weapon-icon">➕</div>';
+            player.weapons[i] = weaponInstance;
         }
         
-        slot.addEventListener('click', () => handleWeaponSlotClick(i));
+        updateWeaponSlotDisplay(i);
+        
+        slot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleWeaponSlotClick(i);
+        });
+        
         weaponsGrid.appendChild(slot);
     }
-    updateWeaponDisplay();
 }
 
-// Handle weapon slot click for merging
+// Update single weapon slot display
+function updateWeaponSlotDisplay(index) {
+    const slot = weaponsGrid.children[index];
+    if (!slot) return;
+    
+    const weapon = player.weapons[index];
+    
+    if (weapon) {
+        slot.classList.add('occupied');
+        slot.classList.remove('active');
+        slot.innerHTML = `
+            <div class="weapon-icon">${weapon.icon}</div>
+            <div class="weapon-level">Lvl ${weapon.level}</div>
+            <span class="item-tag ${weapon.type === 'melee' ? 'melee-tag' : 'ranged-tag'}">
+                ${weapon.type === 'melee' ? 'MELEE' : 'RANGED'}
+            </span>
+        `;
+    } else {
+        slot.classList.remove('occupied', 'active');
+        slot.innerHTML = '<div class="weapon-icon">➕</div>';
+    }
+}
+
+// Handle weapon slot click for merging (FIXED)
 function handleWeaponSlotClick(index) {
     const slot = weaponsGrid.children[index];
+    const weapon = player.weapons[index];
     
     if (selectedWeaponSlot === null) {
         // First selection
-        if (player.weapons[index]) {
+        if (weapon) {
             selectedWeaponSlot = index;
             slot.classList.add('active');
         }
@@ -134,91 +158,97 @@ function handleWeaponSlotClick(index) {
         slot.classList.remove('active');
         selectedWeaponSlot = null;
     } else {
-        // Second selection - try to merge
-        const firstSlot = selectedWeaponSlot;
-        const secondSlot = index;
+        // Second selection
+        const firstIndex = selectedWeaponSlot;
+        const secondIndex = index;
+        const firstWeapon = player.weapons[firstIndex];
+        const secondWeapon = player.weapons[secondIndex];
         
-        if (player.weapons[firstSlot] && player.weapons[secondSlot]) {
+        // Clear previous selection
+        weaponsGrid.children[firstIndex].classList.remove('active');
+        
+        if (firstWeapon && secondWeapon) {
             // Both slots have weapons
-            if (player.weapons[firstSlot].id === player.weapons[secondSlot].id) {
+            if (firstWeapon.id === secondWeapon.id) {
                 // Same weapon type - merge/upgrade
-                if (player.weapons[firstSlot].upgrade()) {
+                if (firstWeapon.upgrade()) {
                     // Remove second weapon
-                    player.weapons[secondSlot] = null;
-                    weaponsGrid.children[secondSlot].innerHTML = '<div class="weapon-icon">➕</div>';
-                    weaponsGrid.children[secondSlot].classList.remove('occupied', 'active');
+                    player.weapons[secondIndex] = null;
+                    updateWeaponSlotDisplay(secondIndex);
                     
                     // Update first weapon display
-                    updateWeaponDisplay();
+                    updateWeaponSlotDisplay(firstIndex);
                     
-                    // Show merge message
-                    showMessage(`Upgraded ${player.weapons[firstSlot].name} to Level ${player.weapons[firstSlot].level}!`);
+                    showMessage(`Upgraded ${firstWeapon.name} to Level ${firstWeapon.level}!`);
                 } else {
                     showMessage('Weapon at maximum level!');
                 }
             } else {
-                showMessage('Can only merge same weapon types!');
+                // Different weapons - swap them
+                player.weapons[firstIndex] = secondWeapon;
+                player.weapons[secondIndex] = firstWeapon;
+                updateWeaponSlotDisplay(firstIndex);
+                updateWeaponSlotDisplay(secondIndex);
+                showMessage('Swapped weapons!');
             }
-        } else if (player.weapons[firstSlot] && !player.weapons[secondSlot]) {
+        } else if (firstWeapon && !secondWeapon) {
             // Move weapon to empty slot
-            player.weapons[secondSlot] = player.weapons[firstSlot];
-            player.weapons[firstSlot] = null;
-            updateWeaponDisplay();
+            player.weapons[secondIndex] = firstWeapon;
+            player.weapons[firstIndex] = null;
+            updateWeaponSlotDisplay(firstIndex);
+            updateWeaponSlotDisplay(secondIndex);
+        } else if (!firstWeapon && secondWeapon) {
+            // Move weapon from second to first
+            player.weapons[firstIndex] = secondWeapon;
+            player.weapons[secondIndex] = null;
+            updateWeaponSlotDisplay(firstIndex);
+            updateWeaponSlotDisplay(secondIndex);
         }
         
-        // Clear selection
-        weaponsGrid.children[firstSlot].classList.remove('active');
         selectedWeaponSlot = null;
     }
 }
 
-// Update weapon display
-function updateWeaponDisplay() {
-    for (let i = 0; i < CONFIG.WEAPONS.SLOTS; i++) {
-        const slot = weaponsGrid.children[i];
-        const weapon = player.weapons[i];
-        
-        if (weapon) {
-            slot.classList.add('occupied');
-            slot.classList.remove('active');
-            slot.innerHTML = `
-                <div class="weapon-icon">${weapon.icon}</div>
-                <div class="weapon-level">Lvl ${weapon.level}</div>
-            `;
-        } else {
-            slot.classList.remove('occupied', 'active');
-            slot.innerHTML = '<div class="weapon-icon">➕</div>';
-        }
-    }
-}
-
-// Initialize Shop
+// Initialize Shop (FIXED: Won't refresh automatically)
 function initShop() {
     shopItems.innerHTML = '';
-    currentShopItems = generateShopItems();
+    
+    // Only generate if not already generated
+    if (currentShopItems.length === 0) {
+        currentShopItems = initShopItems();
+    }
     
     currentShopItems.forEach((shopItem, index) => {
         const itemElement = document.createElement('div');
         itemElement.className = 'shop-item';
         itemElement.dataset.index = index;
         
-        let icon, name, description, cost;
+        let icon, name, description, cost, tag;
         
         if (shopItem.type === 'weapon') {
             icon = shopItem.data.icon;
             name = shopItem.data.name;
             description = shopItem.data.description;
             cost = shopItem.cost;
+            tag = shopItem.data.type === 'melee' ? 'melee' : 'ranged';
         } else {
             icon = shopItem.data.icon;
             name = shopItem.data.name;
             description = shopItem.data.description;
             cost = shopItem.cost;
+            tag = shopItem.data.effect;
         }
         
         itemElement.innerHTML = `
             <div class="item-info">
-                <div class="item-name">${icon} ${name}</div>
+                <div class="item-name">
+                    ${icon} ${name}
+                    ${shopItem.type === 'weapon' ? 
+                        `<span class="item-tag ${tag === 'melee' ? 'melee-tag' : 'ranged-tag'}">
+                            ${tag.toUpperCase()}
+                        </span>` : ''
+                    }
+                </div>
                 <div class="item-effect">${description}</div>
             </div>
             <div class="item-cost">${cost}g</div>
@@ -231,6 +261,8 @@ function initShop() {
 
 // Purchase item from shop
 function purchaseItem(index) {
+    if (index >= currentShopItems.length) return;
+    
     const shopItem = currentShopItems[index];
     
     if (gold < shopItem.cost) {
@@ -252,16 +284,54 @@ function purchaseItem(index) {
         
         const weaponInstance = new WeaponInstance(shopItem.data, 1);
         player.weapons[emptySlot] = weaponInstance;
-        updateWeaponDisplay();
+        updateWeaponSlotDisplay(emptySlot);
         showMessage(`Purchased ${weaponInstance.name}!`);
+        
+        // Remove from shop and replace with new item
+        currentShopItems.splice(index, 1);
+        
+        // Add new random item to shop
+        const availableItems = GAME_DATA.ITEMS.filter(item => 
+            !['health_potion'].includes(item.id) &&
+            !currentShopItems.some(si => si.type === 'item' && si.data.id === item.id)
+        );
+        
+        if (availableItems.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            const newItem = {...availableItems[randomIndex]};
+            currentShopItems.push({
+                type: 'item',
+                data: newItem,
+                cost: newItem.cost
+            });
+        }
+        
     } else {
         // Apply item effect
         applyItemEffect(shopItem.data);
         showMessage(`Purchased ${shopItem.data.name}!`);
+        
+        // Remove from shop and replace with new item
+        currentShopItems.splice(index, 1);
+        
+        // Add new random weapon to shop
+        const availableWeapons = GAME_DATA.WEAPONS.filter(weapon => 
+            weapon.id !== 'handgun' &&
+            !currentShopItems.some(si => si.type === 'weapon' && si.data.id === weapon.id)
+        );
+        
+        if (availableWeapons.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableWeapons.length);
+            const newWeapon = {...availableWeapons[randomIndex]};
+            currentShopItems.push({
+                type: 'weapon',
+                data: newWeapon,
+                cost: newWeapon.cost
+            });
+        }
     }
     
-    // Remove from shop
-    currentShopItems.splice(index, 1);
+    // Update shop display
     initShop();
     updateUI();
 }
@@ -291,8 +361,17 @@ function applyItemEffect(item) {
         case 'goldMultiplier':
             player.goldMultiplier += item.value;
             break;
-        case 'explosive':
-            player.explosiveDamage += item.value;
+        case 'cleave':
+            player.cleave += item.value;
+            break;
+        case 'bleed':
+            player.bleed += item.value;
+            break;
+        case 'pierce':
+            player.pierce += item.value;
+            break;
+        case 'homing':
+            player.homing += item.value;
             break;
     }
     updateUI();
@@ -300,14 +379,17 @@ function applyItemEffect(item) {
 
 // Start Wave
 function startWave() {
+    if (gameState !== 'shop') return;
+    
     gameState = 'wave';
     gameOverlay.style.display = 'none';
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.style.opacity = 1;
     
-    // Clear previous monsters and projectiles
+    // Clear previous game objects
     monsters = [];
     player.projectiles = [];
+    player.meleeAttacks = [];
     
     // Spawn monsters
     const monsterCount = CONFIG.WAVE.START_MONSTERS + (wave - 1) * CONFIG.WAVE.MONSTER_INCREMENT;
@@ -338,15 +420,45 @@ function spawnMonster() {
     const baseDamage = 5 + wave * 2;
     const baseSpeed = 1 + wave * 0.2;
     
+    const monsterTypes = ['normal', 'fast', 'tank'];
+    const type = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
+    
+    let radius, health, damage, speed, color;
+    
+    switch(type) {
+        case 'fast':
+            radius = 12;
+            health = baseHealth * 0.7;
+            damage = baseDamage * 0.8;
+            speed = baseSpeed * 1.5;
+            color = '#4ECDC4'; // Teal
+            break;
+        case 'tank':
+            radius = 25;
+            health = baseHealth * 2;
+            damage = baseDamage * 1.5;
+            speed = baseSpeed * 0.7;
+            color = '#FF6B6B'; // Red
+            break;
+        default: // normal
+            radius = 18;
+            health = baseHealth;
+            damage = baseDamage;
+            speed = baseSpeed;
+            color = `hsl(${Math.random() * 60}, 70%, 50%)`;
+    }
+    
     monsters.push({
         x, y,
-        radius: 15 + Math.random() * 10,
-        health: baseHealth,
-        maxHealth: baseHealth,
-        damage: baseDamage,
-        speed: Math.min(5, baseSpeed),
-        color: `hsl(${Math.random() * 60}, 70%, 50%)`,
-        type: Math.random() > 0.8 ? 'elite' : 'normal'
+        radius,
+        health,
+        maxHealth: health,
+        damage,
+        speed: Math.min(5, speed),
+        color,
+        type,
+        bleedStacks: 0,
+        bleedDamage: 0
     });
 }
 
@@ -362,7 +474,6 @@ function endWave() {
     gameOverlay.style.display = 'flex';
     
     updateUI();
-    initShop();
 }
 
 // Game Over
@@ -375,8 +486,14 @@ function gameOver() {
 
 // Update UI
 function updateUI() {
+    // Calculate total weapon damage
+    let totalWeaponDamage = 0;
+    player.weapons.forEach(weapon => {
+        if (weapon) totalWeaponDamage += weapon.damage;
+    });
+    
     healthValue.textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
-    damageValue.textContent = player.baseDamage + player.weapons.reduce((sum, w) => w ? sum + w.damage : sum, 0);
+    damageValue.textContent = player.baseDamage + totalWeaponDamage;
     speedValue.textContent = player.speed;
     goldValue.textContent = gold;
     waveValue.textContent = wave;
@@ -404,7 +521,7 @@ function showMessage(text) {
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.8);
+        background: rgba(0, 0, 0, 0.9);
         color: #ffcc00;
         padding: 20px 40px;
         border-radius: 10px;
@@ -433,27 +550,68 @@ function gameLoop() {
     drawGrid();
     
     if (gameState === 'wave') {
-        // Update player position
-        const dx = mouseX - player.x;
-        const dy = mouseY - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        updateGame();
+    }
+    
+    // Draw everything
+    drawMonsters();
+    drawProjectiles();
+    drawMeleeAttacks();
+    drawPlayer();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+// Update game state during wave
+function updateGame() {
+    // Update player position
+    updatePlayerPosition();
+    
+    // Update weapons and attacks
+    updateWeapons();
+    
+    // Update projectiles
+    updateProjectiles();
+    
+    // Update melee attacks
+    updateMeleeAttacks();
+    
+    // Update monsters
+    updateMonsters();
+    
+    // Clean up dead monsters
+    monsters = monsters.filter(monster => monster.health > 0);
+    
+    // Check if wave is complete
+    if (monsters.length === 0) {
+        endWave();
+    }
+}
+
+function updatePlayerPosition() {
+    const dx = mouseX - player.x;
+    const dy = mouseY - player.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > player.speed) {
+        player.x += (dx / distance) * player.speed;
+        player.y += (dy / distance) * player.speed;
+    }
+    
+    // Keep player in bounds
+    player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+    player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+}
+
+function updateWeapons() {
+    const currentTime = Date.now();
+    
+    player.weapons.forEach(weapon => {
+        if (!weapon || monsters.length === 0) return;
         
-        if (distance > player.speed) {
-            player.x += (dx / distance) * player.speed;
-            player.y += (dy / distance) * player.speed;
-        }
-        
-        // Keep player in bounds
-        player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-        player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
-        
-        // Update weapons and attack
-        const currentTime = Date.now();
-        player.weapons.forEach(weapon => {
-            if (!weapon) return;
-            
-            if (monsters.length > 0 && weapon.canAttack(currentTime)) {
-                // Find closest monster
+        if (weapon.canAttack(currentTime)) {
+            if (weapon.type === 'ranged') {
+                // Find target for ranged weapon
                 let closestMonster = null;
                 let closestDistance = Infinity;
                 
@@ -469,106 +627,169 @@ function gameLoop() {
                 });
                 
                 if (closestMonster) {
-                    const projectile = weapon.attack(closestMonster.x, closestMonster.y, player.x, player.y);
+                    mouseX = closestMonster.x;
+                    mouseY = closestMonster.y;
+                    const projectile = weapon.attack(player.x, player.y);
                     player.projectiles.push(projectile);
                 }
+            } else {
+                // Melee weapon attacks automatically in range
+                const meleeAttack = weapon.attack(player.x, player.y, player);
+                player.meleeAttacks.push(meleeAttack);
             }
-        });
+        }
+    });
+}
+
+function updateProjectiles() {
+    for (let i = player.projectiles.length - 1; i >= 0; i--) {
+        const projectile = player.projectiles[i];
         
-        // Update projectiles
-        for (let i = player.projectiles.length - 1; i >= 0; i--) {
-            const projectile = player.projectiles[i];
+        // Move projectile
+        projectile.x += Math.cos(projectile.angle) * projectile.speed;
+        projectile.y += Math.sin(projectile.angle) * projectile.speed;
+        
+        // Check if reached max range
+        const dx = projectile.x - player.x;
+        const dy = projectile.y - player.y;
+        const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distanceFromPlayer > projectile.range) {
+            player.projectiles.splice(i, 1);
+            continue;
+        }
+        
+        // Check collision with monsters
+        let pierced = 0;
+        for (let j = monsters.length - 1; j >= 0; j--) {
+            const monster = monsters[j];
+            const dx = projectile.x - monster.x;
+            const dy = projectile.y - monster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Move projectile
-            projectile.x += Math.cos(projectile.angle) * projectile.speed;
-            projectile.y += Math.sin(projectile.angle) * projectile.speed;
-            
-            // Check if reached max range
-            const dx = projectile.x - player.x;
-            const dy = projectile.y - player.y;
-            const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distanceFromPlayer > projectile.range) {
-                player.projectiles.splice(i, 1);
-                continue;
-            }
-            
-            // Check collision with monsters
-            for (let j = monsters.length - 1; j >= 0; j--) {
-                const monster = monsters[j];
-                const dx = projectile.x - monster.x;
-                const dy = projectile.y - monster.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 10 + monster.radius) {
+                // Calculate damage with critical chance
+                let damage = projectile.damage;
+                if (Math.random() < player.criticalChance) {
+                    damage *= 2;
+                }
                 
-                if (distance < player.radius + monster.radius) {
-                    // Calculate damage with critical chance
-                    let damage = projectile.damage;
-                    if (Math.random() < player.criticalChance) {
-                        damage *= 2;
-                    }
-                    
-                    monster.health -= damage;
-                    
-                    // Apply life steal
-                    if (player.lifeSteal > 0) {
-                        player.health = Math.min(player.maxHealth, player.health + damage * player.lifeSteal);
-                    }
-                    
-                    // Remove projectile
+                monster.health -= damage;
+                
+                // Apply life steal
+                if (player.lifeSteal > 0) {
+                    player.health = Math.min(player.maxHealth, player.health + damage * player.lifeSteal);
+                }
+                
+                // Apply bleed if it's a melee weapon (for certain effects)
+                if (player.bleed > 0 && Math.random() < 0.3) {
+                    monster.bleedStacks = (monster.bleedStacks || 0) + 1;
+                    monster.bleedDamage = player.bleed;
+                }
+                
+                pierced++;
+                
+                // Check if monster is dead
+                if (monster.health <= 0) {
+                    monsters.splice(j, 1);
+                    kills++;
+                    gold += Math.floor(10 * player.goldMultiplier);
+                }
+                
+                // Check pierce limit
+                if (pierced > player.pierce) {
                     player.projectiles.splice(i, 1);
-                    
-                    // Check if monster is dead
-                    if (monster.health <= 0) {
-                        monsters.splice(j, 1);
-                        kills++;
-                        gold += Math.floor(10 * player.goldMultiplier);
-                        
-                        // Spawn new monster if wave not complete
-                        if (monsters.length === 0) {
-                            endWave();
-                        } else {
-                            // Small chance to spawn replacement
-                            if (Math.random() < 0.3) {
-                                spawnMonster();
-                            }
-                        }
-                    }
                     break;
                 }
             }
         }
+    }
+}
+
+function updateMeleeAttacks() {
+    const currentTime = Date.now();
+    
+    for (let i = player.meleeAttacks.length - 1; i >= 0; i--) {
+        const attack = player.meleeAttacks[i];
         
-        // Update monsters
-        monsters.forEach(monster => {
-            // Move towards player
-            const dx = player.x - monster.x;
-            const dy = player.y - monster.y;
+        // Check if attack is still active
+        if (currentTime - attack.startTime > attack.activeTime) {
+            player.meleeAttacks.splice(i, 1);
+            continue;
+        }
+        
+        // Check collision with monsters
+        let hits = 0;
+        for (let j = monsters.length - 1; j >= 0; j--) {
+            const monster = monsters[j];
+            const dx = monster.x - attack.x;
+            const dy = monster.y - attack.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            monster.x += (dx / distance) * monster.speed;
-            monster.y += (dy / distance) * monster.speed;
-            
-            // Check collision with player
-            if (distance < player.radius + monster.radius) {
-                player.health -= monster.damage;
-                monster.health = 0; // Monster dies on collision
+            if (distance < attack.radius + monster.radius) {
+                // Calculate damage with critical chance
+                let damage = attack.damage;
+                if (Math.random() < player.criticalChance) {
+                    damage *= 2;
+                }
                 
-                if (player.health <= 0) {
-                    gameOver();
+                monster.health -= damage;
+                
+                // Apply life steal
+                if (player.lifeSteal > 0) {
+                    player.health = Math.min(player.maxHealth, player.health + damage * player.lifeSteal);
+                }
+                
+                // Apply bleed
+                if (player.bleed > 0) {
+                    monster.bleedStacks = (monster.bleedStacks || 0) + 1;
+                    monster.bleedDamage = player.bleed;
+                }
+                
+                hits++;
+                
+                // Check if monster is dead
+                if (monster.health <= 0) {
+                    monsters.splice(j, 1);
+                    kills++;
+                    gold += Math.floor(10 * player.goldMultiplier);
+                }
+                
+                // Check cleave limit
+                if (hits > attack.cleave + 1) { // +1 for the primary target
+                    break;
                 }
             }
-        });
-        
-        // Clean up dead monsters
-        monsters = monsters.filter(monster => monster.health > 0);
+        }
     }
+}
+
+function updateMonsters() {
+    const currentTime = Date.now();
     
-    // Draw everything
-    drawMonsters();
-    drawProjectiles();
-    drawPlayer();
-    
-    requestAnimationFrame(gameLoop);
+    monsters.forEach(monster => {
+        // Move towards player
+        const dx = player.x - monster.x;
+        const dy = player.y - monster.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        monster.x += (dx / distance) * monster.speed;
+        monster.y += (dy / distance) * monster.speed;
+        
+        // Apply bleed damage
+        if (monster.bleedStacks > 0 && currentTime % 1000 < 16) { // Every second
+            monster.health -= monster.bleedDamage * monster.bleedStacks;
+        }
+        
+        // Check collision with player
+        if (distance < player.radius + monster.radius) {
+            player.health -= monster.damage;
+            
+            if (player.health <= 0) {
+                gameOver();
+            }
+        }
+    });
 }
 
 // Drawing functions
@@ -643,6 +864,15 @@ function drawMonsters() {
         
         ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
         ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+        
+        // Draw bleed effect if applicable
+        if (monster.bleedStacks > 0) {
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(monster.x, monster.y, monster.radius + 2, 0, Math.PI * 2);
+            ctx.stroke();
+        }
     });
 }
 
@@ -661,6 +891,33 @@ function drawProjectiles() {
     });
 }
 
+function drawMeleeAttacks() {
+    const currentTime = Date.now();
+    
+    player.meleeAttacks.forEach(attack => {
+        const progress = (currentTime - attack.startTime) / attack.activeTime;
+        const alpha = 0.7 * (1 - progress);
+        
+        ctx.save();
+        ctx.translate(attack.x, attack.y);
+        ctx.rotate(attack.angle);
+        
+        // Draw melee swing arc
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(255, 100, 100, ${alpha * 0.3})`;
+        ctx.lineWidth = 3;
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, attack.radius, -Math.PI/6, Math.PI/6);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.restore();
+    });
+}
+
 // Event Listeners
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -669,8 +926,11 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 refreshShopBtn.addEventListener('click', () => {
+    if (gameState !== 'shop') return;
+    
     if (gold >= CONFIG.SHOP.REFRESH_COST) {
         gold -= CONFIG.SHOP.REFRESH_COST;
+        currentShopItems = refreshShopItems(); // Only refresh when button clicked
         initShop();
         updateUI();
         showMessage('Shop refreshed!');
@@ -708,9 +968,13 @@ function restartGame() {
         criticalChance: 0,
         lifeSteal: 0,
         goldMultiplier: 1,
-        explosiveDamage: 0,
-        weapons: [],
-        projectiles: []
+        cleave: 0,
+        bleed: 0,
+        pierce: 0,
+        homing: 0,
+        weapons: Array(6).fill(null),
+        projectiles: [],
+        meleeAttacks: []
     });
     
     // Reset game state
@@ -719,6 +983,9 @@ function restartGame() {
     kills = 0;
     monsters = [];
     gameState = 'shop';
+    
+    // Clear shop items
+    currentShopItems = [];
     
     // Reset UI
     updateUI();
@@ -731,11 +998,6 @@ function restartGame() {
 
 // Initialize Game
 function initGame() {
-    initWeaponSlots();
-    initShop();
-    updateUI();
-    gameLoop();
-    
     // Add CSS animation for fadeOut
     const style = document.createElement('style');
     style.textContent = `
@@ -746,6 +1008,12 @@ function initGame() {
         }
     `;
     document.head.appendChild(style);
+    
+    // Initialize everything
+    initWeaponSlots();
+    initShop();
+    updateUI();
+    gameLoop();
 }
 
 // Start the game
