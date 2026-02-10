@@ -467,6 +467,27 @@
             color: #aaaaff;
             font-size: 0.9rem;
         }
+        
+        .spawn-indicator {
+            position: absolute;
+            color: #ff0000;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+            z-index: 5;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .next-wave-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -531,6 +552,9 @@
             <div class="panel-section">
                 <h3 class="section-title">Shop (4 Items)</h3>
                 <div class="shop-items" id="shopItems"></div>
+                <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
+                    <span class="icon">⚔️</span> Start Next Wave
+                </button>
                 <div class="instructions">
                     Buy items to fill empty slots. Purchased items are replaced with empty slots.
                 </div>
