@@ -23,7 +23,7 @@ let inventory = {
 
 // Game Objects
 const player = {
-    x: 400,
+    x: 450,
     y: 300,
     radius: 20,
     health: GAME_DATA.PLAYER_START.health,
@@ -50,7 +50,7 @@ const player = {
 };
 
 let monsters = [];
-let mouseX = 400;
+let mouseX = 450;
 let mouseY = 300;
 
 // DOM Elements
@@ -78,7 +78,6 @@ const weaponAttackSpeed = document.getElementById('weaponAttackSpeed');
 const weaponRange = document.getElementById('weaponRange');
 const weaponTier = document.getElementById('weaponTier');
 const weaponType = document.getElementById('weaponType');
-const inventoryGrid = document.getElementById('inventoryGrid');
 const tabButtons = document.querySelectorAll('.tab-btn');
 const autoMergeBtn = document.getElementById('autoMergeBtn');
 const sortWeaponsBtn = document.getElementById('sortWeaponsBtn');
@@ -97,7 +96,7 @@ const healthFill = document.getElementById('healthFill');
 function initGame() {
     // Reset player
     Object.assign(player, {
-        x: 400,
+        x: 450,
         y: 300,
         radius: 20,
         health: GAME_DATA.PLAYER_START.health,
@@ -157,7 +156,7 @@ function initGame() {
     reloadIndicator.style.display = 'none';
     weaponStats.style.display = 'none';
     
-    // Set active tab
+    // Set active tab to weapons
     tabButtons.forEach(btn => {
         if (btn.dataset.tab === 'weapons') {
             btn.classList.add('active');
@@ -165,6 +164,15 @@ function initGame() {
             btn.classList.remove('active');
         }
     });
+    
+    // Create items grid if it doesn't exist
+    if (!document.getElementById('itemsGrid')) {
+        const itemsTabContent = document.querySelector('.inventory-tab-content[data-tab="items"]');
+        const itemsGrid = document.createElement('div');
+        itemsGrid.id = 'itemsGrid';
+        itemsGrid.className = 'inventory-grid';
+        itemsTabContent.appendChild(itemsGrid);
+    }
     
     // Start first wave
     startWave();
@@ -238,7 +246,7 @@ function updateSpawnInfoDisplay() {
         const groupTypes = getMonsterTypesForGroup(index);
         info += `<div class="spawn-group">Group ${index + 1}: ${count} monsters`;
         if (groupTypes.length > 0) {
-            info += ` (${groupTypes.map(t => GAME_DATA.MONSTER_TYPES[t].icon).join(' ')})`;
+            info += ` (${groupTypes.map(t => GAME_DATA.MONSTER_TYPES[t]?.icon || '👹').join(' ')})`;
         }
         info += `</div>`;
     });
@@ -756,52 +764,134 @@ function addToInventory(category, item) {
     }
 }
 
-// Update inventory display
+// Update inventory display for different tabs
 function updateInventoryDisplay(tab) {
+    // Hide all tab contents
+    document.querySelectorAll('.inventory-tab-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    
+    // Show active tab content
+    const activeContent = document.querySelector(`.inventory-tab-content[data-tab="${tab}"]`);
+    if (activeContent) {
+        activeContent.style.display = 'block';
+    }
+    
+    // Update the specific tab
+    if (tab === 'weapons') {
+        updateWeaponsInventory();
+    } else if (tab === 'items') {
+        updateItemsInventory();
+    }
+}
+
+// Update weapons inventory
+function updateWeaponsInventory() {
+    const inventoryGrid = document.getElementById('inventoryGrid');
     inventoryGrid.innerHTML = '';
     
-    const items = inventory[tab];
-    
-    if (items.length === 0) {
+    if (inventory.weapons.length === 0) {
         const emptyMsg = document.createElement('div');
         emptyMsg.style.gridColumn = '1 / -1';
         emptyMsg.style.textAlign = 'center';
         emptyMsg.style.padding = '20px';
         emptyMsg.style.color = '#5555aa';
-        emptyMsg.textContent = `No ${tab} in inventory`;
+        emptyMsg.textContent = 'No weapons in inventory';
         inventoryGrid.appendChild(emptyMsg);
         return;
     }
     
-    items.forEach((item, index) => {
+    // Group weapons by type for display
+    const weaponGroups = {};
+    inventory.weapons.forEach((weapon, index) => {
+        const key = `${weapon.icon} ${weapon.getDisplayName()}`;
+        if (!weaponGroups[key]) {
+            weaponGroups[key] = {
+                weapon: weapon,
+                count: 1,
+                indices: [index]
+            };
+        } else {
+            weaponGroups[key].count++;
+            weaponGroups[key].indices.push(index);
+        }
+    });
+    
+    // Display grouped weapons
+    Object.values(weaponGroups).forEach((group, groupIndex) => {
         const slot = document.createElement('div');
         slot.className = 'inventory-slot';
+        slot.classList.add('occupied');
         
-        if (tab === 'weapons') {
-            slot.classList.add('occupied');
-            if (item.tier >= 2) {
-                slot.classList.add(`tier-${item.tier}`);
-            }
-            
-            slot.innerHTML = `
-                <div>${item.icon}</div>
-                ${item.tier > 1 ? `<div class="tier-badge">${item.tier}</div>` : ''}
-                <div class="inventory-count">${item.count || 1}</div>
-            `;
-            
-            slot.addEventListener('click', () => equipWeaponFromInventory(index));
-        } else {
-            slot.classList.add('occupied');
-            slot.innerHTML = `
-                <div>${item.icon}</div>
-                <div class="inventory-count">${item.count || 1}</div>
-            `;
-            
-            slot.addEventListener('click', () => useItemFromInventory(index));
+        if (group.weapon.tier >= 2) {
+            slot.classList.add(`tier-${group.weapon.tier}`);
         }
+        
+        slot.innerHTML = `
+            <div>${group.weapon.icon}</div>
+            ${group.weapon.tier > 1 ? `<div class="tier-badge">${group.weapon.tier}</div>` : ''}
+            <div class="inventory-count">${group.count}</div>
+        `;
+        
+        slot.addEventListener('click', () => equipWeaponFromInventory(group.indices[0]));
         
         inventoryGrid.appendChild(slot);
     });
+    
+    // Fill empty slots
+    const totalSlots = 10;
+    const usedSlots = Object.keys(weaponGroups).length;
+    
+    for (let i = usedSlots; i < totalSlots; i++) {
+        const emptySlot = document.createElement('div');
+        emptySlot.className = 'inventory-slot';
+        emptySlot.innerHTML = '<div style="color: #5555aa; font-size: 1.2rem;">+</div>';
+        inventoryGrid.appendChild(emptySlot);
+    }
+}
+
+// Update items inventory
+function updateItemsInventory() {
+    const itemsGrid = document.getElementById('itemsGrid');
+    itemsGrid.innerHTML = '';
+    
+    if (inventory.items.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.style.gridColumn = '1 / -1';
+        emptyMsg.style.textAlign = 'center';
+        emptyMsg.style.padding = '20px';
+        emptyMsg.style.color = '#5555aa';
+        emptyMsg.textContent = 'No items in inventory';
+        itemsGrid.appendChild(emptyMsg);
+        return;
+    }
+    
+    // Display items
+    inventory.items.forEach((item, index) => {
+        const slot = document.createElement('div');
+        slot.className = 'inventory-slot';
+        slot.classList.add('occupied');
+        
+        slot.innerHTML = `
+            <div>${item.icon}</div>
+            <div class="inventory-count">${item.count || 1}</div>
+        `;
+        
+        slot.addEventListener('click', () => useItemFromInventory(index));
+        
+        itemsGrid.appendChild(slot);
+    });
+    
+    // Fill empty slots
+    const totalSlots = 10;
+    const usedSlots = inventory.items.length;
+    
+    for (let i = usedSlots; i < totalSlots; i++) {
+        const emptySlot = document.createElement('div');
+        emptySlot.className = 'inventory-slot';
+        emptySlot.innerHTML = '<div style="color: #5555aa; font-size: 1.2rem;">+</div>';
+        itemsGrid.appendChild(emptySlot);
+    }
 }
 
 // Equip weapon from inventory
@@ -825,8 +915,23 @@ function equipWeaponFromInventory(inventoryIndex, weaponSlotIndex = -1) {
     player.weapons.splice(weaponSlotIndex, 0, weapon);
     
     // Remove from inventory
-    if (weapon.count && weapon.count > 1) {
-        weapon.count--;
+    const weaponGroup = findWeaponGroup(inventoryIndex);
+    if (weaponGroup && weaponGroup.count > 1) {
+        weaponGroup.count--;
+        // Remove one instance from the indices array
+        const instanceIndex = weaponGroup.indices.indexOf(inventoryIndex);
+        if (instanceIndex > -1) {
+            weaponGroup.indices.splice(instanceIndex, 1);
+        }
+        // If this was the last instance of this weapon type, remove from inventory
+        if (weaponGroup.count === 0) {
+            const actualIndex = inventory.weapons.findIndex(w => 
+                w.id === weapon.id && w.tier === weapon.tier
+            );
+            if (actualIndex > -1) {
+                inventory.weapons.splice(actualIndex, 1);
+            }
+        }
     } else {
         inventory.weapons.splice(inventoryIndex, 1);
     }
@@ -835,6 +940,32 @@ function equipWeaponFromInventory(inventoryIndex, weaponSlotIndex = -1) {
     
     updateWeaponDisplay();
     updateInventoryDisplay('weapons');
+}
+
+// Find weapon group for inventory display
+function findWeaponGroup(inventoryIndex) {
+    const weapon = inventory.weapons[inventoryIndex];
+    if (!weapon) return null;
+    
+    let currentIndex = 0;
+    const weaponGroups = {};
+    
+    inventory.weapons.forEach((w, idx) => {
+        const key = `${w.icon} ${w.getDisplayName()}`;
+        if (!weaponGroups[key]) {
+            weaponGroups[key] = {
+                weapon: w,
+                count: 1,
+                indices: [idx]
+            };
+        } else {
+            weaponGroups[key].count++;
+            weaponGroups[key].indices.push(idx);
+        }
+    });
+    
+    const key = `${weapon.icon} ${weapon.getDisplayName()}`;
+    return weaponGroups[key] || null;
 }
 
 // Use item from inventory
@@ -909,6 +1040,7 @@ function throwGrenade(x, y) {
                 monsters.splice(index, 1);
                 kills++;
                 const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
+                if (monster.isBoss) goldEarned *= 5;
                 gold += goldEarned;
                 createGoldPopup(monster.x, monster.y, goldEarned);
             }
@@ -2056,6 +2188,12 @@ document.addEventListener('keydown', (e) => {
         const index = parseInt(e.key) - 1;
         if (index < player.weapons.length && (gameState === 'shop' || gameState === 'statSelect')) {
             selectWeapon(index);
+        }
+    } else if (e.key === 'g' || e.key === 'G') {
+        // G to throw grenade if you have one
+        const grenade = inventory.items.find(item => item.id === 'grenade');
+        if (grenade && gameState === 'wave') {
+            useItemFromInventory(inventory.items.indexOf(grenade));
         }
     }
 });
