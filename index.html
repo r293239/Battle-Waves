@@ -21,17 +21,16 @@
         }
 
         .container {
-            max-width: 1800px;
+            max-width: 1400px;
             margin: 0 auto;
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
+            display: flex;
+            flex-direction: column;
             gap: 20px;
         }
 
         .game-header {
-            grid-column: 1 / -1;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             padding: 20px;
             background: rgba(30, 30, 60, 0.8);
             border-radius: 15px;
@@ -53,8 +52,14 @@
             font-size: 1.2rem;
         }
 
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            min-height: 600px;
+        }
+
         .game-area {
-            grid-column: 1;
             position: relative;
         }
 
@@ -65,12 +70,15 @@
             overflow: hidden;
             border: 3px solid #4a4a9a;
             box-shadow: 0 0 30px rgba(74, 74, 154, 0.3);
+            height: 100%;
             min-height: 600px;
         }
 
         canvas {
             display: block;
             background: #0a0a1a;
+            width: 100%;
+            height: 100%;
         }
 
         .wave-display {
@@ -87,6 +95,12 @@
             transition: opacity 0.5s;
         }
 
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
         .ui-panel {
             background: rgba(30, 30, 60, 0.8);
             border-radius: 15px;
@@ -95,14 +109,18 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            max-height: 600px;
-            overflow-y: auto;
+            flex: 1;
         }
 
         .inventory-panel {
-            grid-column: 3;
-            max-height: 600px;
-            overflow-y: auto;
+            margin-top: 20px;
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #4a4a9a;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
 
         .panel-section {
@@ -745,10 +763,10 @@
 
         .inventory-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(10, 1fr);
             gap: 8px;
             margin-top: 10px;
-            max-height: 200px;
+            max-height: 120px;
             overflow-y: auto;
             padding-right: 5px;
         }
@@ -823,6 +841,9 @@
             border-radius: 8px;
             font-size: 0.9rem;
             color: #aaaaff;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
         }
 
         .monster-type-icon {
@@ -846,11 +867,27 @@
             border-radius: 5px;
         }
 
+        .inventory-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .inventory-controls .btn {
+            flex: 1;
+        }
+
         @media (max-width: 1200px) {
-            .container {
+            .main-content {
                 grid-template-columns: 1fr;
             }
             
+            .inventory-grid {
+                grid-template-columns: repeat(8, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
             .game-title {
                 font-size: 2.5rem;
             }
@@ -860,6 +897,14 @@
             }
             
             .stat-buffs {
+                grid-template-columns: 1fr;
+            }
+            
+            .inventory-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+            
+            .monster-info {
                 grid-template-columns: 1fr;
             }
         }
@@ -875,130 +920,140 @@
             <p class="game-subtitle">Survive waves of monsters, upgrade your stats, and buy powerful weapons!</p>
         </div>
 
-        <div class="game-area">
-            <div class="canvas-container">
-                <div class="wave-display" id="waveDisplay">Wave 1</div>
-                <div class="monster-count" id="monsterCount"></div>
-                <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="main-content">
+            <div class="game-area">
+                <div class="canvas-container">
+                    <div class="wave-display" id="waveDisplay">Wave 1</div>
+                    <div class="monster-count" id="monsterCount"></div>
+                    <canvas id="gameCanvas" width="900" height="600"></canvas>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="ui-panel">
+                    <div class="panel-section">
+                        <h3 class="section-title">Player Stats</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Health</div>
+                                <div class="stat-value" id="healthValue">20/20</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Damage</div>
+                                <div class="stat-value" id="damageValue">5</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Speed</div>
+                                <div class="stat-value" id="speedValue">3</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Gold</div>
+                                <div class="stat-value" id="goldValue">50</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Wave</div>
+                                <div class="stat-value" id="waveValue">1</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Kills</div>
+                                <div class="stat-value" id="killsValue">0</div>
+                            </div>
+                        </div>
+                        <div class="health-container">
+                            <div class="stat-label">Health Bar</div>
+                            <div class="health-bar">
+                                <div class="health-fill" id="healthFill"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3 class="section-title">Weapons (6 Slots)</h3>
+                        <div class="weapons-grid" id="weaponsGrid"></div>
+                        <button class="btn btn-danger scrap-weapon-btn" id="scrapWeaponBtn" style="display: none;">
+                            <span class="icon">🗑️</span> Scrap Selected Weapon
+                        </button>
+                        <button class="btn btn-success merge-weapon-btn" id="mergeWeaponBtn" style="display: none;">
+                            <span class="icon">🔄</span> Merge With Selected Weapon
+                        </button>
+                        <div class="weapon-stats" id="weaponStats" style="display: none;">
+                            <div class="weapon-stat-row">
+                                <span class="weapon-stat-name">Damage:</span>
+                                <span class="weapon-stat-value" id="weaponDamage">0</span>
+                            </div>
+                            <div class="weapon-stat-row">
+                                <span class="weapon-stat-name">Attack Speed:</span>
+                                <span class="weapon-stat-value" id="weaponAttackSpeed">0/s</span>
+                            </div>
+                            <div class="weapon-stat-row">
+                                <span class="weapon-stat-name">Range:</span>
+                                <span class="weapon-stat-value" id="weaponRange">0</span>
+                            </div>
+                            <div class="weapon-stat-row">
+                                <span class="weapon-stat-name">Tier:</span>
+                                <span class="weapon-stat-value" id="weaponTier">1</span>
+                            </div>
+                            <div class="weapon-stat-row">
+                                <span class="weapon-stat-name">Type:</span>
+                                <span class="weapon-stat-value" id="weaponType">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui-panel">
+                    <div class="panel-section">
+                        <h3 class="section-title">Shop (4 Items)</h3>
+                        <div class="shop-items" id="shopItems"></div>
+                        <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
+                            <span class="icon">⚔️</span> Start Next Wave
+                        </button>
+                        <div class="wave-spawn-info" id="waveSpawnInfo"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="ui-panel">
-            <div class="panel-section">
-                <h3 class="section-title">Player Stats</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-label">Health</div>
-                        <div class="stat-value" id="healthValue">20/20</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Damage</div>
-                        <div class="stat-value" id="damageValue">5</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Speed</div>
-                        <div class="stat-value" id="speedValue">3</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Gold</div>
-                        <div class="stat-value" id="goldValue">50</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Wave</div>
-                        <div class="stat-value" id="waveValue">1</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Kills</div>
-                        <div class="stat-value" id="killsValue">0</div>
-                    </div>
-                </div>
-                <div class="health-container">
-                    <div class="stat-label">Health Bar</div>
-                    <div class="health-bar">
-                        <div class="health-fill" id="healthFill"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <h3 class="section-title">Weapons (6 Slots)</h3>
-                <div class="weapons-grid" id="weaponsGrid"></div>
-                <button class="btn btn-danger scrap-weapon-btn" id="scrapWeaponBtn" style="display: none;">
-                    <span class="icon">🗑️</span> Scrap Selected Weapon (50% gold back)
-                </button>
-                <button class="btn btn-success merge-weapon-btn" id="mergeWeaponBtn" style="display: none;">
-                    <span class="icon">🔄</span> Merge With Selected Weapon (Tier {tier} → Tier {tier+1})
-                </button>
-                <div class="weapon-stats" id="weaponStats" style="display: none;">
-                    <div class="weapon-stat-row">
-                        <span class="weapon-stat-name">Damage:</span>
-                        <span class="weapon-stat-value" id="weaponDamage">0</span>
-                    </div>
-                    <div class="weapon-stat-row">
-                        <span class="weapon-stat-name">Attack Speed:</span>
-                        <span class="weapon-stat-value" id="weaponAttackSpeed">0/s</span>
-                    </div>
-                    <div class="weapon-stat-row">
-                        <span class="weapon-stat-name">Range:</span>
-                        <span class="weapon-stat-value" id="weaponRange">0</span>
-                    </div>
-                    <div class="weapon-stat-row">
-                        <span class="weapon-stat-name">Tier:</span>
-                        <span class="weapon-stat-value" id="weaponTier">1</span>
-                    </div>
-                    <div class="weapon-stat-row">
-                        <span class="weapon-stat-name">Type:</span>
-                        <span class="weapon-stat-value" id="weaponType">-</span>
-                    </div>
-                </div>
-                <div class="instructions">
-                    Click a weapon to select it. Click another same-type weapon to merge (Tier 1-5).<br>
-                    Merging improves damage, attack speed, and special effects.
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <h3 class="section-title">Shop (4 Items)</h3>
-                <div class="shop-items" id="shopItems"></div>
-                <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
-                    <span class="icon">⚔️</span> Start Next Wave
-                </button>
-                <div class="wave-spawn-info" id="waveSpawnInfo"></div>
-            </div>
-        </div>
-
-        <div class="ui-panel inventory-panel">
+        <!-- Inventory at the bottom -->
+        <div class="inventory-panel">
             <div class="panel-section">
                 <h3 class="section-title">Inventory</h3>
                 <div class="inventory-tabs">
                     <button class="tab-btn active" data-tab="weapons">Weapons</button>
                     <button class="tab-btn" data-tab="items">Items</button>
+                    <button class="tab-btn" data-tab="info">Monster Info</button>
                 </div>
-                <div class="inventory-grid" id="inventoryGrid"></div>
-                <div class="monster-info" id="monsterInfo">
-                    <div><span class="monster-type-icon">👹</span> Normal: Melee attackers</div>
-                    <div><span class="monster-type-icon">🏹</span> Ranged: Attacks from distance</div>
-                    <div><span class="monster-type-icon">⚡</span> Fast: Moves quickly</div>
-                    <div><span class="monster-type-icon">🛡️</span> Tank: High health, slow</div>
-                </div>
-            </div>
-            
-            <div class="panel-section">
-                <h3 class="section-title">Controls</h3>
-                <div class="controls">
-                    <button class="btn btn-secondary" id="autoMergeBtn">
-                        <span class="icon">🔄</span> Auto-Merge (50g)
-                    </button>
-                    <button class="btn btn-secondary" id="sortWeaponsBtn">
-                        <span class="icon">↕️</span> Sort Weapons
-                    </button>
-                </div>
-                <div class="instructions">
-                    <strong>Shortcuts:</strong><br>
-                    R - Reload weapons<br>
-                    M - Auto-merge weapons<br>
-                    S - Sort weapons<br>
-                    Space - Start next wave
+                
+                <div class="inventory-content">
+                    <div class="inventory-tab-content" data-tab="weapons">
+                        <div class="inventory-grid" id="inventoryGrid"></div>
+                        <div class="inventory-controls">
+                            <button class="btn btn-secondary" id="autoMergeBtn">
+                                <span class="icon">🔄</span> Auto-Merge (50g)
+                            </button>
+                            <button class="btn btn-secondary" id="sortWeaponsBtn">
+                                <span class="icon">↕️</span> Sort Weapons
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="inventory-tab-content" data-tab="items" style="display: none;">
+                        <div class="inventory-grid" id="itemsGrid"></div>
+                    </div>
+                    
+                    <div class="inventory-tab-content" data-tab="info" style="display: none;">
+                        <div class="monster-info">
+                            <div><span class="monster-type-icon">👹</span> <strong>Normal:</strong> Basic melee attacker</div>
+                            <div><span class="monster-type-icon">⚡</span> <strong>Fast:</strong> Moves quickly, lower health</div>
+                            <div><span class="monster-type-icon">🏹</span> <strong>Ranged:</strong> Attacks from distance</div>
+                            <div><span class="monster-type-icon">🛡️</span> <strong>Tank:</strong> High health, slow</div>
+                            <div><span class="monster-type-icon">👑</span> <strong>Boss:</strong> Every 10 waves, massive health/damage</div>
+                            <div><span class="monster-type-icon">💥</span> <strong>Wave System:</strong> Monsters spawn in groups</div>
+                        </div>
+                        <div class="instructions">
+                            <strong>Controls:</strong> Move with mouse | R: Reload | M: Auto-merge | S: Sort | Space: Next wave
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
