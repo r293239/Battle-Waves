@@ -13,17 +13,10 @@ let selectedWeaponIndex = -1;
 let visualEffects = [];
 let mergeTargetIndex = -1;
 let lastFrameTime = Date.now();
-let waveSpawnGroups = [];
-let currentSpawnGroup = 0;
-let spawnTimer = 0;
-let inventory = {
-    weapons: [],
-    items: []
-};
 
 // Game Objects
 const player = {
-    x: 450,
+    x: 400,
     y: 300,
     radius: 20,
     health: GAME_DATA.PLAYER_START.health,
@@ -45,12 +38,12 @@ const player = {
     projectiles: [],
     meleeAttacks: [],
     
-    // Monster projectiles (for ranged monsters)
-    monsterProjectiles: []
+    // Ammo
+    ammoPack: false
 };
 
 let monsters = [];
-let mouseX = 450;
+let mouseX = 400;
 let mouseY = 300;
 
 // DOM Elements
@@ -72,16 +65,6 @@ const scrapWeaponBtn = document.getElementById('scrapWeaponBtn');
 const mergeWeaponBtn = document.getElementById('mergeWeaponBtn');
 const mergeInfo = document.getElementById('mergeInfo');
 const reloadIndicator = document.getElementById('reloadIndicator');
-const weaponStats = document.getElementById('weaponStats');
-const weaponDamage = document.getElementById('weaponDamage');
-const weaponAttackSpeed = document.getElementById('weaponAttackSpeed');
-const weaponRange = document.getElementById('weaponRange');
-const weaponTier = document.getElementById('weaponTier');
-const weaponType = document.getElementById('weaponType');
-const tabButtons = document.querySelectorAll('.tab-btn');
-const autoMergeBtn = document.getElementById('autoMergeBtn');
-const sortWeaponsBtn = document.getElementById('sortWeaponsBtn');
-const waveSpawnInfo = document.getElementById('waveSpawnInfo');
 
 // UI Elements
 const healthValue = document.getElementById('healthValue');
@@ -96,7 +79,7 @@ const healthFill = document.getElementById('healthFill');
 function initGame() {
     // Reset player
     Object.assign(player, {
-        x: 450,
+        x: 400,
         y: 300,
         radius: 20,
         health: GAME_DATA.PLAYER_START.health,
@@ -113,7 +96,7 @@ function initGame() {
         weapons: [],
         projectiles: [],
         meleeAttacks: [],
-        monsterProjectiles: []
+        ammoPack: false
     });
     
     // Give starting weapon
@@ -128,20 +111,12 @@ function initGame() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     visualEffects = [];
-    inventory = {
-        weapons: [],
-        items: []
-    };
     
     // Clear game objects
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
-    player.monsterProjectiles = [];
     spawnIndicators = [];
-    waveSpawnGroups = [];
-    currentSpawnGroup = 0;
-    spawnTimer = 0;
     
     // Generate initial shop
     shopItems = generateShopItems();
@@ -154,25 +129,6 @@ function initGame() {
     mergeWeaponBtn.style.display = 'none';
     mergeInfo.style.display = 'none';
     reloadIndicator.style.display = 'none';
-    weaponStats.style.display = 'none';
-    
-    // Set active tab to weapons
-    tabButtons.forEach(btn => {
-        if (btn.dataset.tab === 'weapons') {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
-    
-    // Create items grid if it doesn't exist
-    if (!document.getElementById('itemsGrid')) {
-        const itemsTabContent = document.querySelector('.inventory-tab-content[data-tab="items"]');
-        const itemsGrid = document.createElement('div');
-        itemsGrid.id = 'itemsGrid';
-        itemsGrid.className = 'inventory-grid';
-        itemsTabContent.appendChild(itemsGrid);
-    }
     
     // Start first wave
     startWave();
@@ -181,7 +137,6 @@ function initGame() {
     updateUI();
     updateWeaponDisplay();
     updateShopDisplay();
-    updateInventoryDisplay('weapons');
 }
 
 // Show spawn indicators
@@ -189,10 +144,7 @@ function showSpawnIndicators() {
     const waveConfig = getWaveConfig(wave);
     spawnIndicators = [];
     
-    // Calculate spawn groups for this wave
-    calculateSpawnGroups();
-    
-    for (let i = 0; i < waveSpawnGroups[currentSpawnGroup]; i++) {
+    for (let i = 0; i < waveConfig.monsters; i++) {
         const side = Math.floor(Math.random() * 4);
         let x, y;
         
@@ -211,71 +163,6 @@ function showSpawnIndicators() {
     }
 }
 
-// Calculate spawn groups for the wave
-function calculateSpawnGroups() {
-    const waveConfig = getWaveConfig(wave);
-    
-    if (waveConfig.boss) {
-        // Boss wave: single boss monster
-        waveSpawnGroups = [1];
-    } else {
-        // Normal wave: split monsters into groups
-        const groupSize = Math.min(8, Math.max(3, Math.floor(waveConfig.monsters / 3)));
-        const groups = Math.ceil(waveConfig.monsters / groupSize);
-        waveSpawnGroups = [];
-        
-        for (let i = 0; i < groups; i++) {
-            const remainingMonsters = waveConfig.monsters - waveSpawnGroups.reduce((a, b) => a + b, 0);
-            const thisGroupSize = i === groups - 1 ? remainingMonsters : groupSize;
-            waveSpawnGroups.push(thisGroupSize);
-        }
-    }
-    
-    currentSpawnGroup = 0;
-    spawnTimer = 0;
-    
-    // Update spawn info display
-    updateSpawnInfoDisplay();
-}
-
-// Update spawn info display
-function updateSpawnInfoDisplay() {
-    let info = `Wave ${wave}: ${waveSpawnGroups.length} spawn groups<br>`;
-    
-    waveSpawnGroups.forEach((count, index) => {
-        const groupTypes = getMonsterTypesForGroup(index);
-        info += `<div class="spawn-group">Group ${index + 1}: ${count} monsters`;
-        if (groupTypes.length > 0) {
-            info += ` (${groupTypes.map(t => GAME_DATA.MONSTER_TYPES[t]?.icon || '👹').join(' ')})`;
-        }
-        info += `</div>`;
-    });
-    
-    waveSpawnInfo.innerHTML = info;
-}
-
-// Get monster types for a spawn group
-function getMonsterTypesForGroup(groupIndex) {
-    const types = [];
-    const waveConfig = getWaveConfig(wave);
-    
-    // Boss wave
-    if (waveConfig.boss) {
-        return ['boss'];
-    }
-    
-    // Early waves have more normal monsters
-    if (wave < 5) {
-        types.push('normal', 'normal', 'normal', 'fast');
-    } else if (wave < 10) {
-        types.push('normal', 'normal', 'fast', 'tank');
-    } else {
-        types.push('normal', 'fast', 'tank', 'ranged');
-    }
-    
-    return types.slice(0, Math.min(3, waveSpawnGroups[groupIndex]));
-}
-
 // Start wave
 function startWave() {
     gameState = 'wave';
@@ -287,7 +174,6 @@ function startWave() {
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
-    player.monsterProjectiles = [];
     visualEffects = [];
     
     // Hide buttons during wave
@@ -295,10 +181,17 @@ function startWave() {
     mergeWeaponBtn.style.display = 'none';
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
-    weaponStats.style.display = 'none';
     
-    // Show spawn indicators for first group
+    // Show spawn indicators
     showSpawnIndicators();
+    
+    // Spawn monsters after delay
+    setTimeout(() => {
+        for (let i = 0; i < waveConfig.monsters; i++) {
+            spawnMonster();
+        }
+        spawnIndicators = [];
+    }, 2000);
     
     // Fade out wave display
     setTimeout(() => {
@@ -307,7 +200,7 @@ function startWave() {
 }
 
 // Spawn monster
-function spawnMonster(type) {
+function spawnMonster() {
     const waveConfig = getWaveConfig(wave);
     const side = Math.floor(Math.random() * 4);
     let x, y;
@@ -319,46 +212,18 @@ function spawnMonster(type) {
         case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
     }
     
-    const monsterType = waveConfig.boss ? 'boss' : (type || getRandomMonsterType(wave));
-    const typeData = monsterType === 'boss' ? {
-        name: "Boss",
-        icon: "👑",
-        healthMultiplier: 10,
-        damageMultiplier: 3,
-        speedMultiplier: 0.8,
-        radius: 40,
-        color: '#FF0000',
-        attackRange: 150,
-        projectileSpeed: 8,
-        attackCooldown: 3000
-    } : GAME_DATA.MONSTER_TYPES[monsterType];
-    
-    const monster = {
+    monsters.push({
         x, y,
-        radius: typeData.radius,
-        health: Math.floor(waveConfig.monsterHealth * typeData.healthMultiplier),
-        maxHealth: Math.floor(waveConfig.monsterHealth * typeData.healthMultiplier),
-        damage: Math.floor(waveConfig.monsterDamage * typeData.damageMultiplier),
-        speed: (1 + wave * 0.1) * typeData.speedMultiplier,
-        color: typeData.color,
-        type: monsterType,
+        radius: 15 + Math.random() * 10,
+        health: waveConfig.monsterHealth,
+        maxHealth: waveConfig.monsterHealth,
+        damage: waveConfig.monsterDamage,
+        speed: 1 + wave * 0.1,
+        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+        type: Math.random() > 0.7 ? 'fast' : 'normal',
         lastAttack: 0,
-        attackCooldown: typeData.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        icon: typeData.icon,
-        name: typeData.name,
-        isBoss: monsterType === 'boss'
-    };
-    
-    // Add special properties for ranged monsters
-    if (monsterType === 'ranged' || monsterType === 'boss') {
-        monster.attackRange = typeData.attackRange;
-        monster.projectileSpeed = typeData.projectileSpeed;
-        monster.lastRangedAttack = 0;
-        monster.rangedAttackCooldown = typeData.attackCooldown || 2000;
-    }
-    
-    monsters.push(monster);
-    return monster;
+        attackCooldown: GAME_DATA.MONSTER_ATTACK_COOLDOWN
+    });
 }
 
 // Update UI
@@ -381,8 +246,7 @@ function updateUI() {
         healthFill.style.background = 'linear-gradient(90deg, #ff416c, #ff4b2b)';
     }
     
-    const remainingMonsters = monsters.length + waveSpawnGroups.slice(currentSpawnGroup).reduce((a, b) => a + b, 0);
-    monsterCount.textContent = `Monsters: ${remainingMonsters}`;
+    monsterCount.textContent = `Monsters: ${monsters.length}`;
 }
 
 // Update weapon display
@@ -405,11 +269,6 @@ function updateWeaponDisplay() {
             if (mergeTargetIndex === i) {
                 slot.style.borderColor = '#00ff00';
                 slot.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.5)';
-            }
-            
-            // Add tier-based border color
-            if (weapon.tier >= 2) {
-                slot.classList.add(`tier-${weapon.tier}`);
             }
             
             // Calculate cooldown percentage
@@ -444,7 +303,6 @@ function updateWeaponDisplay() {
             slot.addEventListener('click', () => selectWeapon(i));
         } else {
             slot.innerHTML = '<div class="empty-slot">+</div>';
-            slot.addEventListener('click', () => equipWeaponFromInventory(i));
         }
         
         weaponsGrid.appendChild(slot);
@@ -467,9 +325,6 @@ function selectWeapon(index) {
         mergeWeaponBtn.style.display = 'none';
         mergeInfo.style.display = 'none';
         mergeTargetIndex = -1;
-        
-        // Show weapon stats
-        showWeaponStats(weapon);
     } else if (selectedWeaponIndex === index) {
         // Clicked same weapon again, deselect
         selectedWeaponIndex = -1;
@@ -477,7 +332,6 @@ function selectWeapon(index) {
         mergeWeaponBtn.style.display = 'none';
         mergeInfo.style.display = 'none';
         mergeTargetIndex = -1;
-        weaponStats.style.display = 'none';
     } else {
         // Second weapon selected for merging
         const firstWeapon = player.weapons[selectedWeaponIndex];
@@ -511,24 +365,10 @@ function selectWeapon(index) {
             mergeWeaponBtn.style.display = 'none';
             mergeInfo.style.display = 'none';
             mergeTargetIndex = -1;
-            
-            // Show weapon stats
-            showWeaponStats(weapon);
         }
     }
     
     updateWeaponDisplay();
-}
-
-// Show weapon stats
-function showWeaponStats(weapon) {
-    const stats = weapon.getStats();
-    weaponDamage.textContent = stats.damage;
-    weaponAttackSpeed.textContent = stats.attackSpeed + '/s';
-    weaponRange.textContent = stats.range;
-    weaponTier.textContent = stats.tier;
-    weaponType.textContent = stats.type;
-    weaponStats.style.display = 'block';
 }
 
 // Merge selected weapons
@@ -576,7 +416,6 @@ function mergeWeapons() {
     mergeTargetIndex = -1;
     scrapWeaponBtn.style.display = 'none';
     mergeWeaponBtn.style.display = 'none';
-    weaponStats.style.display = 'none';
     
     showMessage(`Merged to create ${mergedWeapon.getDisplayName()}!`);
     
@@ -599,20 +438,15 @@ function scrapWeapon() {
     const scrapValue = weapon.getScrapValue();
     gold += scrapValue;
     
-    // Move weapon to inventory instead of destroying it
-    inventory.weapons.push(weapon);
-    
     player.weapons.splice(selectedWeaponIndex, 1);
     
     selectedWeaponIndex = -1;
     scrapWeaponBtn.style.display = 'none';
-    weaponStats.style.display = 'none';
     
-    showMessage(`Scrapped ${weapon.getDisplayName()} for ${scrapValue} gold! (Moved to inventory)`);
+    showMessage(`Scrapped ${weapon.getDisplayName()} for ${scrapValue} gold!`);
     
     updateUI();
     updateWeaponDisplay();
-    updateInventoryDisplay('weapons');
 }
 
 // Update shop display
@@ -685,23 +519,16 @@ function purchaseItem(index) {
     
     if (shopItem.type === 'weapon') {
         if (player.weapons.length >= 6) {
-            // Move to inventory instead
-            inventory.weapons.push(new WeaponInstance(data));
-            showMessage(`Purchased ${data.name}! (Moved to inventory - equip from inventory)`);
-        } else {
-            player.weapons.push(new WeaponInstance(data));
-            showMessage(`Purchased ${data.name}!`);
-        }
-    } else {
-        // Check if item already exists in inventory
-        const existingItem = inventory.items.find(item => item.id === data.id);
-        if (existingItem && existingItem.count >= data.maxStack) {
-            showMessage(`Cannot carry more than ${data.maxStack} ${data.name}s!`);
+            showMessage('No empty weapon slots!');
             gold += data.cost;
             return;
         }
         
-        applyItemEffect(data, false);
+        player.weapons.push(new WeaponInstance(data));
+        showMessage(`Purchased ${data.name}!`);
+        
+    } else {
+        applyItemEffect(data);
         showMessage(`Purchased ${data.name}!`);
     }
     
@@ -710,17 +537,13 @@ function purchaseItem(index) {
     updateUI();
     updateWeaponDisplay();
     updateShopDisplay();
-    updateInventoryDisplay('weapons');
 }
 
 // Apply item effect
-function applyItemEffect(item, fromInventory = true) {
+function applyItemEffect(item) {
     switch(item.id) {
         case 'health_potion':
             player.health = Math.min(player.maxHealth, player.health + 20);
-            if (!fromInventory) {
-                addToInventory('items', { id: item.id, name: item.name, icon: item.icon, count: 1 });
-            }
             break;
         case 'damage_orb':
             player.baseDamage += 5;
@@ -740,312 +563,9 @@ function applyItemEffect(item, fromInventory = true) {
                     weapon.isReloading = false;
                 }
             });
-            if (!fromInventory) {
-                addToInventory('items', { id: item.id, name: item.name, icon: item.icon, count: 1 });
-            }
             showMessage("All weapons reloaded!");
             break;
-        case 'grenade':
-            if (!fromInventory) {
-                addToInventory('items', { id: item.id, name: item.name, icon: item.icon, count: 1 });
-            }
-            break;
     }
-}
-
-// Add item to inventory
-function addToInventory(category, item) {
-    const existingItem = inventory[category].find(i => i.id === item.id);
-    
-    if (existingItem) {
-        existingItem.count = (existingItem.count || 1) + (item.count || 1);
-    } else {
-        inventory[category].push({ ...item, count: item.count || 1 });
-    }
-}
-
-// Update inventory display for different tabs
-function updateInventoryDisplay(tab) {
-    // Hide all tab contents
-    document.querySelectorAll('.inventory-tab-content').forEach(content => {
-        content.style.display = 'none';
-    });
-    
-    // Show active tab content
-    const activeContent = document.querySelector(`.inventory-tab-content[data-tab="${tab}"]`);
-    if (activeContent) {
-        activeContent.style.display = 'block';
-    }
-    
-    // Update the specific tab
-    if (tab === 'weapons') {
-        updateWeaponsInventory();
-    } else if (tab === 'items') {
-        updateItemsInventory();
-    }
-}
-
-// Update weapons inventory
-function updateWeaponsInventory() {
-    const inventoryGrid = document.getElementById('inventoryGrid');
-    inventoryGrid.innerHTML = '';
-    
-    if (inventory.weapons.length === 0) {
-        const emptyMsg = document.createElement('div');
-        emptyMsg.style.gridColumn = '1 / -1';
-        emptyMsg.style.textAlign = 'center';
-        emptyMsg.style.padding = '20px';
-        emptyMsg.style.color = '#5555aa';
-        emptyMsg.textContent = 'No weapons in inventory';
-        inventoryGrid.appendChild(emptyMsg);
-        return;
-    }
-    
-    // Group weapons by type for display
-    const weaponGroups = {};
-    inventory.weapons.forEach((weapon, index) => {
-        const key = `${weapon.icon} ${weapon.getDisplayName()}`;
-        if (!weaponGroups[key]) {
-            weaponGroups[key] = {
-                weapon: weapon,
-                count: 1,
-                indices: [index]
-            };
-        } else {
-            weaponGroups[key].count++;
-            weaponGroups[key].indices.push(index);
-        }
-    });
-    
-    // Display grouped weapons
-    Object.values(weaponGroups).forEach((group, groupIndex) => {
-        const slot = document.createElement('div');
-        slot.className = 'inventory-slot';
-        slot.classList.add('occupied');
-        
-        if (group.weapon.tier >= 2) {
-            slot.classList.add(`tier-${group.weapon.tier}`);
-        }
-        
-        slot.innerHTML = `
-            <div>${group.weapon.icon}</div>
-            ${group.weapon.tier > 1 ? `<div class="tier-badge">${group.weapon.tier}</div>` : ''}
-            <div class="inventory-count">${group.count}</div>
-        `;
-        
-        slot.addEventListener('click', () => equipWeaponFromInventory(group.indices[0]));
-        
-        inventoryGrid.appendChild(slot);
-    });
-    
-    // Fill empty slots
-    const totalSlots = 10;
-    const usedSlots = Object.keys(weaponGroups).length;
-    
-    for (let i = usedSlots; i < totalSlots; i++) {
-        const emptySlot = document.createElement('div');
-        emptySlot.className = 'inventory-slot';
-        emptySlot.innerHTML = '<div style="color: #5555aa; font-size: 1.2rem;">+</div>';
-        inventoryGrid.appendChild(emptySlot);
-    }
-}
-
-// Update items inventory
-function updateItemsInventory() {
-    const itemsGrid = document.getElementById('itemsGrid');
-    itemsGrid.innerHTML = '';
-    
-    if (inventory.items.length === 0) {
-        const emptyMsg = document.createElement('div');
-        emptyMsg.style.gridColumn = '1 / -1';
-        emptyMsg.style.textAlign = 'center';
-        emptyMsg.style.padding = '20px';
-        emptyMsg.style.color = '#5555aa';
-        emptyMsg.textContent = 'No items in inventory';
-        itemsGrid.appendChild(emptyMsg);
-        return;
-    }
-    
-    // Display items
-    inventory.items.forEach((item, index) => {
-        const slot = document.createElement('div');
-        slot.className = 'inventory-slot';
-        slot.classList.add('occupied');
-        
-        slot.innerHTML = `
-            <div>${item.icon}</div>
-            <div class="inventory-count">${item.count || 1}</div>
-        `;
-        
-        slot.addEventListener('click', () => useItemFromInventory(index));
-        
-        itemsGrid.appendChild(slot);
-    });
-    
-    // Fill empty slots
-    const totalSlots = 10;
-    const usedSlots = inventory.items.length;
-    
-    for (let i = usedSlots; i < totalSlots; i++) {
-        const emptySlot = document.createElement('div');
-        emptySlot.className = 'inventory-slot';
-        emptySlot.innerHTML = '<div style="color: #5555aa; font-size: 1.2rem;">+</div>';
-        itemsGrid.appendChild(emptySlot);
-    }
-}
-
-// Equip weapon from inventory
-function equipWeaponFromInventory(inventoryIndex, weaponSlotIndex = -1) {
-    if (gameState !== 'shop' && gameState !== 'statSelect') return;
-    
-    const weapon = inventory.weapons[inventoryIndex];
-    
-    if (!weapon) return;
-    
-    if (weaponSlotIndex === -1) {
-        // Find empty slot
-        weaponSlotIndex = player.weapons.length;
-        if (weaponSlotIndex >= 6) {
-            showMessage("No empty weapon slots! Remove a weapon first.");
-            return;
-        }
-    }
-    
-    // Add to player weapons
-    player.weapons.splice(weaponSlotIndex, 0, weapon);
-    
-    // Remove from inventory
-    const weaponGroup = findWeaponGroup(inventoryIndex);
-    if (weaponGroup && weaponGroup.count > 1) {
-        weaponGroup.count--;
-        // Remove one instance from the indices array
-        const instanceIndex = weaponGroup.indices.indexOf(inventoryIndex);
-        if (instanceIndex > -1) {
-            weaponGroup.indices.splice(instanceIndex, 1);
-        }
-        // If this was the last instance of this weapon type, remove from inventory
-        if (weaponGroup.count === 0) {
-            const actualIndex = inventory.weapons.findIndex(w => 
-                w.id === weapon.id && w.tier === weapon.tier
-            );
-            if (actualIndex > -1) {
-                inventory.weapons.splice(actualIndex, 1);
-            }
-        }
-    } else {
-        inventory.weapons.splice(inventoryIndex, 1);
-    }
-    
-    showMessage(`Equipped ${weapon.getDisplayName()}!`);
-    
-    updateWeaponDisplay();
-    updateInventoryDisplay('weapons');
-}
-
-// Find weapon group for inventory display
-function findWeaponGroup(inventoryIndex) {
-    const weapon = inventory.weapons[inventoryIndex];
-    if (!weapon) return null;
-    
-    let currentIndex = 0;
-    const weaponGroups = {};
-    
-    inventory.weapons.forEach((w, idx) => {
-        const key = `${w.icon} ${w.getDisplayName()}`;
-        if (!weaponGroups[key]) {
-            weaponGroups[key] = {
-                weapon: w,
-                count: 1,
-                indices: [idx]
-            };
-        } else {
-            weaponGroups[key].count++;
-            weaponGroups[key].indices.push(idx);
-        }
-    });
-    
-    const key = `${weapon.icon} ${weapon.getDisplayName()}`;
-    return weaponGroups[key] || null;
-}
-
-// Use item from inventory
-function useItemFromInventory(index) {
-    const item = inventory.items[index];
-    
-    if (!item) return;
-    
-    switch(item.id) {
-        case 'health_potion':
-            applyItemEffect(item, true);
-            if (item.count && item.count > 1) {
-                item.count--;
-            } else {
-                inventory.items.splice(index, 1);
-            }
-            showMessage(`Used ${item.name}!`);
-            break;
-            
-        case 'ammo_pack':
-            applyItemEffect(item, true);
-            if (item.count && item.count > 1) {
-                item.count--;
-            } else {
-                inventory.items.splice(index, 1);
-            }
-            break;
-            
-        case 'grenade':
-            // Throw grenade at mouse position
-            throwGrenade(mouseX, mouseY);
-            if (item.count && item.count > 1) {
-                item.count--;
-            } else {
-                inventory.items.splice(index, 1);
-            }
-            showMessage(`Threw ${item.name}!`);
-            break;
-    }
-    
-    updateInventoryDisplay('items');
-    updateUI();
-}
-
-// Throw grenade
-function throwGrenade(x, y) {
-    // Create explosion effect
-    addVisualEffect({
-        type: 'explosion',
-        x: x,
-        y: y,
-        radius: 0,
-        maxRadius: 100,
-        color: '#FF4500',
-        startTime: Date.now(),
-        duration: 500
-    });
-    
-    // Damage monsters in radius
-    monsters.forEach((monster, index) => {
-        const dx = monster.x - x;
-        const dy = monster.y - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < 100) {
-            const damage = 50 * (1 - distance / 100); // Less damage farther from center
-            monster.health -= damage;
-            
-            createDamageIndicator(monster.x, monster.y, Math.floor(damage), false);
-            
-            if (monster.health <= 0) {
-                monsters.splice(index, 1);
-                kills++;
-                const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
-                if (monster.isBoss) goldEarned *= 5;
-                gold += goldEarned;
-                createGoldPopup(monster.x, monster.y, goldEarned);
-            }
-        }
-    });
 }
 
 // Show stat buff selection
@@ -1069,7 +589,7 @@ function showStatBuffs() {
     waveCompleteOverlay.style.display = 'flex';
 }
 
-// Select stat buff
+// Select stat buff - FIXED VERSION
 function selectStatBuff(buff) {
     console.log('Selected buff:', buff);
     
@@ -1079,7 +599,7 @@ function selectStatBuff(buff) {
         if (buff.effect.health) {
             player.health += buff.effect.health;
         } else {
-            player.health += buff.effect.maxHealth;
+            player.health += buff.effect.maxHealth; // Heal when getting max health boost
         }
     }
     
@@ -1125,7 +645,7 @@ function selectStatBuff(buff) {
     
     shopItems = generateShopItems();
     updateShopDisplay();
-    updateUI();
+    updateUI(); // Make sure UI updates after applying buffs
     
     nextWaveBtn.style.display = 'block';
     scrapWeaponBtn.style.display = 'none';
@@ -1206,83 +726,6 @@ function addVisualEffect(effect) {
     visualEffects.push(effect);
 }
 
-// Auto-merge weapons
-function autoMergeWeapons() {
-    if (gold < 50) {
-        showMessage("Need 50 gold for auto-merge!");
-        return;
-    }
-    
-    const weaponGroups = {};
-    let mergeCount = 0;
-    
-    // Group weapons by id and tier (from inventory and equipped)
-    const allWeapons = [...player.weapons, ...inventory.weapons];
-    
-    allWeapons.forEach((weapon, index) => {
-        const key = `${weapon.id}_${weapon.tier}`;
-        if (!weaponGroups[key]) weaponGroups[key] = [];
-        weaponGroups[key].push({ weapon, index, source: index < player.weapons.length ? 'equipped' : 'inventory' });
-    });
-    
-    // Merge groups with 2+ weapons
-    Object.values(weaponGroups).forEach(group => {
-        if (group.length >= 2) {
-            const weapon1 = group[0].weapon;
-            const weapon2 = group[1].weapon;
-            
-            if (weapon1.tier < 5) {
-                // Create merged weapon
-                const mergedWeapon = weapon1.merge(weapon2);
-                
-                if (mergedWeapon) {
-                    // Remove original weapons
-                    if (group[0].source === 'equipped') {
-                        const equippedIndex = player.weapons.indexOf(weapon1);
-                        if (equippedIndex > -1) player.weapons.splice(equippedIndex, 1);
-                    } else {
-                        const inventoryIndex = inventory.weapons.indexOf(weapon1);
-                        if (inventoryIndex > -1) inventory.weapons.splice(inventoryIndex, 1);
-                    }
-                    
-                    if (group[1].source === 'equipped') {
-                        const equippedIndex = player.weapons.indexOf(weapon2);
-                        if (equippedIndex > -1) player.weapons.splice(equippedIndex, 1);
-                    } else {
-                        const inventoryIndex = inventory.weapons.indexOf(weapon2);
-                        if (inventoryIndex > -1) inventory.weapons.splice(inventoryIndex, 1);
-                    }
-                    
-                    // Add merged weapon to inventory
-                    inventory.weapons.push(mergedWeapon);
-                    mergeCount++;
-                }
-            }
-        }
-    });
-    
-    if (mergeCount > 0) {
-        gold -= 50;
-        showMessage(`Auto-merged ${mergeCount} weapon pairs! Check inventory.`);
-        updateUI();
-        updateWeaponDisplay();
-        updateInventoryDisplay('weapons');
-    } else {
-        showMessage("No mergeable weapons found!");
-    }
-}
-
-// Sort weapons
-function sortWeapons() {
-    player.weapons.sort((a, b) => {
-        // Sort by type (ranged first), then by damage, then by tier
-        if (a.type !== b.type) return a.type === 'ranged' ? -1 : 1;
-        if (b.baseDamage !== a.baseDamage) return b.baseDamage - a.baseDamage;
-        return b.tier - a.tier;
-    });
-    updateWeaponDisplay();
-}
-
 // Game Loop
 function gameLoop() {
     const currentTime = Date.now();
@@ -1304,7 +747,6 @@ function gameLoop() {
     // Draw everything
     drawMonsters();
     drawProjectiles();
-    drawMonsterProjectiles();
     drawMeleeAttacks();
     drawVisualEffects();
     drawPlayer();
@@ -1376,36 +818,11 @@ function updateGame(deltaTime) {
         player.lastRegen = currentTime;
     }
     
-    // Update spawn timer
-    if (currentSpawnGroup < waveSpawnGroups.length) {
-        spawnTimer += deltaTime;
-        
-        if (spawnTimer >= 3000) { // Spawn new group every 3 seconds
-            spawnTimer = 0;
-            
-            // Spawn monsters for current group
-            const groupTypes = getMonsterTypesForGroup(currentSpawnGroup);
-            for (let i = 0; i < waveSpawnGroups[currentSpawnGroup]; i++) {
-                const type = groupTypes[i % groupTypes.length];
-                spawnMonster(type);
-            }
-            
-            // Show indicators for next group
-            currentSpawnGroup++;
-            if (currentSpawnGroup < waveSpawnGroups.length) {
-                showSpawnIndicators();
-            }
-        }
-    }
-    
     // Update weapons and attacks
     updateWeapons();
     
     // Update projectiles
     updateProjectiles();
-    
-    // Update monster projectiles
-    updateMonsterProjectiles();
     
     // Update melee attacks
     updateMeleeAttacks();
@@ -1417,7 +834,7 @@ function updateGame(deltaTime) {
     updateVisualEffects();
     
     // Check if wave is complete
-    if (monsters.length === 0 && spawnIndicators.length === 0 && currentSpawnGroup >= waveSpawnGroups.length) {
+    if (monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
         endWave();
     }
@@ -1453,14 +870,229 @@ function updateWeapons() {
                 if (weapon.id === 'shotgun') {
                     // Shotgun returns array of pellets
                     player.projectiles.push(...attack);
+                    createShotgunAnimation(player.x, player.y, closestMonster.x, closestMonster.y, weapon);
                 } else if (weapon.type === 'ranged') {
                     player.projectiles.push(attack);
+                    if (weapon.id === 'laser') {
+                        createEnergyAnimation(player.x, player.y, closestMonster.x, closestMonster.y);
+                    }
                 } else {
                     player.meleeAttacks.push(attack);
+                    createWeaponAnimation(weapon, player.x, player.y, closestMonster.x, closestMonster.y);
                 }
             }
         }
     });
+}
+
+// Create shotgun animation
+function createShotgunAnimation(playerX, playerY, targetX, targetY, weapon) {
+    const angle = Math.atan2(targetY - playerY, targetX - playerX);
+    
+    // Create blast effect
+    addVisualEffect({
+        type: 'shotgunBlast',
+        x: playerX,
+        y: playerY,
+        angle: angle,
+        color: weapon.projectileColor,
+        startTime: Date.now(),
+        duration: 200,
+        intensity: weapon.tier
+    });
+    
+    // Create individual pellet trails
+    for (let i = 0; i < weapon.pelletCount; i++) {
+        const spread = (Math.random() - 0.5) * (weapon.spreadAngle * Math.PI / 180);
+        const pelletAngle = angle + spread;
+        
+        addVisualEffect({
+            type: 'pelletTrail',
+            x: playerX,
+            y: playerY,
+            angle: pelletAngle,
+            color: weapon.projectileColor,
+            startTime: Date.now(),
+            duration: 150
+        });
+    }
+}
+
+// Create energy gun animation
+function createEnergyAnimation(playerX, playerY, targetX, targetY) {
+    addVisualEffect({
+        type: 'energyBeam',
+        x: playerX,
+        y: playerY,
+        targetX: targetX,
+        targetY: targetY,
+        color: '#00FFFF',
+        startTime: Date.now(),
+        duration: 100
+    });
+}
+
+// Create weapon-specific animation
+function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
+    const angle = Math.atan2(targetY - playerY, targetX - playerX);
+    
+    switch(weapon.animation) {
+        case 'swordSwing':
+            for (let i = 0; i < 5; i++) {
+                addVisualEffect({
+                    type: 'swordTrail',
+                    x: playerX,
+                    y: playerY,
+                    angle: angle + (Math.random() - 0.5) * 0.5,
+                    size: 20 + Math.random() * 10,
+                    color: weapon.trailColor,
+                    startTime: Date.now(),
+                    duration: 200 + Math.random() * 100
+                });
+            }
+            for (let i = 0; i < 3; i++) {
+                addVisualEffect({
+                    type: 'sparkle',
+                    x: playerX + Math.cos(angle) * weapon.range,
+                    y: playerY + Math.sin(angle) * weapon.range,
+                    color: weapon.sparkleColor,
+                    startTime: Date.now(),
+                    duration: 300
+                });
+            }
+            break;
+            
+        case 'axeSpin':
+            // Spinning axe with multiple blades
+            for (let i = 0; i < 8; i++) {
+                const bladeAngle = (Math.PI * 2 * i) / 8;
+                addVisualEffect({
+                    type: 'spinningBlade',
+                    x: playerX,
+                    y: playerY,
+                    angle: bladeAngle,
+                    color: weapon.trailColor,
+                    startTime: Date.now(),
+                    duration: 400
+                });
+            }
+            // Shockwave effect
+            addVisualEffect({
+                type: 'shockwaveRing',
+                x: playerX,
+                y: playerY,
+                color: weapon.shockwaveColor,
+                startTime: Date.now(),
+                duration: 500,
+                intensity: weapon.shockwaveIntensity
+            });
+            // Ground cracks
+            for (let i = 0; i < 6; i++) {
+                const crackAngle = Math.random() * Math.PI * 2;
+                addVisualEffect({
+                    type: 'groundCrack',
+                    x: playerX + Math.cos(crackAngle) * (weapon.range * 0.7),
+                    y: playerY + Math.sin(crackAngle) * (weapon.range * 0.7),
+                    angle: crackAngle,
+                    color: '#8B4513',
+                    startTime: Date.now(),
+                    duration: 600
+                });
+            }
+            break;
+            
+        case 'daggerStab':
+            addVisualEffect({
+                type: 'daggerTrail',
+                x: playerX,
+                y: playerY,
+                angle: angle,
+                color: weapon.trailColor,
+                startTime: Date.now(),
+                duration: 150
+            });
+            addVisualEffect({
+                type: 'sparkle',
+                x: playerX + Math.cos(angle) * weapon.range,
+                y: playerY + Math.sin(angle) * weapon.range,
+                color: weapon.sparkleColor,
+                startTime: Date.now(),
+                duration: 200
+            });
+            break;
+            
+        case 'hammerSmash':
+            // Hammer impact effect
+            addVisualEffect({
+                type: 'hammerImpact',
+                x: playerX,
+                y: playerY,
+                color: weapon.trailColor,
+                startTime: Date.now(),
+                duration: 500
+            });
+            // Massive shockwave
+            addVisualEffect({
+                type: 'shockwaveRing',
+                x: playerX,
+                y: playerY,
+                color: weapon.shockwaveColor,
+                startTime: Date.now(),
+                duration: 700,
+                intensity: weapon.shockwaveIntensity * 1.5
+            });
+            // Debris and ground cracks
+            for (let i = 0; i < 16; i++) {
+                const debrisAngle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * weapon.range;
+                addVisualEffect({
+                    type: 'particle',
+                    x: playerX + Math.cos(debrisAngle) * distance,
+                    y: playerY + Math.sin(debrisAngle) * distance,
+                    color: weapon.trailColor,
+                    startTime: Date.now(),
+                    duration: 500 + Math.random() * 300
+                });
+            }
+            // Radial ground cracks
+            for (let i = 0; i < 8; i++) {
+                const crackAngle = (Math.PI * 2 * i) / 8;
+                addVisualEffect({
+                    type: 'groundCrack',
+                    x: playerX,
+                    y: playerY,
+                    angle: crackAngle,
+                    color: '#654321',
+                    startTime: Date.now(),
+                    duration: 800,
+                    length: weapon.range
+                });
+            }
+            break;
+            
+        case 'spearThrust':
+            addVisualEffect({
+                type: 'spearTrail',
+                x: playerX,
+                y: playerY,
+                angle: angle,
+                color: weapon.trailColor,
+                startTime: Date.now(),
+                duration: 250
+            });
+            for (let i = 0; i < weapon.pierceCount; i++) {
+                const progress = 0.3 + i * 0.3;
+                addVisualEffect({
+                    type: 'glow',
+                    x: playerX + Math.cos(angle) * weapon.range * progress,
+                    y: playerY + Math.sin(angle) * weapon.range * progress,
+                    color: weapon.sparkleColor,
+                    startTime: Date.now(),
+                    duration: 300
+                });
+            }
+            break;
+    }
 }
 
 function updateProjectiles() {
@@ -1504,6 +1136,16 @@ function updateProjectiles() {
             if (nextTarget) {
                 // Change direction to bounce to next target
                 projectile.angle = Math.atan2(nextTarget.y - projectile.y, nextTarget.x - projectile.x);
+                
+                // Add bounce effect
+                addVisualEffect({
+                    type: 'energyBounce',
+                    x: projectile.x,
+                    y: projectile.y,
+                    color: projectile.color,
+                    startTime: Date.now(),
+                    duration: 100
+                });
                 
                 // Add target to hit list
                 projectile.targetsHit.push(nextTarget);
@@ -1577,7 +1219,6 @@ function updateProjectiles() {
                     monsters.splice(j, 1);
                     kills++;
                     const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
-                    if (monster.isBoss) goldEarned *= 5;
                     gold += goldEarned;
                     
                     createGoldPopup(monster.x, monster.y, goldEarned);
@@ -1585,47 +1226,6 @@ function updateProjectiles() {
                 
                 break;
             }
-        }
-    }
-}
-
-function updateMonsterProjectiles() {
-    for (let i = player.monsterProjectiles.length - 1; i >= 0; i--) {
-        const projectile = player.monsterProjectiles[i];
-        
-        // Move projectile
-        projectile.x += Math.cos(projectile.angle) * projectile.speed;
-        projectile.y += Math.sin(projectile.angle) * projectile.speed;
-        
-        // Check if out of bounds
-        if (projectile.x < -50 || projectile.x > canvas.width + 50 || 
-            projectile.y < -50 || projectile.y > canvas.height + 50) {
-            player.monsterProjectiles.splice(i, 1);
-            continue;
-        }
-        
-        // Check collision with player
-        const dx = projectile.x - player.x;
-        const dy = projectile.y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < 5 + player.radius) {
-            // Apply damage to player
-            let damage = projectile.damage;
-            if (player.damageReduction > 0) {
-                damage *= (1 - player.damageReduction);
-            }
-            
-            player.health -= damage;
-            createDamageIndicator(player.x, player.y, Math.floor(damage), false);
-            
-            player.monsterProjectiles.splice(i, 1);
-            
-            if (player.health <= 0) {
-                gameOver();
-            }
-            
-            break;
         }
     }
 }
@@ -1710,7 +1310,6 @@ function updateMeleeAttacks() {
                     monsters.splice(j, 1);
                     kills++;
                     const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
-                    if (monster.isBoss) goldEarned *= 5;
                     gold += goldEarned;
                     
                     createGoldPopup(monster.x, monster.y, goldEarned);
@@ -1789,30 +1388,9 @@ function updateMonsters() {
         const dy = player.y - monster.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Move monster
         monster.x += (dx / distance) * monster.speed;
         monster.y += (dy / distance) * monster.speed;
         
-        // Ranged monster attack
-        if ((monster.type === 'ranged' || monster.type === 'boss') && monster.attackRange) {
-            if (distance < monster.attackRange && currentTime - monster.lastRangedAttack >= monster.rangedAttackCooldown) {
-                // Fire projectile at player
-                const angle = Math.atan2(player.y - monster.y, player.x - monster.x);
-                
-                player.monsterProjectiles.push({
-                    x: monster.x,
-                    y: monster.y,
-                    angle: angle,
-                    speed: monster.projectileSpeed,
-                    damage: monster.damage,
-                    color: monster.type === 'boss' ? '#FF0000' : '#9C27B0'
-                });
-                
-                monster.lastRangedAttack = currentTime;
-            }
-        }
-        
-        // Melee attack
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 // Apply player's damage reduction to monster damage
@@ -1846,6 +1424,226 @@ function updateVisualEffects() {
             continue;
         }
     }
+}
+
+// Draw visual effects
+function drawVisualEffects() {
+    const currentTime = Date.now();
+    
+    visualEffects.forEach(effect => {
+        const progress = (currentTime - effect.startTime) / effect.duration;
+        const alpha = 1 - progress;
+        
+        ctx.save();
+        
+        switch(effect.type) {
+            case 'swordTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle + progress * Math.PI);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(effect.size * (1 - progress), 0);
+                ctx.stroke();
+                break;
+                
+            case 'shockwaveRing':
+                ctx.translate(effect.x, effect.y);
+                const scale = progress * (effect.intensity || 1);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.7})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, 20 * scale, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(0, 0, 40 * scale, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'spinningBlade':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle + progress * Math.PI * 4);
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                // Draw blade shape
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(20, -5);
+                ctx.lineTo(20, 5);
+                ctx.lineTo(0, 10);
+                ctx.closePath();
+                ctx.fill();
+                break;
+                
+            case 'daggerTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const trailLength = 40 * (1 - progress);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(trailLength, 0);
+                ctx.stroke();
+                break;
+                
+            case 'hammerImpact':
+                ctx.translate(effect.x, effect.y);
+                const hammerScale = 1 + Math.sin(progress * Math.PI) * 0.5;
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                // Draw hammer head
+                ctx.beginPath();
+                ctx.arc(0, 0, 25 * hammerScale, 0, Math.PI * 2);
+                ctx.fill();
+                // Draw hammer handle
+                ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
+                ctx.fillRect(-5, 25 * hammerScale, 10, 30 * hammerScale);
+                break;
+                
+            case 'groundCrack':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle || 0);
+                const crackLength = effect.length || 30;
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                // Jagged crack line
+                for (let i = 0; i < 5; i++) {
+                    const segment = (i + 1) / 5;
+                    const x = crackLength * segment * (1 - progress * 0.5);
+                    const y = (Math.random() - 0.5) * 10;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                break;
+                
+            case 'shotgunBlast':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const blastSize = 30 * (1 + Math.sin(progress * Math.PI));
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                // Draw blast cone
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, blastSize, -0.3, 0.3);
+                ctx.closePath();
+                ctx.fill();
+                break;
+                
+            case 'pelletTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const pelletLength = 50 * (1 - progress);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(pelletLength, 0);
+                ctx.stroke();
+                break;
+                
+            case 'energyBeam':
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(effect.x, effect.y);
+                ctx.lineTo(effect.targetX, effect.targetY);
+                ctx.stroke();
+                // Glow effect
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
+                ctx.lineWidth = 8;
+                ctx.beginPath();
+                ctx.moveTo(effect.x, effect.y);
+                ctx.lineTo(effect.targetX, effect.targetY);
+                ctx.stroke();
+                break;
+                
+            case 'energyBounce':
+                ctx.translate(effect.x, effect.y);
+                const bounceScale = 1 + Math.sin(progress * Math.PI * 4) * 0.3;
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, 10 * bounceScale, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'particle':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                const size = 2 + progress * 3;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, size, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'spearTrail':
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.angle);
+                const spearLength = 60 * (1 - progress);
+                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(spearLength, 0);
+                ctx.stroke();
+                break;
+                
+            case 'glow':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 10 + progress * 5, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'hit':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                for (let i = 0; i < 5; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = progress * 20;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+                
+            case 'blood':
+                ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.7})`;
+                for (let i = 0; i < 8; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = progress * 30;
+                    const size = 1 + Math.random() * 3;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+                
+            case 'death':
+                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
+                const particles = 12;
+                for (let i = 0; i < particles; i++) {
+                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
+                    const distance = progress * 40;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+        }
+        
+        ctx.restore();
+    });
 }
 
 // Drawing functions
@@ -1892,7 +1690,6 @@ function drawPlayer() {
 
 function drawMonsters() {
     monsters.forEach(monster => {
-        // Draw monster body
         ctx.fillStyle = monster.color;
         ctx.beginPath();
         ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
@@ -1904,14 +1701,32 @@ function drawMonsters() {
         ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Draw monster icon
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = `${monster.radius * 1.5}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(monster.icon, monster.x, monster.y);
+        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
+        const eyeRadius = monster.radius * 0.2;
         
-        // Draw health bar
+        const leftEyeX = monster.x + Math.cos(angleToPlayer - 0.3) * (monster.radius * 0.6);
+        const leftEyeY = monster.y + Math.sin(angleToPlayer - 0.3) * (monster.radius * 0.6);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(leftEyeX, leftEyeY, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        const rightEyeX = monster.x + Math.cos(angleToPlayer + 0.3) * (monster.radius * 0.6);
+        const rightEyeY = monster.y + Math.sin(angleToPlayer + 0.3) * (monster.radius * 0.6);
+        
+        ctx.beginPath();
+        ctx.arc(rightEyeX, rightEyeY, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000000';
+        const pupilX = monster.x + Math.cos(angleToPlayer) * (monster.radius * 0.7);
+        const pupilY = monster.y + Math.sin(angleToPlayer) * (monster.radius * 0.7);
+        
+        ctx.beginPath();
+        ctx.arc(pupilX, pupilY, eyeRadius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        
         const healthPercent = monster.health / monster.maxHealth;
         const barWidth = monster.radius * 2;
         const barHeight = 4;
@@ -1923,17 +1738,6 @@ function drawMonsters() {
         
         ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
         ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
-        
-        // Draw boss crown
-        if (monster.isBoss) {
-            ctx.fillStyle = '#FFD700';
-            ctx.beginPath();
-            ctx.moveTo(monster.x - 15, monster.y - monster.radius - 10);
-            ctx.lineTo(monster.x, monster.y - monster.radius - 25);
-            ctx.lineTo(monster.x + 15, monster.y - monster.radius - 10);
-            ctx.closePath();
-            ctx.fill();
-        }
     });
 }
 
@@ -1942,23 +1746,6 @@ function drawProjectiles() {
         ctx.fillStyle = projectile.color;
         ctx.beginPath();
         ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = projectile.color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
-                   projectile.y - Math.sin(projectile.angle) * 10);
-        ctx.lineTo(projectile.x, projectile.y);
-        ctx.stroke();
-    });
-}
-
-function drawMonsterProjectiles() {
-    player.monsterProjectiles.forEach(projectile => {
-        ctx.fillStyle = projectile.color;
-        ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.strokeStyle = projectile.color;
@@ -2027,77 +1814,6 @@ function drawMeleeAttacks() {
     });
 }
 
-// Draw visual effects
-function drawVisualEffects() {
-    const currentTime = Date.now();
-    
-    visualEffects.forEach(effect => {
-        const progress = (currentTime - effect.startTime) / effect.duration;
-        const alpha = 1 - progress;
-        
-        ctx.save();
-        
-        switch(effect.type) {
-            case 'explosion':
-                ctx.translate(effect.x, effect.y);
-                const radius = effect.radius + (effect.maxRadius - effect.radius) * progress;
-                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-                gradient.addColorStop(0, `rgba(${hexToRgb(effect.color)}, ${alpha})`);
-                gradient.addColorStop(0.7, `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`);
-                gradient.addColorStop(1, 'transparent');
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(0, 0, radius, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-                
-            case 'hit':
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                for (let i = 0; i < 5; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = progress * 20;
-                    ctx.beginPath();
-                    ctx.arc(effect.x + Math.cos(angle) * distance, 
-                           effect.y + Math.sin(angle) * distance, 
-                           2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'blood':
-                ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.7})`;
-                for (let i = 0; i < 8; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = progress * 30;
-                    const size = 1 + Math.random() * 3;
-                    ctx.beginPath();
-                    ctx.arc(effect.x + Math.cos(angle) * distance, 
-                           effect.y + Math.sin(angle) * distance, 
-                           size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'death':
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                const particles = 12;
-                for (let i = 0; i < particles; i++) {
-                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
-                    const distance = progress * 40;
-                    ctx.beginPath();
-                    ctx.arc(effect.x + Math.cos(angle) * distance, 
-                           effect.y + Math.sin(angle) * distance, 
-                           3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-        }
-        
-        ctx.restore();
-    });
-}
-
 // Helper function to convert hex to rgb
 function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -2121,12 +1837,11 @@ nextWaveBtn.addEventListener('click', () => {
     if (gameState === 'shop') {
         gameState = 'wave';
         startWave();
-        nextWaveBtn.style.display = 'block';
+        nextWaveBtn.style.display = 'none';
         scrapWeaponBtn.style.display = 'none';
         mergeWeaponBtn.style.display = 'none';
         selectedWeaponIndex = -1;
         mergeTargetIndex = -1;
-        weaponStats.style.display = 'none';
     }
 });
 
@@ -2142,21 +1857,6 @@ restartBtn.addEventListener('click', () => {
     initGame();
 });
 
-// Auto-merge button
-autoMergeBtn.addEventListener('click', autoMergeWeapons);
-
-// Sort weapons button
-sortWeaponsBtn.addEventListener('click', sortWeapons);
-
-// Inventory tabs
-tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        tabButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        updateInventoryDisplay(btn.dataset.tab);
-    });
-});
-
 // Add keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     if (e.key === ' ') {
@@ -2164,7 +1864,7 @@ document.addEventListener('keydown', (e) => {
         if (gameState === 'shop' && nextWaveBtn.style.display !== 'none') {
             nextWaveBtn.click();
         }
-    } else if (e.key === 'r' || e.key === 'R') {
+    } else if (e.key === 'r') {
         // R to reload all weapons (in shop mode)
         if (gameState === 'shop') {
             player.weapons.forEach(weapon => {
@@ -2172,28 +1872,6 @@ document.addEventListener('keydown', (e) => {
                     weapon.startReload();
                 }
             });
-        }
-    } else if (e.key === 'm' || e.key === 'M') {
-        // M for auto-merge
-        if (gameState === 'shop') {
-            autoMergeWeapons();
-        }
-    } else if (e.key === 's' || e.key === 'S') {
-        // S for sort weapons
-        if (gameState === 'shop' || gameState === 'statSelect') {
-            sortWeapons();
-        }
-    } else if (e.key === '1') {
-        // 1-6 for quick weapon selection
-        const index = parseInt(e.key) - 1;
-        if (index < player.weapons.length && (gameState === 'shop' || gameState === 'statSelect')) {
-            selectWeapon(index);
-        }
-    } else if (e.key === 'g' || e.key === 'G') {
-        // G to throw grenade if you have one
-        const grenade = inventory.items.find(item => item.id === 'grenade');
-        if (grenade && gameState === 'wave') {
-            useItemFromInventory(inventory.items.indexOf(grenade));
         }
     }
 });
