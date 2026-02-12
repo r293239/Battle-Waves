@@ -1,9 +1,364 @@
 // ============================================
-// GAME LOGIC - With Enhanced Weapons System
+// MONSTER TYPES
+// ============================================
+
+const MONSTER_TYPES = {
+    NORMAL: {
+        name: 'Normal',
+        color: '#ff6b6b',
+        speed: 1,
+        healthMultiplier: 1,
+        damageMultiplier: 1,
+        sizeMultiplier: 1,
+        icon: '👾'
+    },
+    FAST: {
+        name: 'Fast',
+        color: '#4ecdc4',
+        speed: 2.5,
+        healthMultiplier: 0.7,
+        damageMultiplier: 0.8,
+        sizeMultiplier: 0.8,
+        icon: '⚡'
+    },
+    TANK: {
+        name: 'Tank',
+        color: '#ffa500',
+        speed: 0.5,
+        healthMultiplier: 2.5,
+        damageMultiplier: 1.2,
+        sizeMultiplier: 1.4,
+        icon: '🛡️'
+    },
+    EXPLOSIVE: {
+        name: 'Explosive',
+        color: '#ff0000',
+        speed: 1,
+        healthMultiplier: 0.8,
+        damageMultiplier: 1.5,
+        sizeMultiplier: 1,
+        icon: '💥',
+        explosive: true
+    },
+    BOSS: {
+        name: 'BOSS',
+        color: '#ffd700',
+        speed: 0.3,
+        healthMultiplier: 10,
+        damageMultiplier: 2,
+        sizeMultiplier: 2.5,
+        icon: '👑',
+        isBoss: true
+    }
+};
+
+// ============================================
+// WEAPON INSTANCE CLASS
+// ============================================
+
+class WeaponInstance {
+    constructor(weaponData, tier = 1) {
+        this.id = weaponData.id;
+        this.name = weaponData.name;
+        this.icon = weaponData.icon;
+        this.type = weaponData.type;
+        this.meleeType = weaponData.meleeType || 'single';
+        this.tier = tier;
+        this.baseDamage = weaponData.baseDamage;
+        this.attackSpeed = weaponData.attackSpeed;
+        this.range = weaponData.range;
+        this.description = weaponData.description;
+        this.cost = weaponData.cost || 0;
+        this.lastAttack = 0;
+        this.animation = weaponData.animation || 'default';
+        
+        // Track last attack time for stagger
+        this.lastAttackTime = 0;
+        
+        // Ammo system
+        this.usesAmmo = weaponData.usesAmmo || false;
+        if (this.usesAmmo) {
+            this.magazineSize = weaponData.magazineSize;
+            this.currentAmmo = this.magazineSize;
+            this.reloadTime = weaponData.reloadTime;
+            this.isReloading = false;
+            this.reloadStart = 0;
+        }
+        
+        // Shotgun specific properties
+        this.pelletCount = weaponData.pelletCount || 1;
+        this.spreadAngle = weaponData.spreadAngle || 0;
+        
+        // Energy gun bounce properties
+        this.bounceCount = weaponData.bounceCount || 0;
+        this.bounceRange = weaponData.bounceRange || 0;
+        
+        // Melee properties
+        this.pierceCount = weaponData.pierceCount || 1;
+        
+        // Weapon appearance properties
+        this.bladeColor = weaponData.bladeColor || weaponData.swingColor;
+        this.hiltColor = weaponData.hiltColor || '#8B4513';
+        this.handleColor = weaponData.handleColor || '#654321';
+        this.headColor = weaponData.headColor || '#696969';
+        this.edgeColor = weaponData.edgeColor || '#CD7F32';
+        this.shaftColor = weaponData.shaftColor || '#8B4513';
+        this.prongColor = weaponData.prongColor || '#CD7F32';
+        this.tipColor = weaponData.tipColor || '#FFD700';
+        this.gripColor = weaponData.gripColor || '#8B4513';
+        
+        if (this.type === 'ranged') {
+            this.projectileSpeed = weaponData.projectileSpeed;
+            this.projectileColor = weaponData.projectileColor;
+        } else {
+            this.swingColor = weaponData.swingColor;
+            this.swingAngle = weaponData.swingAngle || 90;
+            this.trailColor = weaponData.trailColor || '#FFFFFF';
+            this.sparkleColor = weaponData.sparkleColor || '#FFD700';
+            this.shockwaveColor = weaponData.shockwaveColor || '#FFA500';
+            this.shockwaveIntensity = weaponData.shockwaveIntensity || 1;
+        }
+        
+        // Tier multipliers
+        this.tierMultipliers = weaponData.tierMultipliers || {};
+        
+        // Apply tier bonuses
+        this.applyTierBonuses();
+    }
+
+    applyTierBonuses() {
+        if (this.tier > 1 && this.tierMultipliers) {
+            if (this.tierMultipliers.damage) {
+                this.baseDamage = Math.round(this.baseDamage * this.tierMultipliers.damage[this.tier]);
+            }
+            
+            if (this.tierMultipliers.attackSpeed) {
+                this.attackSpeed = this.attackSpeed * this.tierMultipliers.attackSpeed[this.tier];
+            }
+            
+            if (this.tierMultipliers.range) {
+                this.range = Math.round(this.range * this.tierMultipliers.range[this.tier]);
+            }
+            
+            if (this.usesAmmo && this.tierMultipliers.magazine) {
+                this.magazineSize = Math.round(this.magazineSize * this.tierMultipliers.magazine[this.tier]);
+                this.currentAmmo = this.magazineSize;
+            }
+            
+            if (this.pelletCount && this.tierMultipliers.pelletCount) {
+                this.pelletCount = Math.round(this.pelletCount * this.tierMultipliers.pelletCount[this.tier]);
+            }
+            
+            if (this.bounceCount && this.tierMultipliers.bounceCount) {
+                this.bounceCount = Math.round(this.bounceCount * this.tierMultipliers.bounceCount[this.tier]);
+            }
+            
+            if (this.pierceCount && this.tierMultipliers.pierceCount) {
+                this.pierceCount = Math.round(this.pierceCount * this.tierMultipliers.pierceCount[this.tier]);
+            }
+            
+            if (this.shockwaveIntensity && this.tierMultipliers.shockwaveIntensity) {
+                this.shockwaveIntensity = this.shockwaveIntensity * this.tierMultipliers.shockwaveIntensity[this.tier];
+            }
+        }
+    }
+
+    canAttack(currentTime) {
+        if (this.isReloading) {
+            return false;
+        }
+        
+        if (this.usesAmmo && this.currentAmmo <= 0) {
+            this.startReload();
+            return false;
+        }
+        
+        // Add 5ms stagger to prevent same weapon attacks from overlapping
+        if (this.lastAttackTime > 0 && currentTime - this.lastAttackTime < 5) {
+            return false;
+        }
+        
+        const timeSinceLastAttack = currentTime - this.lastAttack;
+        const attackCooldown = 1000 / this.attackSpeed;
+        
+        return timeSinceLastAttack >= attackCooldown;
+    }
+
+    startReload() {
+        if (!this.usesAmmo || this.isReloading || this.currentAmmo === this.magazineSize) {
+            return;
+        }
+        
+        this.isReloading = true;
+        this.reloadStart = Date.now();
+        
+        if (typeof showReloadIndicator === 'function') {
+            showReloadIndicator(this.name);
+        }
+        
+        setTimeout(() => {
+            this.currentAmmo = this.magazineSize;
+            this.isReloading = false;
+        }, this.reloadTime);
+    }
+
+    useAmmo() {
+        if (!this.usesAmmo) return;
+        
+        this.currentAmmo--;
+        if (this.currentAmmo <= 0) {
+            this.startReload();
+        }
+    }
+
+    attack(playerX, playerY, targetX, targetY) {
+        const currentTime = Date.now();
+        
+        if (this.usesAmmo && !this.isReloading) {
+            this.useAmmo();
+        }
+        
+        this.lastAttack = currentTime;
+        this.lastAttackTime = currentTime;
+        
+        if (this.type === 'ranged') {
+            if (this.id === 'shotgun') {
+                const attacks = [];
+                const mainAngle = Math.atan2(targetY - playerY, targetX - playerX);
+                
+                for (let i = 0; i < this.pelletCount; i++) {
+                    const spread = (Math.random() - 0.5) * (this.spreadAngle * Math.PI / 180);
+                    const angle = mainAngle + spread;
+                    
+                    attacks.push({
+                        type: 'ranged',
+                        x: playerX,
+                        y: playerY,
+                        angle: angle,
+                        speed: this.projectileSpeed,
+                        range: this.range,
+                        damage: this.baseDamage,
+                        color: this.projectileColor,
+                        weaponId: this.id,
+                        animation: this.animation,
+                        isPellet: true
+                    });
+                }
+                return attacks;
+            } else {
+                const angle = Math.atan2(targetY - playerY, targetX - playerX);
+                return {
+                    type: 'ranged',
+                    x: playerX,
+                    y: playerY,
+                    angle: angle,
+                    speed: this.projectileSpeed,
+                    range: this.range,
+                    damage: this.baseDamage,
+                    color: this.projectileColor,
+                    weaponId: this.id,
+                    animation: this.animation,
+                    bounceCount: this.bounceCount,
+                    bounceRange: this.bounceRange,
+                    targetsHit: []
+                };
+            }
+        } else {
+            const angle = Math.atan2(targetY - playerY, targetX - playerX);
+            return {
+                type: 'melee',
+                x: playerX,
+                y: playerY,
+                radius: this.range,
+                damage: this.baseDamage,
+                color: this.swingColor,
+                startTime: Date.now(),
+                duration: 300,
+                swingAngle: this.swingAngle,
+                meleeType: this.meleeType,
+                angle: angle,
+                pierceCount: this.pierceCount,
+                weaponId: this.id,
+                animation: this.animation,
+                trailColor: this.trailColor,
+                sparkleColor: this.sparkleColor,
+                shockwaveColor: this.shockwaveColor,
+                shockwaveIntensity: this.shockwaveIntensity,
+                tier: this.tier,
+                
+                // Weapon appearance properties
+                bladeColor: this.bladeColor,
+                hiltColor: this.hiltColor,
+                handleColor: this.handleColor,
+                headColor: this.headColor,
+                edgeColor: this.edgeColor,
+                shaftColor: this.shaftColor,
+                prongColor: this.prongColor,
+                tipColor: this.tipColor,
+                gripColor: this.gripColor
+            };
+        }
+    }
+    
+    getScrapValue() {
+        const baseValue = Math.floor(this.cost * 0.5);
+        const tierMultiplier = 1 + (this.tier - 1) * 0.5;
+        return Math.floor(baseValue * tierMultiplier);
+    }
+    
+    getTypeDescription() {
+        if (this.type === 'ranged') {
+            if (this.id === 'shotgun') return 'SHOTGUN';
+            if (this.id === 'laser') return 'ENERGY';
+            return 'RANGED';
+        }
+        if (this.meleeType === 'single') return 'SINGLE';
+        if (this.meleeType === 'aoe') return 'AOE 360°';
+        if (this.meleeType === 'pierce') return 'PIERCE';
+        return 'MELEE';
+    }
+    
+    getDisplayName() {
+        if (this.tier === 1) return this.name;
+        
+        const tierNames = ['', 'II', 'III', 'IV', 'V', 'VI'];
+        return `${this.name} ${tierNames[this.tier]}`;
+    }
+    
+    getMergeCost(otherWeapon) {
+        if (this.id !== otherWeapon.id || this.tier !== otherWeapon.tier) {
+            return 0;
+        }
+        
+        if (this.tier >= 5) {
+            return 0;
+        }
+        
+        return Math.floor(this.cost * 0.3 * this.tier);
+    }
+    
+    merge(otherWeapon) {
+        if (this.id !== otherWeapon.id || this.tier !== otherWeapon.tier) {
+            return null;
+        }
+        
+        if (this.tier >= 5) {
+            return null;
+        }
+        
+        const baseWeaponData = getWeaponById(this.id);
+        const mergedWeapon = new WeaponInstance(baseWeaponData, this.tier + 1);
+        
+        return mergedWeapon;
+    }
+}
+
+// ============================================
+// GAME LOGIC
 // ============================================
 
 // Game State
-let gameState = 'start'; // 'start', 'wave', 'statSelect', 'shop', 'gameover'
+let gameState = 'start';
 let wave = 1;
 let gold = GAME_DATA.PLAYER_START.gold;
 let kills = 0;
@@ -13,6 +368,8 @@ let selectedWeaponIndex = -1;
 let visualEffects = [];
 let mergeTargetIndex = -1;
 let lastFrameTime = Date.now();
+let refreshCount = 0;
+let refreshCost = 5;
 
 // Game Objects
 const player = {
@@ -25,7 +382,6 @@ const player = {
     speed: GAME_DATA.PLAYER_START.speed,
     color: '#ff6b6b',
     
-    // Stats from buffs
     lifeSteal: 0,
     criticalChance: 0,
     goldMultiplier: 0,
@@ -33,12 +389,10 @@ const player = {
     damageReduction: 0,
     lastRegen: 0,
     
-    // Weapons (max 6 slots)
     weapons: [],
     projectiles: [],
     meleeAttacks: [],
     
-    // Ammo
     ammoPack: false
 };
 
@@ -65,6 +419,9 @@ const scrapWeaponBtn = document.getElementById('scrapWeaponBtn');
 const mergeWeaponBtn = document.getElementById('mergeWeaponBtn');
 const mergeInfo = document.getElementById('mergeInfo');
 const reloadIndicator = document.getElementById('reloadIndicator');
+const refreshShopBtn = document.getElementById('refreshShopBtn');
+const refreshCostSpan = document.getElementById('refreshCost');
+const refreshCounter = document.getElementById('refreshCounter');
 
 // UI Elements
 const healthValue = document.getElementById('healthValue');
@@ -75,9 +432,102 @@ const waveValue = document.getElementById('waveValue');
 const killsValue = document.getElementById('killsValue');
 const healthFill = document.getElementById('healthFill');
 
-// Initialize Game
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function getWeaponById(id) {
+    return GAME_DATA.WEAPONS.find(w => w.id === id);
+}
+
+function getWaveConfig(waveNumber) {
+    if (waveNumber <= GAME_DATA.WAVES.length) {
+        return GAME_DATA.WAVES[waveNumber - 1];
+    } else {
+        const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
+        const scaleFactor = 1 + (waveNumber - 10) * 0.2;
+        return {
+            number: waveNumber,
+            monsters: Math.floor(baseWave.monsters * scaleFactor),
+            monsterHealth: Math.floor(baseWave.monsterHealth * scaleFactor),
+            monsterDamage: Math.floor(baseWave.monsterDamage * scaleFactor),
+            goldReward: Math.floor(baseWave.goldReward * scaleFactor),
+            isBoss: false
+        };
+    }
+}
+
+function generateShopItems() {
+    const shopItems = [];
+    
+    const availableWeapons = GAME_DATA.WEAPONS.filter(w => w.id !== 'handgun');
+    const availableItems = [...GAME_DATA.ITEMS];
+    
+    for (let i = 0; i < 2; i++) {
+        if (availableWeapons.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableWeapons.length);
+            const weapon = {...availableWeapons[randomIndex]};
+            shopItems.push({
+                type: 'weapon',
+                data: weapon
+            });
+            availableWeapons.splice(randomIndex, 1);
+        }
+    }
+    
+    for (let i = 0; i < 2; i++) {
+        if (availableItems.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            const item = {...availableItems[randomIndex]};
+            shopItems.push({
+                type: 'item',
+                data: item
+            });
+        }
+    }
+    
+    return shopItems.sort(() => Math.random() - 0.5);
+}
+
+function refreshShop() {
+    if (gold < refreshCost) {
+        showMessage(`Not enough gold! Need ${refreshCost}g`);
+        return;
+    }
+    
+    gold -= refreshCost;
+    refreshCount++;
+    refreshCost = 5 + (refreshCount * 2);
+    refreshCostSpan.textContent = `${refreshCost}g`;
+    refreshCounter.textContent = `Refreshes: ${refreshCount}`;
+    
+    shopItems = generateShopItems();
+    updateShopDisplay();
+    updateUI();
+    
+    showMessage(`Shop refreshed! Cost increased to ${refreshCost}g`);
+}
+
+function generateStatBuffs() {
+    const buffs = [...GAME_DATA.STAT_BUFFS];
+    const selectedBuffs = [];
+    
+    for (let i = 0; i < 4; i++) {
+        if (buffs.length > 0) {
+            const randomIndex = Math.floor(Math.random() * buffs.length);
+            selectedBuffs.push(buffs[randomIndex]);
+            buffs.splice(randomIndex, 1);
+        }
+    }
+    
+    return selectedBuffs;
+}
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
 function initGame() {
-    // Reset player
     Object.assign(player, {
         x: 400,
         y: 300,
@@ -99,11 +549,9 @@ function initGame() {
         ammoPack: false
     });
     
-    // Give starting weapon
     const handgun = getWeaponById('handgun');
     player.weapons.push(new WeaponInstance(handgun));
     
-    // Reset game state
     wave = 1;
     gold = GAME_DATA.PLAYER_START.gold;
     kills = 0;
@@ -111,17 +559,18 @@ function initGame() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     visualEffects = [];
+    refreshCount = 0;
+    refreshCost = 5;
+    refreshCostSpan.textContent = '5g';
+    refreshCounter.textContent = 'Refreshes: 0';
     
-    // Clear game objects
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
     spawnIndicators = [];
     
-    // Generate initial shop
     shopItems = generateShopItems();
     
-    // Hide start screen, show game
     startScreen.style.display = 'none';
     waveCompleteOverlay.style.display = 'none';
     gameOverOverlay.style.display = 'none';
@@ -130,21 +579,27 @@ function initGame() {
     mergeInfo.style.display = 'none';
     reloadIndicator.style.display = 'none';
     
-    // Start first wave
     startWave();
     
-    // Update UI
     updateUI();
     updateWeaponDisplay();
     updateShopDisplay();
 }
 
-// Show spawn indicators
+// ============================================
+// WAVE MANAGEMENT
+// ============================================
+
 function showSpawnIndicators() {
     const waveConfig = getWaveConfig(wave);
     spawnIndicators = [];
     
-    for (let i = 0; i < waveConfig.monsters; i++) {
+    let monsterCount = waveConfig.monsters;
+    if (waveConfig.isBoss) {
+        monsterCount = 1;
+    }
+    
+    for (let i = 0; i < monsterCount; i++) {
         const side = Math.floor(Math.random() * 4);
         let x, y;
         
@@ -158,50 +613,72 @@ function showSpawnIndicators() {
         spawnIndicators.push({
             x, y,
             timer: 2000,
-            startTime: Date.now()
+            startTime: Date.now(),
+            isBoss: waveConfig.isBoss
         });
     }
 }
 
-// Start wave
 function startWave() {
     gameState = 'wave';
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
+    waveDisplay.classList.remove('boss-wave');
+    
+    if (waveConfig.isBoss) {
+        waveDisplay.textContent = `BOSS WAVE ${wave} - GIANT MONSTER!`;
+        waveDisplay.classList.add('boss-wave');
+    }
+    
     waveDisplay.style.opacity = 1;
     
-    // Clear game objects
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
     visualEffects = [];
     
-    // Hide buttons during wave
     scrapWeaponBtn.style.display = 'none';
     mergeWeaponBtn.style.display = 'none';
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     
-    // Show spawn indicators
     showSpawnIndicators();
     
-    // Spawn monsters after delay
     setTimeout(() => {
-        for (let i = 0; i < waveConfig.monsters; i++) {
+        for (let i = 0; i < (waveConfig.isBoss ? 1 : waveConfig.monsters); i++) {
             spawnMonster();
         }
         spawnIndicators = [];
     }, 2000);
     
-    // Fade out wave display
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
     }, 2000);
 }
 
-// Spawn monster
 function spawnMonster() {
     const waveConfig = getWaveConfig(wave);
+    
+    let monsterType;
+    
+    if (waveConfig.isBoss) {
+        monsterType = MONSTER_TYPES.BOSS;
+    } else {
+        const rand = Math.random();
+        if (wave < 3) {
+            monsterType = MONSTER_TYPES.NORMAL;
+        } else if (wave < 6) {
+            if (rand < 0.6) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.8) monsterType = MONSTER_TYPES.FAST;
+            else monsterType = MONSTER_TYPES.TANK;
+        } else {
+            if (rand < 0.4) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.6) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.8) monsterType = MONSTER_TYPES.TANK;
+            else monsterType = MONSTER_TYPES.EXPLOSIVE;
+        }
+    }
+    
     const side = Math.floor(Math.random() * 4);
     let x, y;
     
@@ -212,21 +689,34 @@ function spawnMonster() {
         case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
     }
     
+    const health = waveConfig.isBoss ? 
+        waveConfig.monsterHealth : 
+        Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
+    
+    const damage = waveConfig.isBoss ?
+        waveConfig.monsterDamage :
+        Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
+    
     monsters.push({
         x, y,
-        radius: 15 + Math.random() * 10,
-        health: waveConfig.monsterHealth,
-        maxHealth: waveConfig.monsterHealth,
-        damage: waveConfig.monsterDamage,
-        speed: 1 + wave * 0.1,
-        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-        type: Math.random() > 0.7 ? 'fast' : 'normal',
+        radius: waveConfig.isBoss ? 40 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
+        health: health,
+        maxHealth: health,
+        damage: damage,
+        speed: (waveConfig.isBoss ? 0.3 : (1 + wave * 0.1)) * monsterType.speed,
+        color: monsterType.color,
+        type: monsterType.name,
+        monsterType: monsterType,
         lastAttack: 0,
-        attackCooldown: GAME_DATA.MONSTER_ATTACK_COOLDOWN
+        attackCooldown: waveConfig.isBoss ? 1500 : GAME_DATA.MONSTER_ATTACK_COOLDOWN,
+        isBoss: waveConfig.isBoss
     });
 }
 
-// Update UI
+// ============================================
+// UI UPDATE FUNCTIONS
+// ============================================
+
 function updateUI() {
     healthValue.textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
     damageValue.textContent = Math.floor(player.baseDamage);
@@ -249,7 +739,6 @@ function updateUI() {
     monsterCount.textContent = `Monsters: ${monsters.length}`;
 }
 
-// Update weapon display
 function updateWeaponDisplay() {
     weaponsGrid.innerHTML = '';
     const currentTime = Date.now();
@@ -271,7 +760,6 @@ function updateWeaponDisplay() {
                 slot.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.5)';
             }
             
-            // Calculate cooldown percentage
             let cooldownPercent = 100;
             if (weapon.lastAttack > 0) {
                 const timeSinceLastAttack = currentTime - weapon.lastAttack;
@@ -279,7 +767,6 @@ function updateWeaponDisplay() {
                 cooldownPercent = Math.min(100, (timeSinceLastAttack / cooldownTime) * 100);
             }
             
-            // Calculate reload percentage for weapons with ammo
             let reloadPercent = 0;
             if (weapon.usesAmmo && weapon.isReloading) {
                 const timeSinceReloadStart = currentTime - weapon.reloadStart;
@@ -299,7 +786,6 @@ function updateWeaponDisplay() {
                 </div>
             `;
             
-            // Add click handler for weapon selection/merging
             slot.addEventListener('click', () => selectWeapon(i));
         } else {
             slot.innerHTML = '<div class="empty-slot">+</div>';
@@ -309,7 +795,6 @@ function updateWeaponDisplay() {
     }
 }
 
-// Select weapon for scrapping or merging
 function selectWeapon(index) {
     if (gameState !== 'shop' && gameState !== 'statSelect') return;
     
@@ -318,7 +803,6 @@ function selectWeapon(index) {
     const weapon = player.weapons[index];
     
     if (selectedWeaponIndex === -1) {
-        // First weapon selected
         selectedWeaponIndex = index;
         scrapWeaponBtn.innerHTML = `<span class="icon">🗑️</span> Scrap ${weapon.getDisplayName()} (Get ${weapon.getScrapValue()} gold)`;
         scrapWeaponBtn.style.display = 'block';
@@ -326,18 +810,15 @@ function selectWeapon(index) {
         mergeInfo.style.display = 'none';
         mergeTargetIndex = -1;
     } else if (selectedWeaponIndex === index) {
-        // Clicked same weapon again, deselect
         selectedWeaponIndex = -1;
         scrapWeaponBtn.style.display = 'none';
         mergeWeaponBtn.style.display = 'none';
         mergeInfo.style.display = 'none';
         mergeTargetIndex = -1;
     } else {
-        // Second weapon selected for merging
         const firstWeapon = player.weapons[selectedWeaponIndex];
         
         if (firstWeapon.id === weapon.id && firstWeapon.tier === weapon.tier) {
-            // Same type and tier, can merge
             mergeTargetIndex = index;
             const mergeCost = firstWeapon.getMergeCost(weapon);
             
@@ -358,7 +839,6 @@ function selectWeapon(index) {
                 }, 2000);
             }
         } else {
-            // Different weapons, switch selection
             selectedWeaponIndex = index;
             scrapWeaponBtn.innerHTML = `<span class="icon">🗑️</span> Scrap ${weapon.getDisplayName()} (Get ${weapon.getScrapValue()} gold)`;
             scrapWeaponBtn.style.display = 'block';
@@ -371,7 +851,6 @@ function selectWeapon(index) {
     updateWeaponDisplay();
 }
 
-// Merge selected weapons
 function mergeWeapons() {
     if (selectedWeaponIndex === -1 || mergeTargetIndex === -1) return;
     
@@ -397,7 +876,6 @@ function mergeWeapons() {
     
     gold -= mergeCost;
     
-    // Create merged weapon
     const mergedWeapon = weapon1.merge(weapon2);
     
     if (!mergedWeapon) {
@@ -405,13 +883,9 @@ function mergeWeapons() {
         return;
     }
     
-    // Replace first weapon with merged version
     player.weapons[selectedWeaponIndex] = mergedWeapon;
-    
-    // Remove second weapon
     player.weapons.splice(mergeTargetIndex, 1);
     
-    // Reset selection
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     scrapWeaponBtn.style.display = 'none';
@@ -423,13 +897,11 @@ function mergeWeapons() {
     updateWeaponDisplay();
 }
 
-// Scrap selected weapon
 function scrapWeapon() {
     if (selectedWeaponIndex === -1 || selectedWeaponIndex >= player.weapons.length) return;
     
     const weapon = player.weapons[selectedWeaponIndex];
     
-    // Don't allow scrapping starting handgun
     if (weapon.id === 'handgun' && player.weapons.length === 1) {
         showMessage("Cannot scrap your only weapon!");
         return;
@@ -449,7 +921,6 @@ function scrapWeapon() {
     updateWeaponDisplay();
 }
 
-// Update shop display
 function updateShopDisplay() {
     shopItemsContainer.innerHTML = '';
     
@@ -462,7 +933,6 @@ function updateShopDisplay() {
             const data = shopItem.data;
             const cost = data.cost;
             
-            // Determine tag type
             let tagClass = '';
             if (shopItem.type === 'weapon') {
                 if (data.type === 'melee') {
@@ -503,7 +973,6 @@ function updateShopDisplay() {
     }
 }
 
-// Purchase item from shop
 function purchaseItem(index) {
     if (index >= shopItems.length || !shopItems[index]) return;
     
@@ -539,7 +1008,6 @@ function purchaseItem(index) {
     updateShopDisplay();
 }
 
-// Apply item effect
 function applyItemEffect(item) {
     switch(item.id) {
         case 'health_potion':
@@ -556,7 +1024,6 @@ function applyItemEffect(item) {
             player.health += 30;
             break;
         case 'ammo_pack':
-            // Reload all weapons
             player.weapons.forEach(weapon => {
                 if (weapon.usesAmmo) {
                     weapon.currentAmmo = weapon.magazineSize;
@@ -568,7 +1035,6 @@ function applyItemEffect(item) {
     }
 }
 
-// Show stat buff selection
 function showStatBuffs() {
     gameState = 'statSelect';
     const buffs = generateStatBuffs();
@@ -589,53 +1055,42 @@ function showStatBuffs() {
     waveCompleteOverlay.style.display = 'flex';
 }
 
-// Select stat buff - FIXED VERSION
 function selectStatBuff(buff) {
-    console.log('Selected buff:', buff);
-    
-    // Apply the buff effects directly to player stats
     if (buff.effect.maxHealth) {
         player.maxHealth += buff.effect.maxHealth;
         if (buff.effect.health) {
             player.health += buff.effect.health;
         } else {
-            player.health += buff.effect.maxHealth; // Heal when getting max health boost
+            player.health += buff.effect.maxHealth;
         }
     }
     
     if (buff.effect.damage) {
         player.baseDamage += buff.effect.damage;
-        console.log('Damage increased to:', player.baseDamage);
     }
     
     if (buff.effect.speed) {
         player.speed += buff.effect.speed;
-        console.log('Speed increased to:', player.speed);
     }
     
     if (buff.effect.lifeSteal) {
         player.lifeSteal += buff.effect.lifeSteal;
-        console.log('Life steal increased to:', player.lifeSteal);
     }
     
     if (buff.effect.criticalChance) {
         player.criticalChance += buff.effect.criticalChance;
-        console.log('Critical chance increased to:', player.criticalChance);
     }
     
     if (buff.effect.goldMultiplier) {
         player.goldMultiplier += buff.effect.goldMultiplier;
-        console.log('Gold multiplier increased to:', player.goldMultiplier);
     }
     
     if (buff.effect.healthRegen) {
         player.healthRegen += buff.effect.healthRegen;
-        console.log('Health regen increased to:', player.healthRegen);
     }
     
     if (buff.effect.damageReduction) {
         player.damageReduction += buff.effect.damageReduction;
-        console.log('Damage reduction increased to:', player.damageReduction);
     }
     
     showMessage(`Selected: ${buff.name}`);
@@ -645,7 +1100,7 @@ function selectStatBuff(buff) {
     
     shopItems = generateShopItems();
     updateShopDisplay();
-    updateUI(); // Make sure UI updates after applying buffs
+    updateUI();
     
     nextWaveBtn.style.display = 'block';
     scrapWeaponBtn.style.display = 'none';
@@ -654,14 +1109,12 @@ function selectStatBuff(buff) {
     mergeTargetIndex = -1;
 }
 
-// End wave
 function endWave() {
     gameState = 'statSelect';
     
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
     
-    // Reload all weapons for free between waves
     player.weapons.forEach(weapon => {
         if (weapon.usesAmmo) {
             weapon.currentAmmo = weapon.magazineSize;
@@ -672,14 +1125,12 @@ function endWave() {
     showStatBuffs();
 }
 
-// Game over
 function gameOver() {
     gameState = 'gameover';
     gameOverText.textContent = `You survived ${wave} waves with ${kills} kills.`;
     gameOverOverlay.style.display = 'flex';
 }
 
-// Show temporary message
 function showMessage(text) {
     const message = document.createElement('div');
     message.textContent = text;
@@ -709,7 +1160,6 @@ function showMessage(text) {
     }, 2000);
 }
 
-// Show reload indicator
 function showReloadIndicator(weaponName) {
     if (gameState === 'wave') {
         reloadIndicator.textContent = `${weaponName} - RELOADING...`;
@@ -721,12 +1171,10 @@ function showReloadIndicator(weaponName) {
     }
 }
 
-// Add visual effect
-function addVisualEffect(effect) {
-    visualEffects.push(effect);
-}
+// ============================================
+// GAME LOOP
+// ============================================
 
-// Game Loop
 function gameLoop() {
     const currentTime = Date.now();
     const deltaTime = currentTime - lastFrameTime;
@@ -734,24 +1182,19 @@ function gameLoop() {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw grid background
     drawGrid();
     
     if (gameState === 'wave') {
         updateGame(deltaTime);
     }
     
-    // Draw spawn indicators
     drawSpawnIndicators();
-    
-    // Draw everything
     drawMonsters();
     drawProjectiles();
     drawMeleeAttacks();
     drawVisualEffects();
     drawPlayer();
     
-    // Update weapon cooldown displays
     if (gameState === 'wave' || gameState === 'shop' || gameState === 'statSelect') {
         updateWeaponDisplay();
     }
@@ -759,7 +1202,25 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Draw spawn indicators
+function drawGrid() {
+    ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
+    ctx.lineWidth = 1;
+    
+    for (let x = 0; x < canvas.width; x += 50) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+    
+    for (let y = 0; y < canvas.height; y += 50) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+}
+
 function drawSpawnIndicators() {
     const currentTime = Date.now();
     
@@ -775,8 +1236,16 @@ function drawSpawnIndicators() {
         ctx.save();
         ctx.translate(indicator.x, indicator.y);
         
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 3;
+        if (indicator.isBoss) {
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 10;
+        } else {
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 3;
+        }
+        
         ctx.lineCap = 'round';
         
         ctx.beginPath();
@@ -787,18 +1256,385 @@ function drawSpawnIndicators() {
         ctx.stroke();
         
         ctx.beginPath();
-        ctx.arc(0, 0, 20, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-        ctx.lineWidth = 2;
+        ctx.arc(0, 0, indicator.isBoss ? 30 : 20, 0, Math.PI * 2);
+        ctx.strokeStyle = indicator.isBoss ? 'rgba(255, 215, 0, 0.5)' : 'rgba(255, 0, 0, 0.3)';
+        ctx.lineWidth = indicator.isBoss ? 3 : 2;
         ctx.stroke();
         
         ctx.restore();
     }
 }
 
-// Update game state during wave
+function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    
+    ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
+    ctx.shadowBlur = 15;
+    
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+    const indicatorX = Math.cos(angle) * (player.radius + 5);
+    const indicatorY = Math.sin(angle) * (player.radius + 5);
+    
+    ctx.fillStyle = '#ffcc00';
+    ctx.shadowColor = 'rgba(255, 204, 0, 0.5)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+// ============================================
+// REALISTIC WEAPON ANIMATIONS
+// ============================================
+
+function drawMeleeAttacks() {
+    const currentTime = Date.now();
+    
+    player.meleeAttacks.forEach(attack => {
+        const progress = (currentTime - attack.startTime) / attack.duration;
+        if (progress < 0 || progress > 1) return;
+        
+        ctx.save();
+        ctx.translate(attack.x, attack.y);
+        
+        const angle = attack.angle;
+        const distance = attack.radius * (progress * 1.2);
+        const alpha = 1 - progress * 0.7;
+        
+        switch(attack.weaponId) {
+            case 'sword':
+                drawSword(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'axe':
+                drawAxe(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'dagger':
+                drawDagger(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'hammer':
+                drawHammer(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'spear':
+                drawTrident(ctx, attack, angle, progress, distance, alpha);
+                break;
+        }
+        
+        ctx.restore();
+    });
+}
+
+function drawSword(ctx, attack, angle, progress, distance, alpha) {
+    const swingProgress = Math.sin(progress * Math.PI);
+    const currentAngle = angle - 0.5 + swingProgress * 1;
+    
+    ctx.rotate(currentAngle);
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    
+    ctx.save();
+    ctx.translate(10, 0);
+    
+    const gradient = ctx.createLinearGradient(0, -5, attack.radius * 0.9, -5);
+    gradient.addColorStop(0, '#C0C0C0');
+    gradient.addColorStop(1, '#E8E8E8');
+    
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = 'rgba(192, 192, 192, 0.5)';
+    ctx.shadowBlur = 15 * alpha;
+    
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(attack.radius * 0.9, -2);
+    ctx.lineTo(attack.radius * 0.9, 2);
+    ctx.lineTo(0, 5);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(attack.radius * 0.9, -2);
+    ctx.moveTo(0, 5);
+    ctx.lineTo(attack.radius * 0.9, 2);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#FFD700';
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
+    ctx.beginPath();
+    ctx.arc(attack.radius * 0.9, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
+    ctx.fillRect(-5, -4, 15, 8);
+    
+    ctx.fillStyle = '#B87333';
+    ctx.fillRect(-8, -8, 8, 16);
+    
+    ctx.fillStyle = '#CD7F32';
+    ctx.beginPath();
+    ctx.arc(-10, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    if (progress < 0.5) {
+        ctx.save();
+        ctx.rotate(-0.2);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(attack.radius * 0.7, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawAxe(ctx, attack, angle, progress, distance, alpha) {
+    const spinAngle = progress * Math.PI * 4;
+    
+    ctx.rotate(spinAngle);
+    ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
+    ctx.shadowBlur = 15 * alpha;
+    
+    ctx.save();
+    ctx.fillStyle = '#654321';
+    ctx.fillRect(-3, -attack.radius * 0.8, 6, attack.radius * 1.6);
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(0, -attack.radius * 0.4);
+    ctx.rotate(-0.3);
+    
+    const bladeGradient = ctx.createLinearGradient(0, -15, 30, -15);
+    bladeGradient.addColorStop(0, '#8B4513');
+    bladeGradient.addColorStop(1, '#CD7F32');
+    
+    ctx.fillStyle = bladeGradient;
+    ctx.shadowColor = 'rgba(205, 127, 50, 0.7)';
+    
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(35, -15);
+    ctx.lineTo(35, -5);
+    ctx.lineTo(0, 10);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(35, -15);
+    ctx.lineTo(35, -5);
+    ctx.stroke();
+    ctx.restore();
+    
+    if (attack.meleeType === 'aoe' && progress > 0.3 && progress < 0.7) {
+        ctx.save();
+        ctx.rotate(0);
+        ctx.strokeStyle = `rgba(255, 165, 0, ${alpha * 0.5})`;
+        ctx.lineWidth = 3;
+        const ringScale = 1 + (progress - 0.3) * 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, attack.radius * ringScale, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawDagger(ctx, attack, angle, progress, distance, alpha) {
+    const stabProgress = Math.min(progress * 2, 1);
+    const stabDistance = distance * 1.5;
+    
+    ctx.rotate(angle);
+    ctx.translate(stabDistance, 0);
+    ctx.shadowColor = 'rgba(70, 130, 180, 0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    
+    ctx.save();
+    const bladeGradient = ctx.createLinearGradient(0, -3, 40, -3);
+    bladeGradient.addColorStop(0, '#4682B4');
+    bladeGradient.addColorStop(1, '#87CEEB');
+    
+    ctx.fillStyle = bladeGradient;
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(40, -1);
+    ctx.lineTo(40, 1);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(40, -1);
+    ctx.moveTo(0, 3);
+    ctx.lineTo(40, 1);
+    ctx.stroke();
+    ctx.restore();
+    
+    if (progress > 0.7) {
+        ctx.save();
+        ctx.translate(40, 0);
+        ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+        ctx.shadowColor = 'rgba(0, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3 * (1 - progress), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    
+    ctx.save();
+    ctx.fillStyle = '#2F4F4F';
+    ctx.fillRect(-8, -4, 12, 8);
+    
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-8, -3, 10, 6);
+    
+    ctx.fillStyle = '#4682B4';
+    ctx.beginPath();
+    ctx.arc(-12, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawHammer(ctx, attack, angle, progress, distance, alpha) {
+    ctx.rotate(angle);
+    
+    const lift = Math.sin(progress * Math.PI) * 30;
+    const smashY = progress < 0.3 ? -lift : progress > 0.6 ? (progress - 0.6) * 40 : 0;
+    
+    ctx.translate(20, -30 + lift - smashY);
+    ctx.shadowColor = 'rgba(105, 105, 105, 0.7)';
+    ctx.shadowBlur = 20 * alpha;
+    
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-3, 0, 6, 50);
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(0, -15);
+    
+    ctx.fillStyle = '#696969';
+    ctx.shadowColor = 'rgba(105, 105, 105, 0.7)';
+    ctx.fillRect(-15, -15, 30, 20);
+    
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(-18, -15, 6, 20);
+    ctx.fillRect(12, -15, 6, 20);
+    
+    ctx.fillStyle = '#A9A9A9';
+    ctx.fillRect(-15, -20, 30, 5);
+    ctx.restore();
+    
+    if (progress > 0.5 && progress < 0.8) {
+        ctx.save();
+        ctx.translate(0, 0);
+        ctx.rotate(0);
+        const shockProgress = (progress - 0.5) * 3.33;
+        ctx.strokeStyle = `rgba(255, 69, 0, ${alpha * (1 - shockProgress)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 30, attack.radius * shockProgress, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawTrident(ctx, attack, angle, progress, distance, alpha) {
+    const thrustProgress = Math.min(progress * 1.5, 1);
+    const thrustDistance = distance * 1.3 * thrustProgress;
+    
+    ctx.rotate(angle);
+    ctx.translate(thrustDistance, 0);
+    ctx.shadowColor = 'rgba(50, 205, 50, 0.5)';
+    ctx.shadowBlur = 15 * alpha;
+    
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-3, -3, attack.radius + 20, 6);
+    
+    ctx.fillStyle = '#654321';
+    for (let i = 0; i < 3; i++) {
+        ctx.fillRect(i * 20, -4, 2, 8);
+    }
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(attack.radius + 10, 0);
+    
+    ctx.fillStyle = '#CD7F32';
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(20, -4);
+    ctx.lineTo(20, 4);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.save();
+    ctx.translate(0, -8);
+    ctx.rotate(-0.1);
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(18, -4);
+    ctx.lineTo(18, 4);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(0, 8);
+    ctx.rotate(0.1);
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(18, -4);
+    ctx.lineTo(18, 4);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    
+    ctx.fillStyle = '#FFD700';
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
+    
+    ctx.beginPath();
+    ctx.arc(20, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.arc(18, -8, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.arc(18, 8, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
 function updateGame(deltaTime) {
-    // Update player position
     const dx = mouseX - player.x;
     const dy = mouseY - player.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -811,29 +1647,18 @@ function updateGame(deltaTime) {
     player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
     player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
     
-    // Health regen
     const currentTime = Date.now();
     if (player.healthRegen > 0 && currentTime - player.lastRegen >= 1000) {
         player.health = Math.min(player.maxHealth, player.health + player.healthRegen);
         player.lastRegen = currentTime;
     }
     
-    // Update weapons and attacks
     updateWeapons();
-    
-    // Update projectiles
     updateProjectiles();
-    
-    // Update melee attacks
     updateMeleeAttacks();
-    
-    // Update monsters
     updateMonsters();
-    
-    // Update visual effects
     updateVisualEffects();
     
-    // Check if wave is complete
     if (monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
         endWave();
@@ -849,7 +1674,6 @@ function updateWeapons() {
         if (!weapon || monsters.length === 0) return;
         
         if (weapon.canAttack(currentTime)) {
-            // Find closest monster in range
             let closestMonster = null;
             let closestDistance = Infinity;
             
@@ -868,242 +1692,24 @@ function updateWeapons() {
                 const attack = weapon.attack(player.x, player.y, closestMonster.x, closestMonster.y);
                 
                 if (weapon.id === 'shotgun') {
-                    // Shotgun returns array of pellets
                     player.projectiles.push(...attack);
-                    createShotgunAnimation(player.x, player.y, closestMonster.x, closestMonster.y, weapon);
                 } else if (weapon.type === 'ranged') {
                     player.projectiles.push(attack);
-                    if (weapon.id === 'laser') {
-                        createEnergyAnimation(player.x, player.y, closestMonster.x, closestMonster.y);
-                    }
                 } else {
                     player.meleeAttacks.push(attack);
-                    createWeaponAnimation(weapon, player.x, player.y, closestMonster.x, closestMonster.y);
                 }
             }
         }
     });
 }
 
-// Create shotgun animation
-function createShotgunAnimation(playerX, playerY, targetX, targetY, weapon) {
-    const angle = Math.atan2(targetY - playerY, targetX - playerX);
-    
-    // Create blast effect
-    addVisualEffect({
-        type: 'shotgunBlast',
-        x: playerX,
-        y: playerY,
-        angle: angle,
-        color: weapon.projectileColor,
-        startTime: Date.now(),
-        duration: 200,
-        intensity: weapon.tier
-    });
-    
-    // Create individual pellet trails
-    for (let i = 0; i < weapon.pelletCount; i++) {
-        const spread = (Math.random() - 0.5) * (weapon.spreadAngle * Math.PI / 180);
-        const pelletAngle = angle + spread;
-        
-        addVisualEffect({
-            type: 'pelletTrail',
-            x: playerX,
-            y: playerY,
-            angle: pelletAngle,
-            color: weapon.projectileColor,
-            startTime: Date.now(),
-            duration: 150
-        });
-    }
-}
-
-// Create energy gun animation
-function createEnergyAnimation(playerX, playerY, targetX, targetY) {
-    addVisualEffect({
-        type: 'energyBeam',
-        x: playerX,
-        y: playerY,
-        targetX: targetX,
-        targetY: targetY,
-        color: '#00FFFF',
-        startTime: Date.now(),
-        duration: 100
-    });
-}
-
-// Create weapon-specific animation
-function createWeaponAnimation(weapon, playerX, playerY, targetX, targetY) {
-    const angle = Math.atan2(targetY - playerY, targetX - playerX);
-    
-    switch(weapon.animation) {
-        case 'swordSwing':
-            for (let i = 0; i < 5; i++) {
-                addVisualEffect({
-                    type: 'swordTrail',
-                    x: playerX,
-                    y: playerY,
-                    angle: angle + (Math.random() - 0.5) * 0.5,
-                    size: 20 + Math.random() * 10,
-                    color: weapon.trailColor,
-                    startTime: Date.now(),
-                    duration: 200 + Math.random() * 100
-                });
-            }
-            for (let i = 0; i < 3; i++) {
-                addVisualEffect({
-                    type: 'sparkle',
-                    x: playerX + Math.cos(angle) * weapon.range,
-                    y: playerY + Math.sin(angle) * weapon.range,
-                    color: weapon.sparkleColor,
-                    startTime: Date.now(),
-                    duration: 300
-                });
-            }
-            break;
-            
-        case 'axeSpin':
-            // Spinning axe with multiple blades
-            for (let i = 0; i < 8; i++) {
-                const bladeAngle = (Math.PI * 2 * i) / 8;
-                addVisualEffect({
-                    type: 'spinningBlade',
-                    x: playerX,
-                    y: playerY,
-                    angle: bladeAngle,
-                    color: weapon.trailColor,
-                    startTime: Date.now(),
-                    duration: 400
-                });
-            }
-            // Shockwave effect
-            addVisualEffect({
-                type: 'shockwaveRing',
-                x: playerX,
-                y: playerY,
-                color: weapon.shockwaveColor,
-                startTime: Date.now(),
-                duration: 500,
-                intensity: weapon.shockwaveIntensity
-            });
-            // Ground cracks
-            for (let i = 0; i < 6; i++) {
-                const crackAngle = Math.random() * Math.PI * 2;
-                addVisualEffect({
-                    type: 'groundCrack',
-                    x: playerX + Math.cos(crackAngle) * (weapon.range * 0.7),
-                    y: playerY + Math.sin(crackAngle) * (weapon.range * 0.7),
-                    angle: crackAngle,
-                    color: '#8B4513',
-                    startTime: Date.now(),
-                    duration: 600
-                });
-            }
-            break;
-            
-        case 'daggerStab':
-            addVisualEffect({
-                type: 'daggerTrail',
-                x: playerX,
-                y: playerY,
-                angle: angle,
-                color: weapon.trailColor,
-                startTime: Date.now(),
-                duration: 150
-            });
-            addVisualEffect({
-                type: 'sparkle',
-                x: playerX + Math.cos(angle) * weapon.range,
-                y: playerY + Math.sin(angle) * weapon.range,
-                color: weapon.sparkleColor,
-                startTime: Date.now(),
-                duration: 200
-            });
-            break;
-            
-        case 'hammerSmash':
-            // Hammer impact effect
-            addVisualEffect({
-                type: 'hammerImpact',
-                x: playerX,
-                y: playerY,
-                color: weapon.trailColor,
-                startTime: Date.now(),
-                duration: 500
-            });
-            // Massive shockwave
-            addVisualEffect({
-                type: 'shockwaveRing',
-                x: playerX,
-                y: playerY,
-                color: weapon.shockwaveColor,
-                startTime: Date.now(),
-                duration: 700,
-                intensity: weapon.shockwaveIntensity * 1.5
-            });
-            // Debris and ground cracks
-            for (let i = 0; i < 16; i++) {
-                const debrisAngle = Math.random() * Math.PI * 2;
-                const distance = Math.random() * weapon.range;
-                addVisualEffect({
-                    type: 'particle',
-                    x: playerX + Math.cos(debrisAngle) * distance,
-                    y: playerY + Math.sin(debrisAngle) * distance,
-                    color: weapon.trailColor,
-                    startTime: Date.now(),
-                    duration: 500 + Math.random() * 300
-                });
-            }
-            // Radial ground cracks
-            for (let i = 0; i < 8; i++) {
-                const crackAngle = (Math.PI * 2 * i) / 8;
-                addVisualEffect({
-                    type: 'groundCrack',
-                    x: playerX,
-                    y: playerY,
-                    angle: crackAngle,
-                    color: '#654321',
-                    startTime: Date.now(),
-                    duration: 800,
-                    length: weapon.range
-                });
-            }
-            break;
-            
-        case 'spearThrust':
-            addVisualEffect({
-                type: 'spearTrail',
-                x: playerX,
-                y: playerY,
-                angle: angle,
-                color: weapon.trailColor,
-                startTime: Date.now(),
-                duration: 250
-            });
-            for (let i = 0; i < weapon.pierceCount; i++) {
-                const progress = 0.3 + i * 0.3;
-                addVisualEffect({
-                    type: 'glow',
-                    x: playerX + Math.cos(angle) * weapon.range * progress,
-                    y: playerY + Math.sin(angle) * weapon.range * progress,
-                    color: weapon.sparkleColor,
-                    startTime: Date.now(),
-                    duration: 300
-                });
-            }
-            break;
-    }
-}
-
 function updateProjectiles() {
     for (let i = player.projectiles.length - 1; i >= 0; i--) {
         const projectile = player.projectiles[i];
         
-        // Move projectile
         projectile.x += Math.cos(projectile.angle) * projectile.speed;
         projectile.y += Math.sin(projectile.angle) * projectile.speed;
         
-        // Check if out of range
         const dx = projectile.x - player.x;
         const dy = projectile.y - player.y;
         const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
@@ -1113,14 +1719,11 @@ function updateProjectiles() {
             continue;
         }
         
-        // Check for bounces (energy gun)
         if (projectile.bounceCount > 0 && projectile.targetsHit) {
-            // Find next target for bounce
             let nextTarget = null;
             let nextTargetDistance = Infinity;
             
             monsters.forEach(monster => {
-                // Skip already hit monsters
                 if (projectile.targetsHit.includes(monster)) return;
                 
                 const dx = projectile.x - monster.x;
@@ -1134,29 +1737,13 @@ function updateProjectiles() {
             });
             
             if (nextTarget) {
-                // Change direction to bounce to next target
                 projectile.angle = Math.atan2(nextTarget.y - projectile.y, nextTarget.x - projectile.x);
-                
-                // Add bounce effect
-                addVisualEffect({
-                    type: 'energyBounce',
-                    x: projectile.x,
-                    y: projectile.y,
-                    color: projectile.color,
-                    startTime: Date.now(),
-                    duration: 100
-                });
-                
-                // Add target to hit list
                 projectile.targetsHit.push(nextTarget);
                 projectile.bounceCount--;
-                
-                // Continue without checking collision this frame
                 continue;
             }
         }
         
-        // Check collision with monsters
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             const dx = projectile.x - monster.x;
@@ -1164,7 +1751,6 @@ function updateProjectiles() {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < (projectile.isPellet ? 3 : 5) + monster.radius) {
-                // Calculate damage
                 let damage = projectile.damage;
                 let isCritical = false;
                 
@@ -1173,9 +1759,7 @@ function updateProjectiles() {
                     isCritical = true;
                 }
                 
-                if (player.damageReduction > 0) {
-                    damage *= (1 - player.damageReduction);
-                }
+                damage += player.baseDamage;
                 
                 monster.health -= damage;
                 
@@ -1187,24 +1771,13 @@ function updateProjectiles() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Remove projectile (unless it bounces)
                 if (!projectile.bounceCount || !projectile.targetsHit) {
                     player.projectiles.splice(i, 1);
                 } else {
-                    // For energy gun, add monster to hit list
                     if (!projectile.targetsHit.includes(monster)) {
                         projectile.targetsHit.push(monster);
                     }
                 }
-                
-                addVisualEffect({
-                    type: 'hit',
-                    x: monster.x,
-                    y: monster.y,
-                    color: projectile.color,
-                    startTime: Date.now(),
-                    duration: 200
-                });
                 
                 if (monster.health <= 0) {
                     addVisualEffect({
@@ -1250,16 +1823,6 @@ function updateMeleeAttacks() {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < attack.radius + monster.radius) {
-                if (attack.swingAngle < 360) {
-                    const monsterAngle = Math.atan2(dy, dx);
-                    const angleDiff = Math.abs(monsterAngle - attack.angle);
-                    const normalizedDiff = Math.abs((angleDiff + Math.PI) % (2 * Math.PI) - Math.PI);
-                    
-                    if (normalizedDiff > (attack.swingAngle * Math.PI / 360)) {
-                        continue;
-                    }
-                }
-                
                 let damage = attack.damage;
                 let isCritical = false;
                 
@@ -1268,9 +1831,7 @@ function updateMeleeAttacks() {
                     isCritical = true;
                 }
                 
-                if (player.damageReduction > 0) {
-                    damage *= (1 - player.damageReduction);
-                }
+                damage += player.baseDamage;
                 
                 monster.health -= damage;
                 
@@ -1283,15 +1844,6 @@ function updateMeleeAttacks() {
                 }
                 
                 hits++;
-                
-                addVisualEffect({
-                    type: 'blood',
-                    x: monster.x,
-                    y: monster.y,
-                    color: '#FF0000',
-                    startTime: Date.now(),
-                    duration: 300
-                });
                 
                 if (attack.meleeType === 'pierce' && hits >= attack.pierceCount) {
                     break;
@@ -1321,7 +1873,190 @@ function updateMeleeAttacks() {
     }
 }
 
-// Create damage indicator
+function updateMonsters() {
+    const currentTime = Date.now();
+    
+    monsters.forEach(monster => {
+        const dx = player.x - monster.x;
+        const dy = player.y - monster.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        monster.x += (dx / distance) * monster.speed;
+        monster.y += (dy / distance) * monster.speed;
+        
+        if (distance < player.radius + monster.radius) {
+            if (currentTime - monster.lastAttack >= monster.attackCooldown) {
+                let actualDamage = monster.damage;
+                
+                if (player.damageReduction > 0) {
+                    actualDamage *= (1 - player.damageReduction);
+                }
+                
+                player.health -= actualDamage;
+                monster.lastAttack = currentTime;
+                
+                createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
+                
+                if (monster.monsterType && monster.monsterType.explosive) {
+                    setTimeout(() => {
+                        if (monster.health <= 0) {
+                            const explosionDamage = monster.damage * 2;
+                            const distanceToPlayer = Math.sqrt(
+                                Math.pow(player.x - monster.x, 2) + 
+                                Math.pow(player.y - monster.y, 2)
+                            );
+                            
+                            if (distanceToPlayer < 100) {
+                                player.health -= explosionDamage;
+                                createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
+                            }
+                        }
+                    }, 50);
+                }
+                
+                if (player.health <= 0) {
+                    gameOver();
+                }
+            }
+        }
+    });
+}
+
+function addVisualEffect(effect) {
+    visualEffects.push(effect);
+}
+
+function updateVisualEffects() {
+    const currentTime = Date.now();
+    
+    for (let i = visualEffects.length - 1; i >= 0; i--) {
+        const effect = visualEffects[i];
+        
+        if (currentTime - effect.startTime > effect.duration) {
+            visualEffects.splice(i, 1);
+            continue;
+        }
+    }
+}
+
+function drawVisualEffects() {
+    const currentTime = Date.now();
+    
+    visualEffects.forEach(effect => {
+        const progress = (currentTime - effect.startTime) / effect.duration;
+        const alpha = 1 - progress;
+        
+        ctx.save();
+        
+        switch(effect.type) {
+            case 'death':
+                ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
+                const particles = 8;
+                for (let i = 0; i < particles; i++) {
+                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
+                    const distance = progress * 30;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+        }
+        
+        ctx.restore();
+    });
+}
+
+function drawProjectiles() {
+    player.projectiles.forEach(projectile => {
+        ctx.fillStyle = projectile.color;
+        ctx.shadowColor = projectile.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = projectile.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+                   projectile.y - Math.sin(projectile.angle) * 10);
+        ctx.lineTo(projectile.x, projectile.y);
+        ctx.stroke();
+    });
+}
+
+function drawMonsters() {
+    monsters.forEach(monster => {
+        ctx.save();
+        ctx.translate(monster.x, monster.y);
+        
+        ctx.fillStyle = monster.color;
+        ctx.shadowColor = monster.color;
+        ctx.shadowBlur = monster.isBoss ? 20 : 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        if (monster.monsterType && monster.monsterType.icon) {
+            ctx.fillStyle = 'white';
+            ctx.font = `${monster.radius}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(monster.monsterType.icon, 0, 0);
+        }
+        
+        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
+        const eyeRadius = monster.radius * 0.2;
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowBlur = 5;
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, 
+                Math.sin(angleToPlayer) * monster.radius * 0.7, 
+                eyeRadius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        const healthPercent = monster.health / monster.maxHealth;
+        const barWidth = monster.radius * 2;
+        const barHeight = 4;
+        const barX = -monster.radius;
+        const barY = -monster.radius - 10;
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
+        ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+        
+        ctx.restore();
+    });
+}
+
 function createDamageIndicator(x, y, damage, isCritical) {
     const indicator = document.createElement('div');
     indicator.className = 'damage-indicator';
@@ -1344,7 +2079,6 @@ function createDamageIndicator(x, y, damage, isCritical) {
     }, 1000);
 }
 
-// Create gold popup
 function createGoldPopup(x, y, amount) {
     const popup = document.createElement('div');
     popup.className = 'gold-popup';
@@ -1362,7 +2096,6 @@ function createGoldPopup(x, y, amount) {
     }, 1000);
 }
 
-// Create health popup
 function createHealthPopup(x, y, amount) {
     const popup = document.createElement('div');
     popup.className = 'health-popup';
@@ -1380,459 +2113,18 @@ function createHealthPopup(x, y, amount) {
     }, 1000);
 }
 
-function updateMonsters() {
-    const currentTime = Date.now();
-    
-    monsters.forEach(monster => {
-        const dx = player.x - monster.x;
-        const dy = player.y - monster.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        monster.x += (dx / distance) * monster.speed;
-        monster.y += (dy / distance) * monster.speed;
-        
-        if (distance < player.radius + monster.radius) {
-            if (currentTime - monster.lastAttack >= monster.attackCooldown) {
-                // Apply player's damage reduction to monster damage
-                let actualDamage = monster.damage;
-                if (player.damageReduction > 0) {
-                    actualDamage *= (1 - player.damageReduction);
-                }
-                
-                player.health -= actualDamage;
-                monster.lastAttack = currentTime;
-                
-                createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
-                
-                if (player.health <= 0) {
-                    gameOver();
-                }
-            }
-        }
-    });
-}
+// ============================================
+// EVENT LISTENERS
+// ============================================
 
-// Update visual effects
-function updateVisualEffects() {
-    const currentTime = Date.now();
-    
-    for (let i = visualEffects.length - 1; i >= 0; i--) {
-        const effect = visualEffects[i];
-        
-        if (currentTime - effect.startTime > effect.duration) {
-            visualEffects.splice(i, 1);
-            continue;
-        }
-    }
-}
-
-// Draw visual effects
-function drawVisualEffects() {
-    const currentTime = Date.now();
-    
-    visualEffects.forEach(effect => {
-        const progress = (currentTime - effect.startTime) / effect.duration;
-        const alpha = 1 - progress;
-        
-        ctx.save();
-        
-        switch(effect.type) {
-            case 'swordTrail':
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle + progress * Math.PI);
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(effect.size * (1 - progress), 0);
-                ctx.stroke();
-                break;
-                
-            case 'shockwaveRing':
-                ctx.translate(effect.x, effect.y);
-                const scale = progress * (effect.intensity || 1);
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.7})`;
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(0, 0, 20 * scale, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.arc(0, 0, 40 * scale, 0, Math.PI * 2);
-                ctx.stroke();
-                break;
-                
-            case 'spinningBlade':
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle + progress * Math.PI * 4);
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                // Draw blade shape
-                ctx.beginPath();
-                ctx.moveTo(0, -10);
-                ctx.lineTo(20, -5);
-                ctx.lineTo(20, 5);
-                ctx.lineTo(0, 10);
-                ctx.closePath();
-                ctx.fill();
-                break;
-                
-            case 'daggerTrail':
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle);
-                const trailLength = 40 * (1 - progress);
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(trailLength, 0);
-                ctx.stroke();
-                break;
-                
-            case 'hammerImpact':
-                ctx.translate(effect.x, effect.y);
-                const hammerScale = 1 + Math.sin(progress * Math.PI) * 0.5;
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                // Draw hammer head
-                ctx.beginPath();
-                ctx.arc(0, 0, 25 * hammerScale, 0, Math.PI * 2);
-                ctx.fill();
-                // Draw hammer handle
-                ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
-                ctx.fillRect(-5, 25 * hammerScale, 10, 30 * hammerScale);
-                break;
-                
-            case 'groundCrack':
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle || 0);
-                const crackLength = effect.length || 30;
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                // Jagged crack line
-                for (let i = 0; i < 5; i++) {
-                    const segment = (i + 1) / 5;
-                    const x = crackLength * segment * (1 - progress * 0.5);
-                    const y = (Math.random() - 0.5) * 10;
-                    ctx.lineTo(x, y);
-                }
-                ctx.stroke();
-                break;
-                
-            case 'shotgunBlast':
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle);
-                const blastSize = 30 * (1 + Math.sin(progress * Math.PI));
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                // Draw blast cone
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.arc(0, 0, blastSize, -0.3, 0.3);
-                ctx.closePath();
-                ctx.fill();
-                break;
-                
-            case 'pelletTrail':
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle);
-                const pelletLength = 50 * (1 - progress);
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(pelletLength, 0);
-                ctx.stroke();
-                break;
-                
-            case 'energyBeam':
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(effect.x, effect.y);
-                ctx.lineTo(effect.targetX, effect.targetY);
-                ctx.stroke();
-                // Glow effect
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
-                ctx.lineWidth = 8;
-                ctx.beginPath();
-                ctx.moveTo(effect.x, effect.y);
-                ctx.lineTo(effect.targetX, effect.targetY);
-                ctx.stroke();
-                break;
-                
-            case 'energyBounce':
-                ctx.translate(effect.x, effect.y);
-                const bounceScale = 1 + Math.sin(progress * Math.PI * 4) * 0.3;
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(0, 0, 10 * bounceScale, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-                
-            case 'particle':
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                const size = 2 + progress * 3;
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, size, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-                
-            case 'spearTrail':
-                ctx.translate(effect.x, effect.y);
-                ctx.rotate(effect.angle);
-                const spearLength = 60 * (1 - progress);
-                ctx.strokeStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(spearLength, 0);
-                ctx.stroke();
-                break;
-                
-            case 'glow':
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha * 0.3})`;
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 10 + progress * 5, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-                
-            case 'hit':
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                for (let i = 0; i < 5; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = progress * 20;
-                    ctx.beginPath();
-                    ctx.arc(effect.x + Math.cos(angle) * distance, 
-                           effect.y + Math.sin(angle) * distance, 
-                           2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'blood':
-                ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.7})`;
-                for (let i = 0; i < 8; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = progress * 30;
-                    const size = 1 + Math.random() * 3;
-                    ctx.beginPath();
-                    ctx.arc(effect.x + Math.cos(angle) * distance, 
-                           effect.y + Math.sin(angle) * distance, 
-                           size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-                
-            case 'death':
-                ctx.fillStyle = `rgba(${hexToRgb(effect.color)}, ${alpha})`;
-                const particles = 12;
-                for (let i = 0; i < particles; i++) {
-                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
-                    const distance = progress * 40;
-                    ctx.beginPath();
-                    ctx.arc(effect.x + Math.cos(angle) * distance, 
-                           effect.y + Math.sin(angle) * distance, 
-                           3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-        }
-        
-        ctx.restore();
-    });
-}
-
-// Drawing functions
-function drawGrid() {
-    ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
-    ctx.lineWidth = 1;
-    
-    for (let x = 0; x < canvas.width; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-    }
-    
-    for (let y = 0; y < canvas.height; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-    }
-}
-
-function drawPlayer() {
-    ctx.fillStyle = player.color;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-    const indicatorX = player.x + Math.cos(angle) * (player.radius + 5);
-    const indicatorY = player.y + Math.sin(angle) * (player.radius + 5);
-    
-    ctx.fillStyle = '#ffcc00';
-    ctx.beginPath();
-    ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
-    ctx.fill();
-}
-
-function drawMonsters() {
-    monsters.forEach(monster => {
-        ctx.fillStyle = monster.color;
-        ctx.beginPath();
-        ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(monster.x, monster.y, monster.radius, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
-        const eyeRadius = monster.radius * 0.2;
-        
-        const leftEyeX = monster.x + Math.cos(angleToPlayer - 0.3) * (monster.radius * 0.6);
-        const leftEyeY = monster.y + Math.sin(angleToPlayer - 0.3) * (monster.radius * 0.6);
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(leftEyeX, leftEyeY, eyeRadius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        const rightEyeX = monster.x + Math.cos(angleToPlayer + 0.3) * (monster.radius * 0.6);
-        const rightEyeY = monster.y + Math.sin(angleToPlayer + 0.3) * (monster.radius * 0.6);
-        
-        ctx.beginPath();
-        ctx.arc(rightEyeX, rightEyeY, eyeRadius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#000000';
-        const pupilX = monster.x + Math.cos(angleToPlayer) * (monster.radius * 0.7);
-        const pupilY = monster.y + Math.sin(angleToPlayer) * (monster.radius * 0.7);
-        
-        ctx.beginPath();
-        ctx.arc(pupilX, pupilY, eyeRadius * 0.5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        const healthPercent = monster.health / monster.maxHealth;
-        const barWidth = monster.radius * 2;
-        const barHeight = 4;
-        const barX = monster.x - monster.radius;
-        const barY = monster.y - monster.radius - 10;
-        
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-        
-        ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
-        ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
-    });
-}
-
-function drawProjectiles() {
-    player.projectiles.forEach(projectile => {
-        ctx.fillStyle = projectile.color;
-        ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = projectile.color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
-                   projectile.y - Math.sin(projectile.angle) * 10);
-        ctx.lineTo(projectile.x, projectile.y);
-        ctx.stroke();
-    });
-}
-
-function drawMeleeAttacks() {
-    const currentTime = Date.now();
-    
-    player.meleeAttacks.forEach(attack => {
-        const progress = (currentTime - attack.startTime) / attack.duration;
-        const alpha = 0.6 * (1 - progress * 0.5);
-        
-        ctx.save();
-        ctx.translate(attack.x, attack.y);
-        
-        if (attack.swingAngle >= 360) {
-            const pulse = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
-            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha * 0.3})`;
-            ctx.beginPath();
-            ctx.arc(0, 0, attack.radius * pulse, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.strokeStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(0, 0, attack.radius, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Tier visual effect
-            if (attack.tier > 1) {
-                ctx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.5})`;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(0, 0, attack.radius * 1.1, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-        } else {
-            const swingProgress = progress * 2;
-            const currentAngle = attack.angle - (attack.swingAngle * Math.PI / 360) + 
-                                (swingProgress * attack.swingAngle * Math.PI / 180);
-            
-            ctx.rotate(currentAngle);
-            
-            ctx.fillStyle = `rgba(${hexToRgb(attack.color)}, ${alpha * 0.4})`;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.arc(0, 0, attack.radius, -attack.swingAngle * Math.PI / 360, attack.swingAngle * Math.PI / 360);
-            ctx.closePath();
-            ctx.fill();
-            
-            ctx.strokeStyle = `rgba(${hexToRgb(attack.color)}, ${alpha})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, attack.radius, -attack.swingAngle * Math.PI / 360, attack.swingAngle * Math.PI / 360);
-            ctx.stroke();
-        }
-        
-        ctx.restore();
-    });
-}
-
-// Helper function to convert hex to rgb
-function hexToRgb(hex) {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? 
-        `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` 
-        : '255, 255, 255';
-}
-
-// Event Listeners
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
 });
 
-// Start game button
 startGameBtn.addEventListener('click', initGame);
 
-// Next wave button
 nextWaveBtn.addEventListener('click', () => {
     if (gameState === 'shop') {
         gameState = 'wave';
@@ -1845,27 +2137,21 @@ nextWaveBtn.addEventListener('click', () => {
     }
 });
 
-// Scrap weapon button
 scrapWeaponBtn.addEventListener('click', scrapWeapon);
-
-// Merge weapon button
 mergeWeaponBtn.addEventListener('click', mergeWeapons);
+refreshShopBtn.addEventListener('click', refreshShop);
 
-// Restart button
 restartBtn.addEventListener('click', () => {
     gameOverOverlay.style.display = 'none';
     initGame();
 });
 
-// Add keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     if (e.key === ' ') {
-        // Space to start next wave in shop mode
         if (gameState === 'shop' && nextWaveBtn.style.display !== 'none') {
             nextWaveBtn.click();
         }
     } else if (e.key === 'r') {
-        // R to reload all weapons (in shop mode)
         if (gameState === 'shop') {
             player.weapons.forEach(weapon => {
                 if (weapon.usesAmmo && !weapon.isReloading) {
@@ -1876,7 +2162,6 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Add CSS for fade animation
 const style = document.createElement('style');
 style.textContent = `
     @keyframes fadeOut {
