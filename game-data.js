@@ -197,7 +197,7 @@ const GAME_DATA = {
             meleeType: 'single',
             baseDamage: 12,
             attackSpeed: 1.2,
-            range: 60,
+            range: 100,
             cost: 60,
             description: 'Swing a longsword in an arc',
             swingColor: '#C0C0C0',
