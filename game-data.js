@@ -414,7 +414,7 @@ const MONSTER_TYPES = {
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
-        speed: 0.3,
+        speed: 0.75,
         healthMultiplier: 10,
         damageMultiplier: 2,
         sizeMultiplier: 2.5,
