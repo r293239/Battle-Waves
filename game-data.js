@@ -87,6 +87,13 @@ const GAME_DATA = {
             description: 'Reduce damage taken by 10%',
             icon: '🛡️',
             effect: { damageReduction: 0.1 }
+        },
+        {
+            id: 'reload',
+            name: 'Quick Hands',
+            description: 'Quicker Reload speed',
+            icon: '🔄',
+            effect: { reloadTime: 0.9 }
         }
     ],
 
