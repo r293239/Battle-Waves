@@ -27,6 +27,7 @@ const GAME_DATA = {
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120 },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130 },
         { number: 10, monsters: 1, monsterHealth: 2000, monsterDamage: 15, goldReward: 300, isBoss: true },
+        { number: 11, monsters: 31, monsterHealth: 65, monsterDamage: 11, goldReward: 140 },
     ],
 
     // Stat buffs that appear after each wave
