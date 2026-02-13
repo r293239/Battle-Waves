@@ -432,7 +432,7 @@
             box-shadow: 0 5px 15px rgba(0, 176, 155, 0.4);
         }
 
-        /* ============ FIXED SCROLLABLE START SCREEN ============ */
+        /* ============ OVERLAY STYLES (ONLY FOR WAVE COMPLETE & GAME OVER) ============ */
         .overlay {
             position: fixed;
             top: 0;
@@ -548,10 +548,6 @@
             .overlay-title {
                 font-size: 2.5rem;
             }
-            
-            .feature-list {
-                grid-template-columns: 1fr;
-            }
         }
 
         .item-tag {
@@ -634,74 +630,6 @@
             border: 1px solid #00ffff;
         }
 
-        /* ============ FIXED START SCREEN STYLES ============ */
-        .start-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            width: 100%;
-        }
-        
-        .start-title {
-            font-size: 4rem;
-            color: #ffcc00;
-            margin-bottom: 20px;
-            text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
-        }
-        
-        .start-instructions {
-            font-size: 1.2rem;
-            color: #aaaaff;
-            margin-bottom: 30px;
-            max-width: 600px;
-            line-height: 1.6;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .feature-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 30px 0;
-            max-width: 600px;
-            width: 100%;
-        }
-        
-        .feature {
-            background: rgba(50, 50, 100, 0.3);
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #5555aa;
-            transition: all 0.2s;
-        }
-        
-        .feature:hover {
-            background: rgba(70, 70, 140, 0.5);
-            border-color: #ffcc00;
-            transform: translateY(-2px);
-        }
-        
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-        
-        .feature-text {
-            color: #aaaaff;
-            font-size: 0.9rem;
-        }
-        
-        #startGameBtn {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
         .spawn-indicator {
             position: absolute;
             color: #ff0000;
@@ -722,7 +650,7 @@
             margin-top: 20px;
             width: 100%;
         }
-        
+
         .scrap-weapon-btn {
             margin-top: 10px;
             width: 100%;
@@ -984,64 +912,6 @@
                     Press SPACE to start wave | Press R to manually reload
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Start Screen Overlay - FIXED: Now scrollable with all features visible -->
-    <div class="overlay" id="startScreen">
-        <div class="overlay-content start-screen">
-            <h2 class="start-title">Battle Waves</h2>
-            <p class="start-instructions">
-                Survive endless waves of monsters! Move with your mouse, weapons auto-attack.
-                Clear waves to earn gold and buy upgrades. Touch monsters to lose HP.
-            </p>
-            
-            <div class="feature-list">
-                <div class="feature">
-                    <div class="feature-icon">👑</div>
-                    <div class="feature-text">BOSS FIGHT on Wave 10!</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">⚔️</div>
-                    <div class="feature-text">Realistic Weapon Animations - Sword, Axe, Dagger, Hammer, Trident</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔫</div>
-                    <div class="feature-text">Ammo & Reload System for ranged weapons</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">💥</div>
-                    <div class="feature-text">4 Monster Types: Normal, Fast, Tank, Explosive</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔄</div>
-                    <div class="feature-text">Shop Refresh System with scaling cost</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">⏱️</div>
-                    <div class="feature-text">5ms Attack Stagger - No overlapping attacks</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔄</div>
-                    <div class="feature-text">Weapon Merging System (Tier 1-5)</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">📊</div>
-                    <div class="feature-text">Cooldown bars for all weapons</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🛡️</div>
-                    <div class="feature-text">8 Stat Buffs to choose from after each wave</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">💰</div>
-                    <div class="feature-text">Gold multiplier & Life Steal upgrades</div>
-                </div>
-            </div>
-            
-            <button class="btn btn-primary" id="startGameBtn">
-                <span class="icon">🎮</span> Start Game
-            </button>
         </div>
     </div>
 
