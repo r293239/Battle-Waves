@@ -716,116 +716,6 @@
             animation: pulse 1s infinite;
         }
 
-        .overlay::-webkit-scrollbar {
-            width: 10px;
-        }
-
-        .overlay::-webkit-scrollbar-track {
-            background: rgba(30, 30, 60, 0.5);
-            border-radius: 10px;
-        }
-
-        .overlay::-webkit-scrollbar-thumb {
-            background: linear-gradient(45deg, #ff6b6b, #ffa726);
-            border-radius: 10px;
-        }
-
-        .overlay::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(45deg, #ffa726, #ff6b6b);
-        }
-
-        .start-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-        }
-
-        .start-title {
-            font-size: 4rem;
-            color: #ffcc00;
-            margin-bottom: 20px;
-            text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
-        }
-
-        .start-instructions {
-            font-size: 1.2rem;
-            color: #aaaaff;
-            margin-bottom: 30px;
-            max-width: 600px;
-            line-height: 1.6;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .feature-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 30px 0;
-            max-width: 700px;
-            width: 100%;
-        }
-
-        .feature {
-            background: rgba(50, 50, 100, 0.3);
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #5555aa;
-            transition: all 0.2s;
-        }
-
-        .feature:hover {
-            background: rgba(70, 70, 140, 0.5);
-            border-color: #ffcc00;
-            transform: translateY(-2px);
-        }
-
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-
-        .feature-text {
-            color: #aaaaff;
-            font-size: 0.9rem;
-        }
-
-        #startGameBtn {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
-            cursor: pointer;
-        }
-
-        .spawn-indicator {
-            position: absolute;
-            color: #ff0000;
-            font-size: 2rem;
-            font-weight: bold;
-            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
-            z-index: 5;
-            animation: pulse 1s infinite;
-        }
-
-        .next-wave-btn {
-            margin-top: 20px;
-            width: 100%;
-        }
-
-        .scrap-weapon-btn {
-            margin-top: 10px;
-            width: 100%;
-        }
-
-        .merge-weapon-btn {
-            margin-top: 10px;
-            width: 100%;
-        }
-
         .weapon-info {
             position: absolute;
             bottom: 25px;
@@ -874,14 +764,27 @@
             .overlay-title {
                 font-size: 2.5rem;
             }
-            
-            .feature-list {
-                grid-template-columns: 1fr;
-            }
-            
-            .start-title {
-                font-size: 3rem;
-            }
+        }
+
+        /* Quick Start Button */
+        .quick-start-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 999;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        .quick-start-btn:hover {
+            transform: scale(1.1);
         }
     </style>
 </head>
@@ -889,6 +792,11 @@
     <!-- Game UI Elements -->
     <div class="merge-info" id="mergeInfo"></div>
     <div class="reload-indicator" id="reloadIndicator">RELOADING...</div>
+    
+    <!-- Quick Start Button (visible when game not started) -->
+    <button class="quick-start-btn" id="quickStartBtn">
+        <span class="icon">⚡</span> QUICK START GAME
+    </button>
     
     <div class="container">
         <div class="game-header">
@@ -981,64 +889,6 @@
         </div>
     </div>
 
-    <!-- Start Screen Overlay -->
-    <div class="overlay" id="startScreen" style="display: flex;">
-        <div class="overlay-content start-screen">
-            <h2 class="start-title">Battle Waves</h2>
-            <p class="start-instructions">
-                Survive endless waves of monsters! Move with your mouse, weapons auto-attack.
-                Clear waves to earn gold and buy upgrades. Touch monsters to lose HP.
-            </p>
-            
-            <div class="feature-list">
-                <div class="feature">
-                    <div class="feature-icon">👑</div>
-                    <div class="feature-text">BOSS FIGHTS on Waves 10, 15, 20! Each with unique projectile attacks</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">⚔️</div>
-                    <div class="feature-text">Realistic Weapon Animations - Sword, Axe, Dagger, Hammer, Trident</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔫</div>
-                    <div class="feature-text">Ammo & Reload System for ranged weapons</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">💥</div>
-                    <div class="feature-text">7 Monster Types: Normal, Fast, Tank, Explosive, Healer, Ninja, Vampire</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔥</div>
-                    <div class="feature-text">3 Unique Bosses: Fire (spread shot), Ice (slow shot), Void (homing missiles)</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔄</div>
-                    <div class="feature-text">Shop Refresh System with scaling cost</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">⭐</div>
-                    <div class="feature-text">Weapon Merging System (Tier 1-5) - Combine identical weapons</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">📊</div>
-                    <div class="feature-text">Level Up System - Gain XP, level up for permanent stat boosts</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🛡️</div>
-                    <div class="feature-text">12 Stat Buffs to choose from after each wave</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">💰</div>
-                    <div class="feature-text">Gold multiplier, Life Steal, Critical Chance, Armor upgrades</div>
-                </div>
-            </div>
-            
-            <button class="btn btn-primary" id="startGameBtn">
-                <span class="icon">🎮</span> Start Game
-            </button>
-        </div>
-    </div>
-
     <!-- Wave Complete Overlay (Stat Buffs) -->
     <div class="overlay" id="waveCompleteOverlay" style="display: none;">
         <div class="overlay-content">
@@ -1062,61 +912,29 @@
     </div>
 
     <script>
-        // Emergency fallback - if game-logic.js fails to load or initGame is not defined
+        // Auto-start the game when page loads
         window.addEventListener('load', function() {
-            console.log('Page loaded, checking if game initialized...');
+            console.log('Page loaded, initializing game...');
             
-            // Check if initGame function exists (should be defined in game-logic.js)
-            if (typeof initGame !== 'function') {
-                console.error('initGame not found! Creating emergency fallback...');
-                
-                // Create minimal GAME_DATA if it doesn't exist
-                if (typeof GAME_DATA === 'undefined') {
-                    window.GAME_DATA = {
-                        PLAYER_START: { health: 20, maxHealth: 20, damage: 5, speed: 3, gold: 50 },
-                        WEAPONS: [],
-                        ITEMS: [],
-                        WAVES: [],
-                        STAT_BUFFS: []
-                    };
+            // Small delay to ensure scripts are loaded
+            setTimeout(function() {
+                if (typeof initGame === 'function') {
+                    initGame();
+                } else {
+                    console.error('initGame function not found!');
+                    alert('Error: Game script not loaded properly. Please refresh the page.');
                 }
-                
-                // Define minimal initGame function
-                window.initGame = function() {
-                    console.log('Emergency initGame called');
-                    document.getElementById('startScreen').style.display = 'none';
-                    document.getElementById('waveDisplay').textContent = 'Wave 1';
-                    document.getElementById('monsterCount').textContent = 'Monsters: 0';
-                    alert('Game started! If nothing happens, please check that game-logic.js is properly loaded.');
-                };
-            }
-            
-            // Attach event listener to start button
-            const startBtn = document.getElementById('startGameBtn');
-            if (startBtn) {
-                // Remove any existing listeners to avoid duplicates
-                const newStartBtn = startBtn.cloneNode(true);
-                startBtn.parentNode.replaceChild(newStartBtn, startBtn);
-                
-                // Add fresh event listener
-                newStartBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    console.log('Start button clicked!');
+            }, 100);
+        });
+
+        // Quick start button for manual start
+        document.addEventListener('DOMContentLoaded', function() {
+            const quickStartBtn = document.getElementById('quickStartBtn');
+            if (quickStartBtn) {
+                quickStartBtn.addEventListener('click', function() {
                     if (typeof initGame === 'function') {
                         initGame();
-                    } else {
-                        alert('Error: Game initialization function not found. Please check console.');
-                    }
-                });
-            }
-            
-            // Also attach to restart button
-            const restartBtn = document.getElementById('restartBtn');
-            if (restartBtn) {
-                restartBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (typeof initGame === 'function') {
-                        initGame();
+                        this.style.display = 'none';
                     }
                 });
             }
