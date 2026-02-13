@@ -169,7 +169,7 @@
 
         .health-fill {
             height: 100%;
-            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            background: linear-gradient(90deg, #11998e, #38ef7d);
             border-radius: 10px;
             transition: width 0.3s;
             width: 100%;
@@ -432,7 +432,6 @@
             box-shadow: 0 5px 15px rgba(0, 176, 155, 0.4);
         }
 
-        /* ============ FIXED SCROLLABLE START SCREEN ============ */
         .overlay {
             position: fixed;
             top: 0;
@@ -454,10 +453,10 @@
             padding: 40px;
             border-radius: 20px;
             border: 3px solid #ffcc00;
-            max-width: 700px;
+            max-width: 800px;
             width: 100%;
             text-align: center;
-            margin: auto 0;
+            margin: auto;
             box-shadow: 0 0 50px rgba(255, 204, 0, 0.2);
         }
 
@@ -509,49 +508,6 @@
         .buff-description {
             color: #aaaaff;
             font-size: 0.9rem;
-        }
-
-        .instructions {
-            margin-top: 20px;
-            color: #aaaaff;
-            font-size: 0.9rem;
-            text-align: center;
-            line-height: 1.5;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-            
-            .game-title {
-                font-size: 2.5rem;
-            }
-            
-            .weapons-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .stat-buffs {
-                grid-template-columns: 1fr;
-            }
-            
-            canvas {
-                width: 100%;
-                height: auto;
-            }
-            
-            .overlay-content {
-                padding: 30px 20px;
-            }
-            
-            .overlay-title {
-                font-size: 2.5rem;
-            }
-            
-            .feature-list {
-                grid-template-columns: 1fr;
-            }
         }
 
         .item-tag {
@@ -634,121 +590,6 @@
             border: 1px solid #00ffff;
         }
 
-        /* ============ FIXED START SCREEN STYLES ============ */
-        .start-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            width: 100%;
-        }
-        
-        .start-title {
-            font-size: 4rem;
-            color: #ffcc00;
-            margin-bottom: 20px;
-            text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
-        }
-        
-        .start-instructions {
-            font-size: 1.2rem;
-            color: #aaaaff;
-            margin-bottom: 30px;
-            max-width: 600px;
-            line-height: 1.6;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .feature-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 30px 0;
-            max-width: 600px;
-            width: 100%;
-        }
-        
-        .feature {
-            background: rgba(50, 50, 100, 0.3);
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #5555aa;
-            transition: all 0.2s;
-        }
-        
-        .feature:hover {
-            background: rgba(70, 70, 140, 0.5);
-            border-color: #ffcc00;
-            transform: translateY(-2px);
-        }
-        
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-        
-        .feature-text {
-            color: #aaaaff;
-            font-size: 0.9rem;
-        }
-        
-        #startGameBtn {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .spawn-indicator {
-            position: absolute;
-            color: #ff0000;
-            font-size: 2rem;
-            font-weight: bold;
-            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
-            z-index: 5;
-            animation: pulse 1s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.1); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        
-        .next-wave-btn {
-            margin-top: 20px;
-            width: 100%;
-        }
-        
-        .scrap-weapon-btn {
-            margin-top: 10px;
-            width: 100%;
-        }
-
-        .merge-weapon-btn {
-            margin-top: 10px;
-            width: 100%;
-        }
-        
-        .weapon-info {
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #ffcc00;
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-size: 0.7rem;
-            display: none;
-        }
-        
-        .weapon-slot:hover .weapon-info {
-            display: block;
-        }
-        
         .melee-type {
             position: absolute;
             top: 5px;
@@ -760,17 +601,6 @@
             border-radius: 10px;
         }
 
-        .weapon-details {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            font-size: 0.7rem;
-            background: rgba(0, 0, 0, 0.7);
-            color: #aaaaff;
-            padding: 2px 6px;
-            border-radius: 10px;
-        }
-
         .empty-slot {
             color: #5555aa;
             font-size: 1.5rem;
@@ -778,7 +608,7 @@
 
         .monster-count {
             position: absolute;
-            top: 50px;
+            top: 80px;
             left: 0;
             right: 0;
             text-align: center;
@@ -821,19 +651,30 @@
             animation: floatUpHealth 1s forwards;
         }
 
+        .xp-popup {
+            position: absolute;
+            color: #00ffff;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+        }
+
         @keyframes floatUp {
             0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-30px); }
+            100% { opacity: 0; transform: translateY(-50px); }
         }
 
         @keyframes floatUpGold {
             0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-40px); }
+            100% { opacity: 0; transform: translateY(-60px); }
         }
 
         @keyframes floatUpHealth {
             0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-20px); }
+            100% { opacity: 0; transform: translateY(-40px); }
         }
 
         @keyframes fadeOut {
@@ -875,7 +716,6 @@
             animation: pulse 1s infinite;
         }
 
-        /* Scrollbar styling for overlay */
         .overlay::-webkit-scrollbar {
             width: 10px;
         }
@@ -893,9 +733,157 @@
         .overlay::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(45deg, #ffa726, #ff6b6b);
         }
+
+        .start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .start-title {
+            font-size: 4rem;
+            color: #ffcc00;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+        }
+
+        .start-instructions {
+            font-size: 1.2rem;
+            color: #aaaaff;
+            margin-bottom: 30px;
+            max-width: 600px;
+            line-height: 1.6;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        .feature {
+            background: rgba(50, 50, 100, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #5555aa;
+            transition: all 0.2s;
+        }
+
+        .feature:hover {
+            background: rgba(70, 70, 140, 0.5);
+            border-color: #ffcc00;
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .feature-text {
+            color: #aaaaff;
+            font-size: 0.9rem;
+        }
+
+        #startGameBtn {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .spawn-indicator {
+            position: absolute;
+            color: #ff0000;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+            z-index: 5;
+            animation: pulse 1s infinite;
+        }
+
+        .next-wave-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .scrap-weapon-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .merge-weapon-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .weapon-info {
+            position: absolute;
+            bottom: 25px;
+            left: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffcc00;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            text-align: center;
+            display: none;
+        }
+
+        .weapon-slot:hover .weapon-info {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .game-title {
+                font-size: 2.5rem;
+            }
+            
+            .weapons-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .stat-buffs {
+                grid-template-columns: 1fr;
+            }
+            
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+            
+            .overlay-content {
+                padding: 30px 20px;
+            }
+            
+            .overlay-title {
+                font-size: 2.5rem;
+            }
+            
+            .feature-list {
+                grid-template-columns: 1fr;
+            }
+            
+            .start-title {
+                font-size: 3rem;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Game UI Elements -->
     <div class="merge-info" id="mergeInfo"></div>
     <div class="reload-indicator" id="reloadIndicator">RELOADING...</div>
     
@@ -914,6 +902,7 @@
         </div>
 
         <div class="ui-panel">
+            <!-- Player Stats Section -->
             <div class="panel-section">
                 <h3 class="section-title">Player Stats</h3>
                 <div class="stats-grid">
@@ -950,6 +939,7 @@
                 </div>
             </div>
 
+            <!-- Weapons Section -->
             <div class="panel-section">
                 <h3 class="section-title">Weapons (6 Slots)</h3>
                 <div class="weapons-grid" id="weaponsGrid"></div>
@@ -959,12 +949,13 @@
                 <button class="btn btn-success merge-weapon-btn" id="mergeWeaponBtn" style="display: none;">
                     <span class="icon">🔄</span> Merge With Selected Weapon
                 </button>
-                <div class="instructions">
+                <div class="instructions" style="margin-top: 10px; color: #aaaaff; font-size: 0.8rem;">
                     Click a weapon to select it. Click another same-type weapon to merge (Tier 1-5).<br>
                     Merging improves damage, attack speed, and special effects.
                 </div>
             </div>
 
+            <!-- Shop Section -->
             <div class="panel-section">
                 <div class="shop-header">
                     <h3 class="section-title" style="margin-bottom: 0;">Shop (4 Items)</h3>
@@ -979,7 +970,7 @@
                 <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
                     <span class="icon">⚔️</span> Start Next Wave
                 </button>
-                <div class="instructions">
+                <div class="instructions" style="margin-top: 10px; color: #aaaaff; font-size: 0.8rem;">
                     Buy items to fill empty slots. Refresh shop for 5g (cost increases with each refresh).<br>
                     Press SPACE to start wave | Press R to manually reload
                 </div>
@@ -987,7 +978,7 @@
         </div>
     </div>
 
-    <!-- Start Screen Overlay - FIXED: Now scrollable with all features visible -->
+    <!-- Start Screen Overlay -->
     <div class="overlay" id="startScreen">
         <div class="overlay-content start-screen">
             <h2 class="start-title">Battle Waves</h2>
@@ -999,7 +990,7 @@
             <div class="feature-list">
                 <div class="feature">
                     <div class="feature-icon">👑</div>
-                    <div class="feature-text">BOSS FIGHT on Wave 10!</div>
+                    <div class="feature-text">BOSS FIGHTS on Waves 10, 15, 20! Each with unique projectile attacks</div>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">⚔️</div>
@@ -1011,31 +1002,31 @@
                 </div>
                 <div class="feature">
                     <div class="feature-icon">💥</div>
-                    <div class="feature-text">4 Monster Types: Normal, Fast, Tank, Explosive</div>
+                    <div class="feature-text">6 Monster Types: Normal, Fast, Tank, Explosive, Healer, Ninja, Vampire</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔥</div>
+                    <div class="feature-text">3 Unique Bosses: Fire (spread shot), Ice (slow shot), Void (homing missiles)</div>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🔄</div>
                     <div class="feature-text">Shop Refresh System with scaling cost</div>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">⏱️</div>
-                    <div class="feature-text">5ms Attack Stagger - No overlapping attacks</div>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔄</div>
-                    <div class="feature-text">Weapon Merging System (Tier 1-5)</div>
+                    <div class="feature-icon">⭐</div>
+                    <div class="feature-text">Weapon Merging System (Tier 1-5) - Combine identical weapons</div>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">📊</div>
-                    <div class="feature-text">Cooldown bars for all weapons</div>
+                    <div class="feature-text">Level Up System - Gain XP, level up for permanent stat boosts</div>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🛡️</div>
-                    <div class="feature-text">8 Stat Buffs to choose from after each wave</div>
+                    <div class="feature-text">12 Stat Buffs to choose from after each wave</div>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">💰</div>
-                    <div class="feature-text">Gold multiplier & Life Steal upgrades</div>
+                    <div class="feature-text">Gold multiplier, Life Steal, Critical Chance, Armor upgrades</div>
                 </div>
             </div>
             
