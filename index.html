@@ -169,7 +169,7 @@
 
         .health-fill {
             height: 100%;
-            background: linear-gradient(90deg, #11998e, #38ef7d);
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
             border-radius: 10px;
             transition: width 0.3s;
             width: 100%;
@@ -432,6 +432,7 @@
             box-shadow: 0 5px 15px rgba(0, 176, 155, 0.4);
         }
 
+        /* ============ FIXED SCROLLABLE START SCREEN ============ */
         .overlay {
             position: fixed;
             top: 0;
@@ -442,10 +443,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             z-index: 1000;
             overflow-y: auto;
-            padding: 20px;
+            padding: 30px 20px;
         }
 
         .overlay-content {
@@ -453,10 +454,10 @@
             padding: 40px;
             border-radius: 20px;
             border: 3px solid #ffcc00;
-            max-width: 800px;
-            width: 90%;
+            max-width: 700px;
+            width: 100%;
             text-align: center;
-            margin: auto;
+            margin: auto 0;
             box-shadow: 0 0 50px rgba(255, 204, 0, 0.2);
         }
 
@@ -508,6 +509,49 @@
         .buff-description {
             color: #aaaaff;
             font-size: 0.9rem;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            color: #aaaaff;
+            font-size: 0.9rem;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .game-title {
+                font-size: 2.5rem;
+            }
+            
+            .weapons-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .stat-buffs {
+                grid-template-columns: 1fr;
+            }
+            
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+            
+            .overlay-content {
+                padding: 30px 20px;
+            }
+            
+            .overlay-title {
+                font-size: 2.5rem;
+            }
+            
+            .feature-list {
+                grid-template-columns: 1fr;
+            }
         }
 
         .item-tag {
@@ -590,6 +634,121 @@
             border: 1px solid #00ffff;
         }
 
+        /* ============ FIXED START SCREEN STYLES ============ */
+        .start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .start-title {
+            font-size: 4rem;
+            color: #ffcc00;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+        }
+        
+        .start-instructions {
+            font-size: 1.2rem;
+            color: #aaaaff;
+            margin-bottom: 30px;
+            max-width: 600px;
+            line-height: 1.6;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .feature {
+            background: rgba(50, 50, 100, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #5555aa;
+            transition: all 0.2s;
+        }
+        
+        .feature:hover {
+            background: rgba(70, 70, 140, 0.5);
+            border-color: #ffcc00;
+            transform: translateY(-2px);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .feature-text {
+            color: #aaaaff;
+            font-size: 0.9rem;
+        }
+        
+        #startGameBtn {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .spawn-indicator {
+            position: absolute;
+            color: #ff0000;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+            z-index: 5;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .next-wave-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .scrap-weapon-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .merge-weapon-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        .weapon-info {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffcc00;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            display: none;
+        }
+        
+        .weapon-slot:hover .weapon-info {
+            display: block;
+        }
+        
         .melee-type {
             position: absolute;
             top: 5px;
@@ -601,6 +760,17 @@
             border-radius: 10px;
         }
 
+        .weapon-details {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: #aaaaff;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
         .empty-slot {
             color: #5555aa;
             font-size: 1.5rem;
@@ -608,7 +778,7 @@
 
         .monster-count {
             position: absolute;
-            top: 80px;
+            top: 50px;
             left: 0;
             right: 0;
             text-align: center;
@@ -651,30 +821,19 @@
             animation: floatUpHealth 1s forwards;
         }
 
-        .xp-popup {
-            position: absolute;
-            color: #00ffff;
-            font-size: 1rem;
-            font-weight: bold;
-            text-shadow: 0 0 5px rgba(0, 255, 255, 0.7);
-            z-index: 100;
-            pointer-events: none;
-            animation: floatUp 1s forwards;
-        }
-
         @keyframes floatUp {
             0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-50px); }
+            100% { opacity: 0; transform: translateY(-30px); }
         }
 
         @keyframes floatUpGold {
             0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-60px); }
+            100% { opacity: 0; transform: translateY(-40px); }
         }
 
         @keyframes floatUpHealth {
             0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-40px); }
+            100% { opacity: 0; transform: translateY(-20px); }
         }
 
         @keyframes fadeOut {
@@ -716,87 +875,29 @@
             animation: pulse 1s infinite;
         }
 
-        .weapon-info {
-            position: absolute;
-            bottom: 25px;
-            left: 5px;
-            right: 5px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #ffcc00;
-            padding: 4px;
-            border-radius: 4px;
-            font-size: 0.6rem;
-            text-align: center;
-            display: none;
+        /* Scrollbar styling for overlay */
+        .overlay::-webkit-scrollbar {
+            width: 10px;
         }
 
-        .weapon-slot:hover .weapon-info {
-            display: block;
+        .overlay::-webkit-scrollbar-track {
+            background: rgba(30, 30, 60, 0.5);
+            border-radius: 10px;
         }
 
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-            
-            .game-title {
-                font-size: 2.5rem;
-            }
-            
-            .weapons-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .stat-buffs {
-                grid-template-columns: 1fr;
-            }
-            
-            canvas {
-                width: 100%;
-                height: auto;
-            }
-            
-            .overlay-content {
-                padding: 30px 20px;
-                width: 95%;
-            }
-            
-            .overlay-title {
-                font-size: 2.5rem;
-            }
-        }
-
-        /* Quick Start Button */
-        .quick-start-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            z-index: 999;
-            padding: 15px 30px;
-            font-size: 1.2rem;
+        .overlay::-webkit-scrollbar-thumb {
             background: linear-gradient(45deg, #ff6b6b, #ffa726);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
-            animation: pulse 2s infinite;
+            border-radius: 10px;
         }
 
-        .quick-start-btn:hover {
-            transform: scale(1.1);
+        .overlay::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #ffa726, #ff6b6b);
         }
     </style>
 </head>
 <body>
-    <!-- Game UI Elements -->
     <div class="merge-info" id="mergeInfo"></div>
     <div class="reload-indicator" id="reloadIndicator">RELOADING...</div>
-    
-    <!-- Quick Start Button (visible when game not started) -->
-    <button class="quick-start-btn" id="quickStartBtn">
-        <span class="icon">⚡</span> QUICK START GAME
-    </button>
     
     <div class="container">
         <div class="game-header">
@@ -813,7 +914,6 @@
         </div>
 
         <div class="ui-panel">
-            <!-- Player Stats Section -->
             <div class="panel-section">
                 <h3 class="section-title">Player Stats</h3>
                 <div class="stats-grid">
@@ -850,7 +950,6 @@
                 </div>
             </div>
 
-            <!-- Weapons Section -->
             <div class="panel-section">
                 <h3 class="section-title">Weapons (6 Slots)</h3>
                 <div class="weapons-grid" id="weaponsGrid"></div>
@@ -860,13 +959,12 @@
                 <button class="btn btn-success merge-weapon-btn" id="mergeWeaponBtn" style="display: none;">
                     <span class="icon">🔄</span> Merge With Selected Weapon
                 </button>
-                <div class="instructions" style="margin-top: 10px; color: #aaaaff; font-size: 0.8rem;">
+                <div class="instructions">
                     Click a weapon to select it. Click another same-type weapon to merge (Tier 1-5).<br>
                     Merging improves damage, attack speed, and special effects.
                 </div>
             </div>
 
-            <!-- Shop Section -->
             <div class="panel-section">
                 <div class="shop-header">
                     <h3 class="section-title" style="margin-bottom: 0;">Shop (4 Items)</h3>
@@ -881,11 +979,69 @@
                 <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
                     <span class="icon">⚔️</span> Start Next Wave
                 </button>
-                <div class="instructions" style="margin-top: 10px; color: #aaaaff; font-size: 0.8rem;">
+                <div class="instructions">
                     Buy items to fill empty slots. Refresh shop for 5g (cost increases with each refresh).<br>
                     Press SPACE to start wave | Press R to manually reload
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Start Screen Overlay - FIXED: Now scrollable with all features visible -->
+    <div class="overlay" id="startScreen">
+        <div class="overlay-content start-screen">
+            <h2 class="start-title">Battle Waves</h2>
+            <p class="start-instructions">
+                Survive endless waves of monsters! Move with your mouse, weapons auto-attack.
+                Clear waves to earn gold and buy upgrades. Touch monsters to lose HP.
+            </p>
+            
+            <div class="feature-list">
+                <div class="feature">
+                    <div class="feature-icon">👑</div>
+                    <div class="feature-text">BOSS FIGHT on Wave 10!</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚔️</div>
+                    <div class="feature-text">Realistic Weapon Animations - Sword, Axe, Dagger, Hammer, Trident</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔫</div>
+                    <div class="feature-text">Ammo & Reload System for ranged weapons</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💥</div>
+                    <div class="feature-text">4 Monster Types: Normal, Fast, Tank, Explosive</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔄</div>
+                    <div class="feature-text">Shop Refresh System with scaling cost</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⏱️</div>
+                    <div class="feature-text">5ms Attack Stagger - No overlapping attacks</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔄</div>
+                    <div class="feature-text">Weapon Merging System (Tier 1-5)</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-text">Cooldown bars for all weapons</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🛡️</div>
+                    <div class="feature-text">8 Stat Buffs to choose from after each wave</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-text">Gold multiplier & Life Steal upgrades</div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="startGameBtn">
+                <span class="icon">🎮</span> Start Game
+            </button>
         </div>
     </div>
 
@@ -910,36 +1066,6 @@
             </div>
         </div>
     </div>
-
-    <script>
-        // Auto-start the game when page loads
-        window.addEventListener('load', function() {
-            console.log('Page loaded, initializing game...');
-            
-            // Small delay to ensure scripts are loaded
-            setTimeout(function() {
-                if (typeof initGame === 'function') {
-                    initGame();
-                } else {
-                    console.error('initGame function not found!');
-                    alert('Error: Game script not loaded properly. Please refresh the page.');
-                }
-            }, 100);
-        });
-
-        // Quick start button for manual start
-        document.addEventListener('DOMContentLoaded', function() {
-            const quickStartBtn = document.getElementById('quickStartBtn');
-            if (quickStartBtn) {
-                quickStartBtn.addEventListener('click', function() {
-                    if (typeof initGame === 'function') {
-                        initGame();
-                        this.style.display = 'none';
-                    }
-                });
-            }
-        });
-    </script>
 
     <!-- Scripts - Order matters! GAME_DATA must be loaded first -->
     <script src="game-data.js"></script>
