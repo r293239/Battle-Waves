@@ -1059,7 +1059,20 @@ function spawnMonster() {
         frozen: false,
         frozenUntil: 0,
         stunned: false,
-        stunnedUntil: 0
+        stunnedUntil: 0,
+        
+        // Status effects
+        burning: false,
+        burnDamage: 0,
+        burnUntil: 0,
+        lastBurnTick: 0,
+        
+        poisoned: false,
+        poisonDamage: 0,
+        poisonUntil: 0,
+        lastPoisonTick: 0,
+        
+        originalSpeed: monsterType.speed
     };
     
     // Add mimic disguise
@@ -1748,125 +1761,515 @@ function drawSpawnIndicators() {
     }
 }
 
-function drawGroundEffects() {
-    // Draw ground fire
-    groundFire.forEach(fire => {
-        const progress = (Date.now() - fire.startTime) / fire.duration;
-        if (progress > 1) return;
-        
+// ============================================
+// ENHANCED PROJECTILE DRAWING FUNCTIONS
+// ============================================
+
+function drawProjectiles() {
+    const currentTime = Date.now();
+    
+    player.projectiles.forEach(projectile => {
         ctx.save();
-        ctx.globalAlpha = 1 - progress * 0.5;
-        ctx.fillStyle = '#FF4500';
-        ctx.shadowColor = '#FF4500';
+        ctx.shadowColor = projectile.color;
         ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.arc(fire.x, fire.y, fire.radius, 0, Math.PI * 2);
-        ctx.fill();
         
-        // Inner glow
-        ctx.fillStyle = '#FFD700';
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(fire.x, fire.y, fire.radius * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    });
-    
-    // Draw poison clouds
-    poisonClouds.forEach(cloud => {
-        const progress = (Date.now() - cloud.startTime) / cloud.duration;
-        if (progress > 1) return;
+        if (projectile.weaponId === 'flamethrower') {
+            drawFlamethrowerProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'grenade_launcher') {
+            drawGrenadeProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'railgun') {
+            drawRailgunProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'fire_staff') {
+            drawFireballProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'ice_staff') {
+            drawIceProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'lightning_staff') {
+            drawLightningProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'poison_staff') {
+            drawPoisonProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'arcane_staff') {
+            drawArcaneProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'boomerang') {
+            drawBoomerangProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'crossbow') {
+            drawCrossbowProjectile(ctx, projectile, currentTime);
+        } else {
+            // Default projectile
+            ctx.fillStyle = projectile.color;
+            ctx.beginPath();
+            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = projectile.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+                      projectile.y - Math.sin(projectile.angle) * 10);
+            ctx.lineTo(projectile.x, projectile.y);
+            ctx.stroke();
+        }
         
-        ctx.save();
-        ctx.globalAlpha = 0.4 * (1 - progress);
-        ctx.fillStyle = '#32CD32';
-        ctx.shadowColor = '#32CD32';
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    });
-    
-    // Draw void zones
-    voidZones.forEach(zone => {
-        const progress = (Date.now() - zone.startTime) / zone.duration;
-        if (progress > 1) return;
-        
-        ctx.save();
-        ctx.globalAlpha = 0.6 * (1 - progress);
-        ctx.fillStyle = '#4B0082';
-        ctx.shadowColor = '#9400D3';
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Inner swirl
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(zone.x, zone.y, zone.radius * 0.5, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-    });
-    
-    // Draw traps
-    activeTraps.forEach(trap => {
-        if (!trap.active) return;
-        
-        ctx.save();
-        ctx.fillStyle = '#FF0000';
-        ctx.shadowColor = '#FF0000';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(trap.x, trap.y, 15, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(trap.x, trap.y, 20, 0, Math.PI * 2);
-        ctx.stroke();
         ctx.restore();
     });
 }
 
-function drawPlayer() {
+function drawFlamethrowerProjectile(ctx, projectile, currentTime) {
+    // Flamethrower - continuous flame with particles
+    const particleCount = 8;
+    const baseX = projectile.x;
+    const baseY = projectile.y;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const offset = (currentTime * 0.01 + i) % (Math.PI * 2);
+        const spreadX = Math.sin(offset) * (8 + i * 2);
+        const spreadY = Math.cos(offset * 1.3) * (8 + i * 2);
+        
+        const x = baseX - Math.cos(projectile.angle) * (i * 5) + spreadX;
+        const y = baseY - Math.sin(projectile.angle) * (i * 5) + spreadY;
+        
+        const size = 8 - i * 0.8;
+        const alpha = 1 - i * 0.1;
+        
+        // Core flame (white hot)
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size * 2);
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+        gradient.addColorStop(0.4, `rgba(255, 200, 0, ${alpha * 0.9})`);
+        gradient.addColorStop(0.7, `rgba(255, 100, 0, ${alpha * 0.7})`);
+        gradient.addColorStop(1, `rgba(255, 50, 0, 0)`);
+        
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = '#FF4500';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Embers
+        if (i % 2 === 0) {
+            ctx.fillStyle = `rgba(255, 100, 0, ${alpha * 0.5})`;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(x - 2, y - 2, size * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    // Trail of fire on ground
+    if (Math.random() < 0.3) {
+        groundFire.push({
+            x: projectile.x,
+            y: projectile.y,
+            radius: projectile.groundFireRadius || 20,
+            damage: projectile.burnDamage || 1,
+            startTime: currentTime,
+            duration: projectile.groundFireDuration || 1500,
+            color: '#FF4500'
+        });
+    }
+}
+
+function drawGrenadeProjectile(ctx, projectile, currentTime) {
+    if (!projectile.startTime) projectile.startTime = currentTime;
+    const progress = (currentTime - projectile.startTime) / (projectile.fuseTime || 800);
+    const bounce = Math.sin(progress * Math.PI * 4) * 5;
+    
+    // Grenade body
     ctx.save();
-    ctx.translate(player.x, player.y);
+    ctx.translate(projectile.x, projectile.y - bounce);
+    ctx.rotate(progress * Math.PI * 2);
     
-    ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
+    // Main body
+    ctx.fillStyle = '#556B2F';
+    ctx.shadowColor = '#8B4513';
     ctx.shadowBlur = 15;
-    
-    ctx.fillStyle = player.color;
     ctx.beginPath();
-    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 8, 6, 0, 0, Math.PI * 2);
     ctx.fill();
     
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#ffffff';
+    // Fuse
+    ctx.strokeStyle = '#8B4513';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.moveTo(5, -5);
+    ctx.lineTo(10, -12);
     ctx.stroke();
     
-    const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-    const indicatorX = Math.cos(angle) * (player.radius + 5);
-    const indicatorY = Math.sin(angle) * (player.radius + 5);
+    // Sparkling fuse (gets brighter as it nears explosion)
+    if (progress > 0.7) {
+        const sparkIntensity = (progress - 0.7) * 3;
+        ctx.fillStyle = `rgba(255, 100, 0, ${sparkIntensity})`;
+        ctx.shadowColor = '#FF4500';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(10, -12, 3 + sparkIntensity * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
     
-    ctx.fillStyle = '#ffcc00';
-    ctx.shadowColor = 'rgba(255, 204, 0, 0.5)';
-    ctx.shadowBlur = 10;
+    ctx.restore();
+    
+    // Smoke trail
+    if (Math.random() < 0.2) {
+        ctx.save();
+        ctx.fillStyle = `rgba(100, 100, 100, ${0.3 + progress * 0.2})`;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(projectile.x - Math.cos(projectile.angle) * 10, 
+                projectile.y - Math.sin(projectile.angle) * 10, 
+                5 + progress * 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function drawRailgunProjectile(ctx, projectile, currentTime) {
+    // Railgun - piercing energy beam
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(projectile.angle);
+    
+    // Main beam
+    const beamLength = 60;
+    const beamWidth = projectile.beamWidth || 8;
+    
+    // Core beam
+    ctx.fillStyle = '#4169E1';
+    ctx.shadowColor = '#00FFFF';
+    ctx.shadowBlur = 20;
+    ctx.fillRect(0, -beamWidth/2, beamLength, beamWidth);
+    
+    // Energy core
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowBlur = 30;
+    ctx.fillRect(0, -beamWidth/4, beamLength, beamWidth/2);
+    
+    // Particles along beam
+    for (let i = 0; i < 5; i++) {
+        const pos = (currentTime * 0.1 + i * 10) % beamLength;
+        ctx.fillStyle = `rgba(255, 255, 255, 0.7)`;
+        ctx.beginPath();
+        ctx.arc(pos, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+    
+    // Impact effect at max range
+    if (!projectile.startX) {
+        projectile.startX = projectile.x;
+        projectile.startY = projectile.y;
+    }
+    
+    const dx = projectile.x - projectile.startX;
+    const dy = projectile.y - projectile.startY;
+    const distanceTraveled = Math.sqrt(dx * dx + dy * dy);
+    
+    if (projectile.range - distanceTraveled < 50) {
+        ctx.save();
+        ctx.fillStyle = '#4169E1';
+        ctx.shadowColor = '#00FFFF';
+        ctx.shadowBlur = 30;
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function drawFireballProjectile(ctx, projectile, currentTime) {
+    // Fireball with trail
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    
+    // Main fireball
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+    gradient.addColorStop(0, '#FFFFFF');
+    gradient.addColorStop(0.3, '#FFD700');
+    gradient.addColorStop(0.6, '#FF4500');
+    gradient.addColorStop(1, '#8B0000');
+    
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = '#FF4500';
+    ctx.shadowBlur = 25;
     ctx.beginPath();
-    ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Flame trail
+    for (let i = 1; i <= 3; i++) {
+        const trailX = -Math.cos(projectile.angle) * i * 8;
+        const trailY = -Math.sin(projectile.angle) * i * 8;
+        
+        ctx.fillStyle = `rgba(255, 69, 0, ${0.4 - i * 0.1})`;
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(trailX, trailY, 8 - i * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+}
+
+function drawIceProjectile(ctx, projectile, currentTime) {
+    // Ice projectile with frost effect
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(currentTime * 0.01);
+    
+    // Ice crystal
+    ctx.strokeStyle = '#87CEEB';
+    ctx.fillStyle = 'rgba(135, 206, 235, 0.7)';
+    ctx.shadowColor = '#00FFFF';
+    ctx.shadowBlur = 20;
+    ctx.lineWidth = 2;
+    
+    // Draw crystal shape
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI * 2) / 6;
+        const x1 = Math.cos(angle) * 12;
+        const y1 = Math.sin(angle) * 12;
+        const x2 = Math.cos(angle + 0.5) * 6;
+        const y2 = Math.sin(angle + 0.5) * 6;
+        
+        ctx.moveTo(0, 0);
+        ctx.lineTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.closePath();
+    }
+    ctx.fill();
+    ctx.stroke();
+    
+    // Frost particles
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowBlur = 10;
+    for (let i = 0; i < 4; i++) {
+        const angle = currentTime * 0.005 + i * 1.5;
+        const dist = 8 + Math.sin(currentTime * 0.01 + i) * 2;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+}
+
+function drawLightningProjectile(ctx, projectile, currentTime) {
+    // Lightning bolt
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    
+    const segments = 8;
+    const points = [];
+    
+    for (let i = 0; i <= segments; i++) {
+        const progress = i / segments;
+        const baseX = progress * 40;
+        const baseY = Math.sin(progress * Math.PI * 4 + currentTime * 0.02) * (10 + Math.random() * 5);
+        
+        points.push({x: baseX, y: baseY});
+    }
+    
+    // Draw lightning
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 4;
+    ctx.shadowColor = '#FFFF00';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+    
+    // Inner core
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+    
+    // Sparks
+    ctx.fillStyle = '#FFD700';
+    for (let i = 0; i < 3; i++) {
+        const sparkX = points[Math.floor(Math.random() * points.length)].x;
+        const sparkY = points[Math.floor(Math.random() * points.length)].y;
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+}
+
+function drawPoisonProjectile(ctx, projectile, currentTime) {
+    // Poison projectile with bubbling effect
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    
+    // Main blob
+    ctx.fillStyle = '#32CD32';
+    ctx.shadowColor = '#00FF00';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 10 + Math.sin(currentTime * 0.02) * 2, 
+                10 + Math.cos(currentTime * 0.03) * 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Bubbles
+    for (let i = 0; i < 3; i++) {
+        const bubbleX = Math.sin(currentTime * 0.01 + i) * 5;
+        const bubbleY = Math.cos(currentTime * 0.02 + i) * 5;
+        
+        ctx.fillStyle = 'rgba(144, 238, 144, 0.7)';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(bubbleX, bubbleY, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+    
+    // Poison trail
+    if (Math.random() < 0.2) {
+        poisonClouds.push({
+            x: projectile.x,
+            y: projectile.y,
+            radius: projectile.cloudRadius || 30,
+            damage: projectile.poisonDamage || 2,
+            startTime: currentTime,
+            duration: projectile.cloudDuration || 2000
+        });
+    }
+}
+
+function drawArcaneProjectile(ctx, projectile, currentTime) {
+    // Arcane projectile with homing glow and duplication effect
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(currentTime * 0.01);
+    
+    // Outer glow
+    ctx.fillStyle = '#9370DB';
+    ctx.shadowColor = '#8A2BE2';
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Inner core
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowBlur = 40;
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Runes rotating around
+    for (let i = 0; i < 4; i++) {
+        const angle = currentTime * 0.005 + i * Math.PI / 2;
+        const runeX = Math.cos(angle) * 20;
+        const runeY = Math.sin(angle) * 20;
+        
+        ctx.fillStyle = '#FFD700';
+        ctx.shadowBlur = 20;
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✦', runeX, runeY);
+    }
+    
+    ctx.restore();
+}
+
+function drawBoomerangProjectile(ctx, projectile, currentTime) {
+    // Boomerang with spinning animation
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(currentTime * 0.01);
+    
+    // Boomerang shape
+    ctx.fillStyle = '#8B4513';
+    ctx.shadowColor = '#654321';
+    ctx.shadowBlur = 15;
+    
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(20, -10);
+    ctx.lineTo(25, 0);
+    ctx.lineTo(20, 10);
+    ctx.lineTo(0, 5);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Edge highlight
+    ctx.strokeStyle = '#CD7F32';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    
+    // Glow when returning
+    if (projectile.isReturning) {
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(0, 0, 25, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+}
+
+function drawCrossbowProjectile(ctx, projectile, currentTime) {
+    // Crossbow bolt with fletching
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(projectile.angle);
+    
+    // Bolt shaft
+    ctx.fillStyle = '#8B4513';
+    ctx.shadowColor = '#654321';
+    ctx.shadowBlur = 10;
+    ctx.fillRect(-2, -2, 25, 4);
+    
+    // Tip
+    ctx.fillStyle = '#C0C0C0';
+    ctx.shadowColor = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(23, -4);
+    ctx.lineTo(30, 0);
+    ctx.lineTo(23, 4);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Fletching
+    ctx.fillStyle = '#FF0000';
+    for (let i = 0; i < 2; i++) {
+        const offset = i * 2;
+        ctx.beginPath();
+        ctx.moveTo(-2 + offset, -2);
+        ctx.lineTo(-8 + offset, -6);
+        ctx.lineTo(-2 + offset, -2);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(-2 + offset, 2);
+        ctx.lineTo(-8 + offset, 6);
+        ctx.lineTo(-2 + offset, 2);
+        ctx.closePath();
+        ctx.fill();
+    }
     
     ctx.restore();
 }
 
 // ============================================
-// REALISTIC WEAPON ANIMATIONS
+// MELEE WEAPON ANIMATIONS
 // ============================================
 
 function drawMeleeAttacks() {
@@ -1899,22 +2302,25 @@ function drawMeleeAttacks() {
             case 'spear':
                 drawTrident(ctx, attack, angle, progress, distance, alpha);
                 break;
-            // New weapons fall back to default animations
+            // New weapons
+            case 'katana':
+                drawKatana(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'dual_daggers':
+                drawDualDaggers(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'scythe':
+                drawScythe(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'flail':
+                drawFlail(ctx, attack, angle, progress, distance, alpha);
+                break;
+            case 'tonfa':
+                drawTonfa(ctx, attack, angle, progress, distance, alpha);
+                break;
             default:
-                if (attack.animation === 'katanaSlash') {
-                    drawKatana(ctx, attack, angle, progress, distance, alpha);
-                } else if (attack.animation === 'dualStab') {
-                    drawDualDaggers(ctx, attack, angle, progress, distance, alpha);
-                } else if (attack.animation === 'scytheSweep') {
-                    drawScythe(ctx, attack, angle, progress, distance, alpha);
-                } else if (attack.animation === 'flailSpin') {
-                    drawFlail(ctx, attack, angle, progress, distance, alpha);
-                } else if (attack.animation === 'tonfaBlock') {
-                    drawTonfa(ctx, attack, angle, progress, distance, alpha);
-                } else {
-                    // Default fallback
-                    drawDefaultMelee(ctx, attack, angle, progress, distance, alpha);
-                }
+                // Default fallback
+                drawDefaultMelee(ctx, attack, angle, progress, distance, alpha);
                 break;
         }
         
@@ -2389,6 +2795,123 @@ function drawDefaultMelee(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
 }
 
+function drawGroundEffects() {
+    // Draw ground fire
+    groundFire.forEach(fire => {
+        const progress = (Date.now() - fire.startTime) / fire.duration;
+        if (progress > 1) return;
+        
+        ctx.save();
+        ctx.globalAlpha = 1 - progress * 0.5;
+        ctx.fillStyle = '#FF4500';
+        ctx.shadowColor = '#FF4500';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(fire.x, fire.y, fire.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner glow
+        ctx.fillStyle = '#FFD700';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(fire.x, fire.y, fire.radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+    
+    // Draw poison clouds
+    poisonClouds.forEach(cloud => {
+        const progress = (Date.now() - cloud.startTime) / cloud.duration;
+        if (progress > 1) return;
+        
+        ctx.save();
+        ctx.globalAlpha = 0.4 * (1 - progress);
+        ctx.fillStyle = '#32CD32';
+        ctx.shadowColor = '#32CD32';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+    
+    // Draw void zones
+    voidZones.forEach(zone => {
+        const progress = (Date.now() - zone.startTime) / zone.duration;
+        if (progress > 1) return;
+        
+        ctx.save();
+        ctx.globalAlpha = 0.6 * (1 - progress);
+        ctx.fillStyle = '#4B0082';
+        ctx.shadowColor = '#9400D3';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner swirl
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(zone.x, zone.y, zone.radius * 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    });
+    
+    // Draw traps
+    activeTraps.forEach(trap => {
+        if (!trap.active) return;
+        
+        ctx.save();
+        ctx.fillStyle = '#FF0000';
+        ctx.shadowColor = '#FF0000';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(trap.x, trap.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(trap.x, trap.y, 20, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    });
+}
+
+function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    
+    ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
+    ctx.shadowBlur = 15;
+    
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+    const indicatorX = Math.cos(angle) * (player.radius + 5);
+    const indicatorY = Math.sin(angle) * (player.radius + 5);
+    
+    ctx.fillStyle = '#ffcc00';
+    ctx.shadowColor = 'rgba(255, 204, 0, 0.5)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
 function updateGame(deltaTime) {
     const dx = mouseX - player.x;
     const dy = mouseY - player.y;
@@ -2490,14 +3013,35 @@ function updateProjectiles() {
     for (let i = player.projectiles.length - 1; i >= 0; i--) {
         const projectile = player.projectiles[i];
         
+        // Store start position for distance calculation
+        if (!projectile.startX) {
+            projectile.startX = projectile.x;
+            projectile.startY = projectile.y;
+        }
+        
         projectile.x += Math.cos(projectile.angle) * projectile.speed;
         projectile.y += Math.sin(projectile.angle) * projectile.speed;
         
-        const dx = projectile.x - player.x;
-        const dy = projectile.y - player.y;
-        const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
+        const dx = projectile.x - projectile.startX;
+        const dy = projectile.y - projectile.startY;
+        const distanceTraveled = Math.sqrt(dx * dx + dy * dy);
         
-        if (distanceFromPlayer > projectile.range) {
+        if (distanceTraveled > projectile.range) {
+            // Special case for grenade launcher - explode at max range
+            if (projectile.weaponId === 'grenade_launcher') {
+                createExplosion(projectile.x, projectile.y, 
+                              projectile.explosionRadius || 80, 
+                              projectile.explosionDamage || 20, false);
+            }
+            player.projectiles.splice(i, 1);
+            continue;
+        }
+        
+        // Check for fuse timing (grenade launcher)
+        if (projectile.fuseTime && currentTime - (projectile.startTime || currentTime) > projectile.fuseTime) {
+            createExplosion(projectile.x, projectile.y, 
+                          projectile.explosionRadius || 80, 
+                          projectile.explosionDamage || 20, false);
             player.projectiles.splice(i, 1);
             continue;
         }
@@ -2538,7 +3082,27 @@ function updateProjectiles() {
             const dy = projectile.y - monster.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < (projectile.isPellet ? 3 : 5) + monster.radius) {
+            // Different hit detection for different weapons
+            let hitDetected = false;
+            
+            if (projectile.weaponId === 'flamethrower') {
+                // Flamethrower has larger hit area
+                hitDetected = distance < 15 + monster.radius;
+            } else if (projectile.weaponId === 'railgun') {
+                // Railgun hits in a line
+                const monsterAngle = Math.atan2(monster.y - projectile.startY, monster.x - projectile.startX);
+                const angleDiff = Math.abs(projectile.angle - monsterAngle);
+                const monsterDist = Math.sqrt(
+                    Math.pow(monster.x - projectile.startX, 2) + 
+                    Math.pow(monster.y - projectile.startY, 2)
+                );
+                hitDetected = angleDiff < 0.2 && monsterDist < distanceTraveled + 20;
+            } else {
+                // Default hit detection
+                hitDetected = distance < (projectile.isPellet ? 3 : 5) + monster.radius;
+            }
+            
+            if (hitDetected) {
                 let damage = projectile.damage;
                 
                 // Apply sharpening stone buff
@@ -2586,20 +3150,129 @@ function updateProjectiles() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Apply slow effect
-                if (projectile.slowAmount > 0 && damage > 0) {
-                    monster.slowed = true;
-                    monster.slowUntil = currentTime + projectile.slowDuration;
-                    monster.originalSpeed = monster.speed;
-                    monster.speed *= (1 - projectile.slowAmount);
+                // Weapon-specific effects
+                if (projectile.weaponId === 'grenade_launcher') {
+                    createExplosion(monster.x, monster.y, 
+                                  projectile.explosionRadius || 80, 
+                                  projectile.explosionDamage || 20, isCritical);
                 }
                 
-                // Apply freeze effect
-                if (projectile.freezeChance && Math.random() < projectile.freezeChance && damage > 0) {
-                    monster.frozen = true;
-                    monster.frozenUntil = currentTime + projectile.freezeDuration;
-                    monster.originalSpeed = monster.speed;
-                    monster.speed = 0;
+                if (projectile.weaponId === 'fire_staff' || projectile.weaponId === 'flamethrower') {
+                    // Apply burn effect
+                    if (!monster.burning) {
+                        monster.burning = true;
+                        monster.burnDamage = projectile.burnDamage || 2;
+                        monster.burnUntil = currentTime + (projectile.burnDuration || 3000);
+                        monster.lastBurnTick = currentTime;
+                    }
+                }
+                
+                if (projectile.weaponId === 'ice_staff') {
+                    // Apply freeze effect
+                    if (Math.random() < (projectile.freezeChance || 0.7)) {
+                        monster.frozen = true;
+                        monster.frozenUntil = currentTime + (projectile.freezeDuration || 1000);
+                        if (!monster.originalSpeed) {
+                            monster.originalSpeed = monster.speed;
+                        }
+                        monster.speed = 0;
+                    }
+                }
+                
+                if (projectile.weaponId === 'lightning_staff') {
+                    // Chain lightning effect
+                    let chainTargets = [monster];
+                    let currentDamage = damage;
+                    
+                    for (let c = 0; c < (projectile.chainCount || 3); c++) {
+                        let nextTarget = null;
+                        let nextDist = Infinity;
+                        
+                        monsters.forEach(m => {
+                            if (chainTargets.includes(m)) return;
+                            const dist = Math.sqrt(
+                                Math.pow(m.x - chainTargets[chainTargets.length-1].x, 2) + 
+                                Math.pow(m.y - chainTargets[chainTargets.length-1].y, 2)
+                            );
+                            if (dist < (projectile.chainRange || 80) && dist < nextDist) {
+                                nextDist = dist;
+                                nextTarget = m;
+                            }
+                        });
+                        
+                        if (nextTarget) {
+                            currentDamage *= (projectile.chainDamageFalloff || 0.7);
+                            nextTarget.health -= currentDamage;
+                            createDamageIndicator(nextTarget.x, nextTarget.y, Math.floor(currentDamage), false);
+                            
+                            // Draw chain lightning
+                            addVisualEffect({
+                                type: 'lightningChain',
+                                x1: chainTargets[chainTargets.length-1].x,
+                                y1: chainTargets[chainTargets.length-1].y,
+                                x2: nextTarget.x,
+                                y2: nextTarget.y,
+                                startTime: currentTime,
+                                duration: 200
+                            });
+                            
+                            chainTargets.push(nextTarget);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                
+                if (projectile.weaponId === 'poison_staff') {
+                    // Create poison cloud on hit
+                    poisonClouds.push({
+                        x: monster.x,
+                        y: monster.y,
+                        radius: projectile.cloudRadius || 40,
+                        damage: projectile.poisonDamage || 2,
+                        startTime: currentTime,
+                        duration: projectile.cloudDuration || 3000
+                    });
+                }
+                
+                if (projectile.weaponId === 'arcane_staff') {
+                    // Split into multiple projectiles
+                    if (Math.random() < (projectile.extraProjectileChance || 0.3)) {
+                        for (let s = 0; s < (projectile.splitCount || 2); s++) {
+                            const splitAngle = projectile.angle + (Math.random() - 0.5) * 0.5;
+                            const splitProjectile = {
+                                ...projectile,
+                                x: monster.x,
+                                y: monster.y,
+                                startX: monster.x,
+                                startY: monster.y,
+                                angle: splitAngle,
+                                damage: damage * (projectile.splitDamageMultiplier || 0.5),
+                                splitCount: 0
+                            };
+                            player.projectiles.push(splitProjectile);
+                        }
+                    }
+                }
+                
+                if (projectile.weaponId === 'crossbow') {
+                    // Apply slow effect
+                    monster.slowed = true;
+                    monster.slowUntil = currentTime + (projectile.slowDuration || 1500);
+                    if (!monster.originalSpeed) {
+                        monster.originalSpeed = monster.speed;
+                    }
+                    monster.speed = monster.originalSpeed * (1 - (projectile.slowAmount || 0.4));
+                }
+                
+                // Apply slow effect from any weapon
+                if (projectile.slowAmount > 0 && damage > 0 && !projectile.weaponId === 'crossbow') {
+                    monster.slowed = true;
+                    monster.slowUntil = currentTime + projectile.slowDuration;
+                    if (!monster.originalSpeed) {
+                        monster.originalSpeed = monster.speed;
+                    }
+                    monster.speed *= (1 - projectile.slowAmount);
                 }
                 
                 // Apply stun effect
@@ -2608,50 +3281,39 @@ function updateProjectiles() {
                     monster.stunnedUntil = currentTime + projectile.stunDuration;
                 }
                 
-                // Apply burn effect
-                if (projectile.burnDamage > 0 && damage > 0) {
-                    monster.burning = true;
-                    monster.burnDamage = projectile.burnDamage;
-                    monster.burnUntil = currentTime + projectile.burnDuration;
-                    monster.lastBurnTick = currentTime;
-                }
-                
-                // Apply poison effect
-                if (projectile.poisonDamage > 0 && damage > 0) {
-                    monster.poisoned = true;
-                    monster.poisonDamage = projectile.poisonDamage;
-                    monster.poisonUntil = currentTime + projectile.poisonDuration;
-                    monster.lastPoisonTick = currentTime;
-                }
-                
                 // Create ground fire
                 if (projectile.groundFireDuration > 0) {
                     groundFire.push({
                         x: monster.x,
                         y: monster.y,
                         radius: projectile.groundFireRadius || 30,
-                        damage: projectile.burnDamage,
+                        damage: projectile.burnDamage || 1,
                         startTime: currentTime,
                         duration: projectile.groundFireDuration
                     });
                 }
                 
                 if (!projectile.bounceCount || !projectile.targetsHit) {
-                    if (projectile.returnDamage > 0) {
+                    if (projectile.returnDamage > 0 && !projectile.isReturning) {
                         // Boomerang return
-                        setTimeout(() => {
-                            const returnProjectile = {
-                                ...projectile,
-                                x: monster.x,
-                                y: monster.y,
-                                angle: Math.atan2(player.y - monster.y, player.x - monster.x),
-                                damage: projectile.returnDamage,
-                                isReturning: true
-                            };
-                            player.projectiles.push(returnProjectile);
-                        }, 100);
+                        const returnProjectile = {
+                            ...projectile,
+                            x: monster.x,
+                            y: monster.y,
+                            startX: monster.x,
+                            startY: monster.y,
+                            angle: Math.atan2(player.y - monster.y, player.x - monster.x),
+                            damage: projectile.returnDamage,
+                            isReturning: true,
+                            bounceCount: 0
+                        };
+                        player.projectiles.push(returnProjectile);
                     }
-                    player.projectiles.splice(i, 1);
+                    
+                    // Don't remove flamethrower projectiles immediately - they have short range anyway
+                    if (projectile.weaponId !== 'flamethrower') {
+                        player.projectiles.splice(i, 1);
+                    }
                 } else {
                     if (!projectile.targetsHit.includes(monster)) {
                         projectile.targetsHit.push(monster);
@@ -2698,6 +3360,11 @@ function updateProjectiles() {
                 
                 break;
             }
+        }
+        
+        // Remove flamethrower projectiles after they've traveled a bit
+        if (projectile.weaponId === 'flamethrower' && distanceTraveled > 100) {
+            player.projectiles.splice(i, 1);
         }
     }
 }
@@ -2949,9 +3616,6 @@ function updateMonsters(currentTime) {
             monster.health -= monster.burnDamage;
             createDamageIndicator(monster.x, monster.y, monster.burnDamage, false);
             monster.lastBurnTick = currentTime;
-            if (monster.health <= 0) {
-                // Monster death will be handled in projectile/melee loops
-            }
         }
         
         // Poison damage over time
@@ -2959,9 +3623,6 @@ function updateMonsters(currentTime) {
             monster.health -= monster.poisonDamage;
             createDamageIndicator(monster.x, monster.y, monster.poisonDamage, false);
             monster.lastPoisonTick = currentTime;
-            if (monster.health <= 0) {
-                // Monster death will be handled in projectile/melee loops
-            }
         }
         
         // Move towards player
@@ -3140,14 +3801,7 @@ function updateGroundEffects(currentTime) {
                 createDamageIndicator(monster.x, monster.y, trap.damage, true);
                 trap.active = false;
                 
-                addVisualEffect({
-                    type: 'explosion',
-                    x: trap.x,
-                    y: trap.y,
-                    color: '#FF0000',
-                    startTime: currentTime,
-                    duration: 300
-                });
+                createExplosion(trap.x, trap.y, 80, trap.damage, true);
             }
         });
         
@@ -3155,6 +3809,43 @@ function updateGroundEffects(currentTime) {
             activeTraps.splice(i, 1);
         }
     }
+}
+
+function createExplosion(x, y, radius, damage, isCritical) {
+    const currentTime = Date.now();
+    
+    // Main explosion
+    addVisualEffect({
+        type: 'explosion',
+        x: x,
+        y: y,
+        radius: radius,
+        startTime: currentTime,
+        duration: 500
+    });
+    
+    // Shockwave
+    addVisualEffect({
+        type: 'shockwave',
+        x: x,
+        y: y,
+        radius: radius * 2,
+        startTime: currentTime,
+        duration: 300
+    });
+    
+    // Damage monsters in radius
+    monsters.forEach(monster => {
+        const dx = monster.x - x;
+        const dy = monster.y - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < radius) {
+            const explosionDamage = damage * (1 - distance / radius * 0.5);
+            monster.health -= explosionDamage;
+            createDamageIndicator(monster.x, monster.y, Math.floor(explosionDamage), isCritical);
+        }
+    });
 }
 
 function addVisualEffect(effect) {
@@ -3199,55 +3890,70 @@ function drawVisualEffects() {
                 break;
                 
             case 'explosion':
-                ctx.fillStyle = `rgba(255, 69, 0, ${alpha})`;
+                // Main explosion ball
+                const explosionSize = (effect.radius || 40) * (1 - progress * 0.5);
+                const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                gradient.addColorStop(0.3, `rgba(255, 200, 0, ${alpha})`);
+                gradient.addColorStop(0.6, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                
+                ctx.fillStyle = gradient;
                 ctx.shadowColor = '#FF4500';
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, explosionSize, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'shockwave':
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#FFFFFF';
                 ctx.shadowBlur = 20;
                 ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 40 * (1 - progress), 0, Math.PI * 2);
-                ctx.fill();
+                ctx.arc(effect.x, effect.y, (effect.radius || 80) * progress, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'lightningChain':
+                ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#FFFF00';
+                ctx.shadowBlur = 20;
+                
+                // Draw jagged lightning between points
+                const segments = 10;
+                ctx.beginPath();
+                ctx.moveTo(effect.x1, effect.y1);
+                
+                for (let s = 1; s <= segments; s++) {
+                    const t = s / segments;
+                    const x = effect.x1 + (effect.x2 - effect.x1) * t + (Math.random() - 0.5) * 20;
+                    const y = effect.y1 + (effect.y2 - effect.y1) * t + (Math.random() - 0.5) * 20;
+                    ctx.lineTo(x, y);
+                }
+                
+                ctx.stroke();
                 break;
                 
             case 'teleport':
                 ctx.strokeStyle = `rgba(138, 43, 226, ${alpha})`;
                 ctx.lineWidth = 3;
+                ctx.shadowColor = '#8A2BE2';
+                ctx.shadowBlur = 20;
                 ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 30 * progress, 0, Math.PI * 2);
+                ctx.arc(effect.x, effect.y, 30 * (1 - progress), 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner swirl
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 15 * progress, 0, Math.PI * 2);
                 ctx.stroke();
                 break;
         }
         
         ctx.restore();
-    });
-}
-
-function drawProjectiles() {
-    player.projectiles.forEach(projectile => {
-        ctx.fillStyle = projectile.color;
-        ctx.shadowColor = projectile.color;
-        ctx.shadowBlur = 10;
-        
-        if (projectile.beamWidth > 0) {
-            // Railgun beam
-            ctx.lineWidth = projectile.beamWidth;
-            ctx.beginPath();
-            ctx.moveTo(projectile.x, projectile.y);
-            ctx.lineTo(projectile.x + Math.cos(projectile.angle) * 50, 
-                      projectile.y + Math.sin(projectile.angle) * 50);
-            ctx.stroke();
-        } else {
-            ctx.beginPath();
-            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = projectile.color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
-                      projectile.y - Math.sin(projectile.angle) * 10);
-            ctx.lineTo(projectile.x, projectile.y);
-            ctx.stroke();
-        }
     });
 }
 
@@ -3292,6 +3998,22 @@ function drawMonsters() {
         // Freeze overlay
         if (monster.frozen && monster.frozenUntil > currentTime) {
             ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Burn overlay
+        if (monster.burning && monster.burnUntil > currentTime) {
+            ctx.fillStyle = 'rgba(255, 69, 0, 0.2)';
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Poison overlay
+        if (monster.poisoned && monster.poisonUntil > currentTime) {
+            ctx.fillStyle = 'rgba(50, 205, 50, 0.2)';
             ctx.beginPath();
             ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
             ctx.fill();
