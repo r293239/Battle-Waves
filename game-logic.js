@@ -473,7 +473,8 @@ class WeaponInstance {
                         color: this.projectileColor,
                         weaponId: this.id,
                         animation: this.animation,
-                        isPellet: true
+                        isPellet: true,
+                        startTime: currentTime
                     });
                 }
                 return attacks;
@@ -493,6 +494,7 @@ class WeaponInstance {
                     bounceCount: this.bounceCount,
                     bounceRange: this.bounceRange,
                     targetsHit: [],
+                    startTime: currentTime,
                     
                     // New weapon properties
                     burnDamage: this.burnDamage,
@@ -691,7 +693,19 @@ const player = {
     firstHitReduction: false,
     voidCrystalChance: 0,
     guardianAngelUsed: false,
-    bloodContractDamage: 0
+    bloodContractDamage: 0,
+    
+    // Consumable inventory
+    consumables: [],
+    
+    // Permanent item flags
+    berserkerRing: false,
+    sharpeningStone: false,
+    sharpeningStoneWave: 0,
+    enchantersInk: false,
+    guardianAngel: false,
+    bloodContract: false,
+    lastBloodDamage: 0
 };
 
 let monsters = [];
@@ -735,6 +749,14 @@ const goldValue = document.getElementById('goldValue');
 const waveValue = document.getElementById('waveValue');
 const killsValue = document.getElementById('killsValue');
 const healthFill = document.getElementById('healthFill');
+
+// Add consumables container to UI
+const consumablesContainer = document.createElement('div');
+consumablesContainer.className = 'consumables-container';
+consumablesContainer.innerHTML = '<h4>Consumables</h4><div class="consumables-grid" id="consumablesGrid"></div>';
+document.querySelector('.ui-panel').insertBefore(consumablesContainer, document.querySelector('.panel-section:last-child'));
+
+const consumablesGrid = document.getElementById('consumablesGrid');
 
 // ============================================
 // HELPER FUNCTIONS
@@ -859,7 +881,17 @@ function initGame() {
         firstHitReduction: false,
         voidCrystalChance: 0,
         guardianAngelUsed: false,
-        bloodContractDamage: 0
+        bloodContractDamage: 0,
+        
+        // Reset consumables and permanent items
+        consumables: [],
+        berserkerRing: false,
+        sharpeningStone: false,
+        sharpeningStoneWave: 0,
+        enchantersInk: false,
+        guardianAngel: false,
+        bloodContract: false,
+        lastBloodDamage: 0
     });
     
     const handgun = getWeaponById('handgun');
@@ -898,6 +930,7 @@ function initGame() {
     mergeInfo.style.display = 'none';
     reloadIndicator.style.display = 'none';
     
+    updateConsumablesDisplay();
     startWave();
     
     updateUI();
@@ -1166,6 +1199,120 @@ function updateWeaponDisplay() {
     }
 }
 
+function updateConsumablesDisplay() {
+    consumablesGrid.innerHTML = '';
+    
+    if (player.consumables.length === 0) {
+        consumablesGrid.innerHTML = '<div class="empty-consumable">No consumables</div>';
+        return;
+    }
+    
+    player.consumables.forEach((consumable, index) => {
+        const slot = document.createElement('div');
+        slot.className = 'consumable-slot';
+        slot.innerHTML = `
+            <div class="consumable-icon">${consumable.icon}</div>
+            <div class="consumable-name">${consumable.name}</div>
+            <div class="consumable-count">${consumable.count || 1}</div>
+        `;
+        
+        slot.addEventListener('click', () => useConsumable(index));
+        consumablesGrid.appendChild(slot);
+    });
+}
+
+function useConsumable(index) {
+    if (gameState !== 'wave') {
+        showMessage("Can only use consumables during waves!");
+        return;
+    }
+    
+    const consumable = player.consumables[index];
+    
+    switch(consumable.id) {
+        case 'health_potion':
+            player.health = Math.min(player.maxHealth, player.health + 20);
+            showMessage("Used Health Potion! +20 HP");
+            break;
+        case 'ammo_pack':
+            player.weapons.forEach(weapon => {
+                if (weapon.usesAmmo) {
+                    weapon.currentAmmo = weapon.magazineSize;
+                    weapon.isReloading = false;
+                }
+            });
+            showMessage("Used Ammo Pack! All weapons reloaded");
+            break;
+        case 'explosive_trap':
+            activeTraps.push({
+                x: player.x,
+                y: player.y,
+                active: true,
+                damage: 100,
+                radius: 80,
+                startTime: Date.now()
+            });
+            showMessage("Placed Explosive Trap!");
+            break;
+        case 'sharpening_stone':
+            player.sharpeningStone = true;
+            player.sharpeningStoneWave = wave;
+            showMessage("Used Sharpening Stone! Melee damage increased for this wave");
+            break;
+        case 'enchanters_ink':
+            // Apply random elemental effect to random weapon
+            if (player.weapons.length > 0) {
+                const randomWeapon = player.weapons[Math.floor(Math.random() * player.weapons.length)];
+                const effects = ['fire', 'ice', 'lightning', 'poison'];
+                const effect = effects[Math.floor(Math.random() * effects.length)];
+                
+                switch(effect) {
+                    case 'fire':
+                        randomWeapon.burnDamage = (randomWeapon.burnDamage || 0) + 2;
+                        randomWeapon.fireTrail = true;
+                        break;
+                    case 'ice':
+                        randomWeapon.freezeChance = 0.3;
+                        randomWeapon.freezeDuration = 1000;
+                        break;
+                    case 'lightning':
+                        randomWeapon.chainCount = 2;
+                        randomWeapon.chainRange = 60;
+                        break;
+                    case 'poison':
+                        randomWeapon.poisonDamage = 2;
+                        randomWeapon.poisonDuration = 3000;
+                        break;
+                }
+                showMessage(`Enchanted ${randomWeapon.name} with ${effect}!`);
+            }
+            break;
+        case 'dice_of_fate':
+            const rand = Math.random();
+            if (rand < 0.33) {
+                player.baseDamage *= 2;
+                showMessage("DOUBLE DAMAGE!");
+            } else if (rand < 0.66) {
+                player.health = player.maxHealth;
+                showMessage("FULL HEAL!");
+            } else {
+                gold += 100;
+                showMessage("+100 GOLD!");
+            }
+            break;
+    }
+    
+    // Remove consumed item
+    if (consumable.count && consumable.count > 1) {
+        consumable.count--;
+    } else {
+        player.consumables.splice(index, 1);
+    }
+    
+    updateConsumablesDisplay();
+    updateUI();
+}
+
 function selectWeapon(index) {
     if (gameState !== 'shop' && gameState !== 'statSelect') return;
     
@@ -1351,7 +1498,7 @@ function updateShopDisplay() {
                 else if (data.type === 'melee') typeText = data.meleeType.toUpperCase();
                 else typeText = 'RANGED';
             } else {
-                typeText = 'ITEM';
+                typeText = data.type === 'consumable' ? 'CONSUMABLE' : 'PERMANENT';
             }
             
             itemElement.innerHTML = `
@@ -1405,8 +1552,26 @@ function purchaseItem(index) {
         showMessage(`Purchased ${data.name}!`);
         
     } else {
-        applyItemEffect(data);
-        showMessage(`Purchased ${data.name}!`);
+        if (data.type === 'consumable') {
+            // Add to consumables inventory
+            const existingConsumable = player.consumables.find(c => c.id === data.id);
+            if (existingConsumable) {
+                existingConsumable.count = (existingConsumable.count || 1) + 1;
+            } else {
+                player.consumables.push({
+                    id: data.id,
+                    name: data.name,
+                    icon: data.icon,
+                    count: 1
+                });
+            }
+            showMessage(`Added ${data.name} to consumables!`);
+            updateConsumablesDisplay();
+        } else {
+            // Permanent item
+            applyPermanentItemEffect(data);
+            showMessage(`Purchased ${data.name}!`);
+        }
     }
     
     shopItems[index] = null;
@@ -1416,11 +1581,8 @@ function purchaseItem(index) {
     updateShopDisplay();
 }
 
-function applyItemEffect(item) {
+function applyPermanentItemEffect(item) {
     switch(item.id) {
-        case 'health_potion':
-            player.health = Math.min(player.maxHealth, player.health + 20);
-            break;
         case 'damage_orb':
             player.baseDamage += 5;
             break;
@@ -1431,22 +1593,10 @@ function applyItemEffect(item) {
             player.maxHealth += 30;
             player.health += 30;
             break;
-        case 'ammo_pack':
-            player.weapons.forEach(weapon => {
-                if (weapon.usesAmmo) {
-                    weapon.currentAmmo = weapon.magazineSize;
-                    weapon.isReloading = false;
-                }
-            });
-            showMessage("All weapons reloaded!");
-            break;
-            
-        // New items
         case 'vampire_teeth':
             player.lifeSteal += 0.05;
             break;
         case 'berserker_ring':
-            // Applied dynamically in damage calculation
             player.berserkerRing = true;
             break;
         case 'ninja_scroll':
@@ -1454,7 +1604,6 @@ function applyItemEffect(item) {
             break;
         case 'alchemist_stone':
             player.goldMultiplier += 0.2;
-            // Item value bonus would affect shop prices
             break;
         case 'thorns_armor':
             player.thornsDamage = 0.25;
@@ -1465,47 +1614,14 @@ function applyItemEffect(item) {
         case 'runic_plate':
             player.firstHitReduction = true;
             break;
-        case 'explosive_trap':
-            // Place a trap
-            activeTraps.push({
-                x: player.x,
-                y: player.y,
-                active: true,
-                damage: 100,
-                radius: 80
-            });
-            break;
         case 'healing_fountain':
             player.healthRegen += 2;
-            break;
-        case 'sharpening_stone':
-            // Temporary buff for 1 wave
-            player.sharpeningStone = true;
-            player.sharpeningStoneWave = wave;
-            break;
-        case 'enchanters_ink':
-            // Random elemental effect on weapon
-            player.enchantersInk = true;
             break;
         case 'void_crystal':
             player.voidCrystalChance += 0.1;
             break;
         case 'guardian_angel':
             player.guardianAngel = true;
-            break;
-        case 'dice_of_fate':
-            // Random effect
-            const rand = Math.random();
-            if (rand < 0.33) {
-                player.baseDamage *= 2;
-                showMessage("DOUBLE DAMAGE!");
-            } else if (rand < 0.66) {
-                player.health = player.maxHealth;
-                showMessage("FULL HEAL!");
-            } else {
-                gold += 100;
-                showMessage("+100 GOLD!");
-            }
             break;
         case 'blood_contract':
             player.baseDamage *= 1.3;
@@ -1770,8 +1886,6 @@ function drawProjectiles() {
     
     player.projectiles.forEach(projectile => {
         ctx.save();
-        ctx.shadowColor = projectile.color;
-        ctx.shadowBlur = 15;
         
         if (projectile.weaponId === 'flamethrower') {
             drawFlamethrowerProjectile(ctx, projectile, currentTime);
@@ -1793,8 +1907,12 @@ function drawProjectiles() {
             drawBoomerangProjectile(ctx, projectile, currentTime);
         } else if (projectile.weaponId === 'crossbow') {
             drawCrossbowProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'shotgun') {
+            drawShotgunPellet(ctx, projectile, currentTime);
         } else {
             // Default projectile
+            ctx.shadowColor = projectile.color;
+            ctx.shadowBlur = 15;
             ctx.fillStyle = projectile.color;
             ctx.beginPath();
             ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
@@ -1814,8 +1932,24 @@ function drawProjectiles() {
     });
 }
 
+function drawShotgunPellet(ctx, projectile, currentTime) {
+    ctx.shadowColor = projectile.color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = projectile.color;
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Tiny trail
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.arc(projectile.x - Math.cos(projectile.angle) * 5, 
+            projectile.y - Math.sin(projectile.angle) * 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+}
+
 function drawFlamethrowerProjectile(ctx, projectile, currentTime) {
-    // Flamethrower - continuous flame with particles
     const particleCount = 8;
     const baseX = projectile.x;
     const baseY = projectile.y;
@@ -2302,7 +2436,6 @@ function drawMeleeAttacks() {
             case 'spear':
                 drawTrident(ctx, attack, angle, progress, distance, alpha);
                 break;
-            // New weapons
             case 'katana':
                 drawKatana(ctx, attack, angle, progress, distance, alpha);
                 break;
@@ -3017,6 +3150,7 @@ function updateProjectiles() {
         if (!projectile.startX) {
             projectile.startX = projectile.x;
             projectile.startY = projectile.y;
+            projectile.startTime = currentTime;
         }
         
         projectile.x += Math.cos(projectile.angle) * projectile.speed;
@@ -3038,7 +3172,7 @@ function updateProjectiles() {
         }
         
         // Check for fuse timing (grenade launcher)
-        if (projectile.fuseTime && currentTime - (projectile.startTime || currentTime) > projectile.fuseTime) {
+        if (projectile.fuseTime && currentTime - projectile.startTime > projectile.fuseTime) {
             createExplosion(projectile.x, projectile.y, 
                           projectile.explosionRadius || 80, 
                           projectile.explosionDamage || 20, false);
@@ -3086,10 +3220,8 @@ function updateProjectiles() {
             let hitDetected = false;
             
             if (projectile.weaponId === 'flamethrower') {
-                // Flamethrower has larger hit area
                 hitDetected = distance < 15 + monster.radius;
             } else if (projectile.weaponId === 'railgun') {
-                // Railgun hits in a line
                 const monsterAngle = Math.atan2(monster.y - projectile.startY, monster.x - projectile.startX);
                 const angleDiff = Math.abs(projectile.angle - monsterAngle);
                 const monsterDist = Math.sqrt(
@@ -3098,7 +3230,6 @@ function updateProjectiles() {
                 );
                 hitDetected = angleDiff < 0.2 && monsterDist < distanceTraveled + 20;
             } else {
-                // Default hit detection
                 hitDetected = distance < (projectile.isPellet ? 3 : 5) + monster.radius;
             }
             
@@ -3158,7 +3289,6 @@ function updateProjectiles() {
                 }
                 
                 if (projectile.weaponId === 'fire_staff' || projectile.weaponId === 'flamethrower') {
-                    // Apply burn effect
                     if (!monster.burning) {
                         monster.burning = true;
                         monster.burnDamage = projectile.burnDamage || 2;
@@ -3168,7 +3298,6 @@ function updateProjectiles() {
                 }
                 
                 if (projectile.weaponId === 'ice_staff') {
-                    // Apply freeze effect
                     if (Math.random() < (projectile.freezeChance || 0.7)) {
                         monster.frozen = true;
                         monster.frozenUntil = currentTime + (projectile.freezeDuration || 1000);
@@ -3180,7 +3309,6 @@ function updateProjectiles() {
                 }
                 
                 if (projectile.weaponId === 'lightning_staff') {
-                    // Chain lightning effect
                     let chainTargets = [monster];
                     let currentDamage = damage;
                     
@@ -3205,7 +3333,6 @@ function updateProjectiles() {
                             nextTarget.health -= currentDamage;
                             createDamageIndicator(nextTarget.x, nextTarget.y, Math.floor(currentDamage), false);
                             
-                            // Draw chain lightning
                             addVisualEffect({
                                 type: 'lightningChain',
                                 x1: chainTargets[chainTargets.length-1].x,
@@ -3224,7 +3351,6 @@ function updateProjectiles() {
                 }
                 
                 if (projectile.weaponId === 'poison_staff') {
-                    // Create poison cloud on hit
                     poisonClouds.push({
                         x: monster.x,
                         y: monster.y,
@@ -3236,7 +3362,6 @@ function updateProjectiles() {
                 }
                 
                 if (projectile.weaponId === 'arcane_staff') {
-                    // Split into multiple projectiles
                     if (Math.random() < (projectile.extraProjectileChance || 0.3)) {
                         for (let s = 0; s < (projectile.splitCount || 2); s++) {
                             const splitAngle = projectile.angle + (Math.random() - 0.5) * 0.5;
@@ -3256,7 +3381,6 @@ function updateProjectiles() {
                 }
                 
                 if (projectile.weaponId === 'crossbow') {
-                    // Apply slow effect
                     monster.slowed = true;
                     monster.slowUntil = currentTime + (projectile.slowDuration || 1500);
                     if (!monster.originalSpeed) {
@@ -3265,7 +3389,6 @@ function updateProjectiles() {
                     monster.speed = monster.originalSpeed * (1 - (projectile.slowAmount || 0.4));
                 }
                 
-                // Apply slow effect from any weapon
                 if (projectile.slowAmount > 0 && damage > 0 && !projectile.weaponId === 'crossbow') {
                     monster.slowed = true;
                     monster.slowUntil = currentTime + projectile.slowDuration;
@@ -3275,13 +3398,11 @@ function updateProjectiles() {
                     monster.speed *= (1 - projectile.slowAmount);
                 }
                 
-                // Apply stun effect
                 if (projectile.stunChance && Math.random() < projectile.stunChance && damage > 0) {
                     monster.stunned = true;
                     monster.stunnedUntil = currentTime + projectile.stunDuration;
                 }
                 
-                // Create ground fire
                 if (projectile.groundFireDuration > 0) {
                     groundFire.push({
                         x: monster.x,
@@ -3295,7 +3416,6 @@ function updateProjectiles() {
                 
                 if (!projectile.bounceCount || !projectile.targetsHit) {
                     if (projectile.returnDamage > 0 && !projectile.isReturning) {
-                        // Boomerang return
                         const returnProjectile = {
                             ...projectile,
                             x: monster.x,
@@ -3310,7 +3430,6 @@ function updateProjectiles() {
                         player.projectiles.push(returnProjectile);
                     }
                     
-                    // Don't remove flamethrower projectiles immediately - they have short range anyway
                     if (projectile.weaponId !== 'flamethrower') {
                         player.projectiles.splice(i, 1);
                     }
@@ -3321,14 +3440,12 @@ function updateProjectiles() {
                 }
                 
                 if (monster.health <= 0) {
-                    // Handle mimic gold drop
                     if (monster.monsterType === MONSTER_TYPES.MIMIC) {
                         const mimicGold = monster.monsterType.goldAmount || 50;
                         gold += mimicGold;
                         createGoldPopup(monster.x, monster.y, mimicGold);
                     }
                     
-                    // Handle void crystal
                     if (player.voidCrystalChance > 0 && Math.random() < player.voidCrystalChance) {
                         voidZones.push({
                             x: monster.x,
@@ -3362,7 +3479,6 @@ function updateProjectiles() {
             }
         }
         
-        // Remove flamethrower projectiles after they've traveled a bit
         if (projectile.weaponId === 'flamethrower' && distanceTraveled > 100) {
             player.projectiles.splice(i, 1);
         }
@@ -3385,7 +3501,6 @@ function updateMeleeAttacks() {
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             
-            // Skip intangible monsters
             if (monster.intangible && monster.intangibleUntil > currentTime) continue;
             
             const dx = monster.x - attack.x;
@@ -3395,12 +3510,10 @@ function updateMeleeAttacks() {
             if (distance < attack.radius + monster.radius) {
                 let damage = attack.damage;
                 
-                // Apply sharpening stone buff
                 if (player.sharpeningStone && player.sharpeningStoneWave === wave) {
                     damage *= 1.5;
                 }
                 
-                // Apply berserker ring
                 if (player.berserkerRing) {
                     const missingHealthPercent = (player.maxHealth - player.health) / player.maxHealth;
                     const bonus = Math.floor(missingHealthPercent * 10) * 0.1;
@@ -3413,7 +3526,6 @@ function updateMeleeAttacks() {
                     isCritical = true;
                 }
                 
-                // Apply shield reduction
                 if (monster.shieldHealth > 0) {
                     monster.shieldHealth -= damage;
                     if (monster.shieldHealth <= 0) {
@@ -3424,7 +3536,6 @@ function updateMeleeAttacks() {
                 }
                 
                 if (damage > 0) {
-                    // Apply armor
                     if (monster.monsterType && monster.monsterType.armor) {
                         damage *= (1 - monster.monsterType.armor);
                     }
@@ -3440,20 +3551,17 @@ function updateMeleeAttacks() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Apply pull effect
                 if (attack.pullStrength > 0 && damage > 0) {
                     const angle = Math.atan2(player.y - monster.y, player.x - monster.x);
                     monster.x += Math.cos(angle) * attack.pullStrength * 10;
                     monster.y += Math.sin(angle) * attack.pullStrength * 10;
                 }
                 
-                // Apply stun effect
                 if (attack.stunChance && Math.random() < attack.stunChance && damage > 0) {
                     monster.stunned = true;
                     monster.stunnedUntil = currentTime + attack.stunDuration;
                 }
                 
-                // Create fire trail
                 if (attack.fireTrail && damage > 0) {
                     groundFire.push({
                         x: monster.x,
@@ -3472,14 +3580,12 @@ function updateMeleeAttacks() {
                 }
                 
                 if (monster.health <= 0) {
-                    // Handle mimic gold drop
                     if (monster.monsterType === MONSTER_TYPES.MIMIC) {
                         const mimicGold = monster.monsterType.goldAmount || 50;
                         gold += mimicGold;
                         createGoldPopup(monster.x, monster.y, mimicGold);
                     }
                     
-                    // Handle void crystal
                     if (player.voidCrystalChance > 0 && Math.random() < player.voidCrystalChance) {
                         voidZones.push({
                             x: monster.x,
@@ -3517,7 +3623,6 @@ function updateMeleeAttacks() {
 
 function updateMonsters(currentTime) {
     monsters.forEach(monster => {
-        // Reset status effects
         if (monster.slowed && monster.slowUntil < currentTime) {
             monster.slowed = false;
             monster.speed = monster.originalSpeed;
@@ -3536,12 +3641,10 @@ function updateMonsters(currentTime) {
             monster.intangible = false;
         }
         
-        // Don't move if stunned or frozen
         if (monster.stunned || monster.frozen) {
             return;
         }
         
-        // Teleporter ability
         if (monster.monsterType === MONSTER_TYPES.TELEPORTER && 
             currentTime - monster.lastTeleport > monster.monsterType.teleportCooldown &&
             Math.random() < monster.monsterType.teleportChance) {
@@ -3551,7 +3654,6 @@ function updateMonsters(currentTime) {
             monster.x += Math.cos(angle) * distance;
             monster.y += Math.sin(angle) * distance;
             
-            // Keep on screen
             monster.x = Math.max(monster.radius, Math.min(canvas.width - monster.radius, monster.x));
             monster.y = Math.max(monster.radius, Math.min(canvas.height - monster.radius, monster.y));
             
@@ -3566,7 +3668,6 @@ function updateMonsters(currentTime) {
             });
         }
         
-        // Healer ability
         if (monster.monsterType === MONSTER_TYPES.HEALER && 
             currentTime - monster.lastHeal > monster.monsterType.healCooldown) {
             
@@ -3584,14 +3685,12 @@ function updateMonsters(currentTime) {
             monster.lastHeal = currentTime;
         }
         
-        // Phantom ability
         if (monster.monsterType === MONSTER_TYPES.PHANTOM && 
             Math.random() < monster.monsterType.phaseChance) {
             monster.intangible = true;
             monster.intangibleUntil = currentTime + monster.monsterType.intangibilityDuration;
         }
         
-        // Frost aura
         if (monster.monsterType === MONSTER_TYPES.FROST && monster.monsterType.slowAura) {
             monsters.forEach(otherMonster => {
                 if (otherMonster === monster) return;
@@ -3611,21 +3710,18 @@ function updateMonsters(currentTime) {
             });
         }
         
-        // Burn damage over time
         if (monster.burning && currentTime - monster.lastBurnTick > 500) {
             monster.health -= monster.burnDamage;
             createDamageIndicator(monster.x, monster.y, monster.burnDamage, false);
             monster.lastBurnTick = currentTime;
         }
         
-        // Poison damage over time
         if (monster.poisoned && currentTime - monster.lastPoisonTick > 500) {
             monster.health -= monster.poisonDamage;
             createDamageIndicator(monster.x, monster.y, monster.poisonDamage, false);
             monster.lastPoisonTick = currentTime;
         }
         
-        // Move towards player
         const dx = player.x - monster.x;
         const dy = player.y - monster.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -3635,19 +3731,16 @@ function updateMonsters(currentTime) {
             monster.y += (dy / distance) * monster.speed;
         }
         
-        // Attack player
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 let actualDamage = monster.damage;
                 
-                // Check dodge
                 if (Math.random() < player.dodgeChance) {
                     showMessage("DODGE!");
                     monster.lastAttack = currentTime;
                     return;
                 }
                 
-                // First hit reduction
                 if (player.firstHitReduction) {
                     actualDamage *= 0.5;
                     player.firstHitReduction = false;
@@ -3660,21 +3753,18 @@ function updateMonsters(currentTime) {
                 player.health -= actualDamage;
                 monster.lastAttack = currentTime;
                 
-                // Thorns damage
                 if (player.thornsDamage > 0) {
                     const thornsDamage = actualDamage * player.thornsDamage;
                     monster.health -= thornsDamage;
                     createDamageIndicator(monster.x, monster.y, Math.floor(thornsDamage), false);
                 }
                 
-                // Vampire life steal
                 if (monster.monsterType === MONSTER_TYPES.VAMPIRE && monster.monsterType.lifeSteal) {
                     const healAmount = actualDamage * monster.monsterType.lifeSteal;
                     monster.health = Math.min(monster.maxHealth, monster.health + healAmount);
                     createHealthPopup(monster.x, monster.y, Math.floor(healAmount));
                 }
                 
-                // Golem smash attack
                 if (monster.monsterType === MONSTER_TYPES.GOLEM && monster.monsterType.smashAttack) {
                     const distanceToPlayer = Math.sqrt(
                         Math.pow(player.x - monster.x, 2) + 
@@ -3689,7 +3779,6 @@ function updateMonsters(currentTime) {
                 
                 createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
                 
-                // Explosive monster on death
                 if (monster.monsterType && monster.monsterType.explosive) {
                     setTimeout(() => {
                         if (monster.health <= 0) {
@@ -3716,7 +3805,6 @@ function updateMonsters(currentTime) {
 }
 
 function updateGroundEffects(currentTime) {
-    // Update ground fire
     for (let i = groundFire.length - 1; i >= 0; i--) {
         const fire = groundFire[i];
         if (currentTime - fire.startTime > fire.duration) {
@@ -3724,7 +3812,6 @@ function updateGroundEffects(currentTime) {
             continue;
         }
         
-        // Damage monsters in fire
         monsters.forEach(monster => {
             const dx = monster.x - fire.x;
             const dy = monster.y - fire.y;
@@ -3740,7 +3827,6 @@ function updateGroundEffects(currentTime) {
         });
     }
     
-    // Update poison clouds
     for (let i = poisonClouds.length - 1; i >= 0; i--) {
         const cloud = poisonClouds[i];
         if (currentTime - cloud.startTime > cloud.duration) {
@@ -3763,7 +3849,6 @@ function updateGroundEffects(currentTime) {
         });
     }
     
-    // Update void zones
     for (let i = voidZones.length - 1; i >= 0; i--) {
         const zone = voidZones[i];
         if (currentTime - zone.startTime > zone.duration) {
@@ -3786,7 +3871,6 @@ function updateGroundEffects(currentTime) {
         });
     }
     
-    // Update traps
     for (let i = activeTraps.length - 1; i >= 0; i--) {
         const trap = activeTraps[i];
         if (!trap.active) continue;
@@ -3814,7 +3898,6 @@ function updateGroundEffects(currentTime) {
 function createExplosion(x, y, radius, damage, isCritical) {
     const currentTime = Date.now();
     
-    // Main explosion
     addVisualEffect({
         type: 'explosion',
         x: x,
@@ -3824,7 +3907,6 @@ function createExplosion(x, y, radius, damage, isCritical) {
         duration: 500
     });
     
-    // Shockwave
     addVisualEffect({
         type: 'shockwave',
         x: x,
@@ -3834,7 +3916,6 @@ function createExplosion(x, y, radius, damage, isCritical) {
         duration: 300
     });
     
-    // Damage monsters in radius
     monsters.forEach(monster => {
         const dx = monster.x - x;
         const dy = monster.y - y;
@@ -3890,7 +3971,6 @@ function drawVisualEffects() {
                 break;
                 
             case 'explosion':
-                // Main explosion ball
                 const explosionSize = (effect.radius || 40) * (1 - progress * 0.5);
                 const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
                 gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
@@ -3922,7 +4002,6 @@ function drawVisualEffects() {
                 ctx.shadowColor = '#FFFF00';
                 ctx.shadowBlur = 20;
                 
-                // Draw jagged lightning between points
                 const segments = 10;
                 ctx.beginPath();
                 ctx.moveTo(effect.x1, effect.y1);
@@ -3946,7 +4025,6 @@ function drawVisualEffects() {
                 ctx.arc(effect.x, effect.y, 30 * (1 - progress), 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // Inner swirl
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, 15 * progress, 0, Math.PI * 2);
                 ctx.stroke();
@@ -3964,12 +4042,10 @@ function drawMonsters() {
         ctx.save();
         ctx.translate(monster.x, monster.y);
         
-        // Handle intangible effect
         if (monster.intangible && monster.intangibleUntil > currentTime) {
             ctx.globalAlpha = 0.5;
         }
         
-        // Body
         ctx.fillStyle = monster.color;
         ctx.shadowColor = monster.color;
         ctx.shadowBlur = monster.isBoss ? 20 : 10;
@@ -3977,7 +4053,6 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Shield overlay
         if (monster.shieldHealth > 0) {
             ctx.strokeStyle = '#00FFFF';
             ctx.lineWidth = 3;
@@ -3987,7 +4062,6 @@ function drawMonsters() {
             ctx.stroke();
         }
         
-        // Stun overlay
         if (monster.stunned && monster.stunnedUntil > currentTime) {
             ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
             ctx.beginPath();
@@ -3995,7 +4069,6 @@ function drawMonsters() {
             ctx.fill();
         }
         
-        // Freeze overlay
         if (monster.frozen && monster.frozenUntil > currentTime) {
             ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
             ctx.beginPath();
@@ -4003,7 +4076,6 @@ function drawMonsters() {
             ctx.fill();
         }
         
-        // Burn overlay
         if (monster.burning && monster.burnUntil > currentTime) {
             ctx.fillStyle = 'rgba(255, 69, 0, 0.2)';
             ctx.beginPath();
@@ -4011,7 +4083,6 @@ function drawMonsters() {
             ctx.fill();
         }
         
-        // Poison overlay
         if (monster.poisoned && monster.poisonUntil > currentTime) {
             ctx.fillStyle = 'rgba(50, 205, 50, 0.2)';
             ctx.beginPath();
@@ -4026,7 +4097,6 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Type icon
         if (monster.monsterType && monster.monsterType.icon) {
             ctx.fillStyle = 'white';
             ctx.font = `${monster.radius}px Arial`;
@@ -4035,7 +4105,6 @@ function drawMonsters() {
             ctx.fillText(monster.monsterType.icon, 0, 0);
         }
         
-        // Eyes
         const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
         const eyeRadius = monster.radius * 0.2;
         
@@ -4062,7 +4131,6 @@ function drawMonsters() {
                 eyeRadius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Health bar
         const healthPercent = monster.health / monster.maxHealth;
         const barWidth = monster.radius * 2;
         const barHeight = 4;
@@ -4075,7 +4143,6 @@ function drawMonsters() {
         ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
         ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
         
-        // Shield bar
         if (monster.shieldHealth > 0) {
             const shieldPercent = monster.shieldHealth / (monster.monsterType.shieldHealth || 30);
             const shieldBarY = barY - 6;
@@ -4200,6 +4267,81 @@ style.textContent = `
         0% { opacity: 1; }
         70% { opacity: 1; }
         100% { opacity: 0; }
+    }
+    
+    .consumables-container {
+        margin-top: 20px;
+        padding: 10px;
+        background: rgba(40, 40, 80, 0.6);
+        border-radius: 10px;
+        border: 1px solid #5555aa;
+    }
+    
+    .consumables-container h4 {
+        color: #ffcc00;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .consumables-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+    
+    .consumable-slot {
+        aspect-ratio: 1;
+        background: rgba(60, 60, 120, 0.5);
+        border: 2px solid #4ecdc4;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 5px;
+    }
+    
+    .consumable-slot:hover {
+        transform: translateY(-2px);
+        border-color: #ffd700;
+        box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+    }
+    
+    .consumable-icon {
+        font-size: 1.5rem;
+    }
+    
+    .consumable-name {
+        font-size: 0.7rem;
+        text-align: center;
+        color: #aaaaff;
+    }
+    
+    .consumable-count {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: #ffd700;
+        color: #000;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+    
+    .empty-consumable {
+        grid-column: span 4;
+        text-align: center;
+        color: #5555aa;
+        padding: 10px;
+        font-size: 0.9rem;
     }
 `;
 document.head.appendChild(style);
