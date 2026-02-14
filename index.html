@@ -890,6 +890,84 @@
         .overlay::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(45deg, #ffa726, #ff6b6b);
         }
+        <!-- Add this CSS to your existing styles in index.html -->
+<style>
+    /* Add to your existing styles */
+    .consumables-container {
+        margin-top: 20px;
+        padding: 10px;
+        background: rgba(40, 40, 80, 0.6);
+        border-radius: 10px;
+        border: 1px solid #5555aa;
+    }
+    
+    .consumables-container h4 {
+        color: #ffcc00;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .consumables-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+    
+    .consumable-slot {
+        aspect-ratio: 1;
+        background: rgba(60, 60, 120, 0.5);
+        border: 2px solid #4ecdc4;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 5px;
+    }
+    
+    .consumable-slot:hover {
+        transform: translateY(-2px);
+        border-color: #ffd700;
+        box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+    }
+    
+    .consumable-icon {
+        font-size: 1.5rem;
+    }
+    
+    .consumable-name {
+        font-size: 0.7rem;
+        text-align: center;
+        color: #aaaaff;
+    }
+    
+    .consumable-count {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: #ffd700;
+        color: #000;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+    
+    .empty-consumable {
+        grid-column: span 4;
+        text-align: center;
+        color: #5555aa;
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+</style>
     </style>
 </head>
 <body>
