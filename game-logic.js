@@ -1909,6 +1909,10 @@ function drawProjectiles() {
             drawCrossbowProjectile(ctx, projectile, currentTime);
         } else if (projectile.weaponId === 'shotgun') {
             drawShotgunPellet(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'laser') {
+            drawLaserProjectile(ctx, projectile, currentTime);
+        } else if (projectile.weaponId === 'machinegun') {
+            drawMachinegunProjectile(ctx, projectile, currentTime);
         } else {
             // Default projectile
             ctx.shadowColor = projectile.color;
@@ -1947,6 +1951,58 @@ function drawShotgunPellet(ctx, projectile, currentTime) {
     ctx.arc(projectile.x - Math.cos(projectile.angle) * 5, 
             projectile.y - Math.sin(projectile.angle) * 5, 2, 0, Math.PI * 2);
     ctx.fill();
+}
+
+function drawLaserProjectile(ctx, projectile, currentTime) {
+    // Laser beam with pulsing effect
+    const pulse = Math.sin(currentTime * 0.02) * 2;
+    
+    ctx.shadowColor = '#00FFFF';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = '#00FFFF';
+    ctx.lineWidth = 4 + pulse;
+    ctx.beginPath();
+    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+               projectile.y - Math.sin(projectile.angle) * 10);
+    ctx.lineTo(projectile.x, projectile.y);
+    ctx.stroke();
+    
+    // Inner core
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+               projectile.y - Math.sin(projectile.angle) * 10);
+    ctx.lineTo(projectile.x, projectile.y);
+    ctx.stroke();
+    
+    // Glow
+    ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawMachinegunProjectile(ctx, projectile, currentTime) {
+    // Fast bullet with trail
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Trail
+    for (let i = 1; i <= 3; i++) {
+        const alpha = 0.3 - i * 0.1;
+        ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(projectile.x - Math.cos(projectile.angle) * i * 8, 
+                projectile.y - Math.sin(projectile.angle) * i * 8, 
+                2, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
 function drawFlamethrowerProjectile(ctx, projectile, currentTime) {
@@ -2805,115 +2861,210 @@ function drawKatana(ctx, attack, angle, progress, distance, alpha) {
 function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     const stabProgress = Math.sin(progress * Math.PI);
     
+    // First dagger
     ctx.save();
     ctx.rotate(angle - 0.2);
     ctx.translate(distance * 0.8, -5);
     ctx.fillStyle = '#9400D3';
     ctx.shadowColor = '#8A2BE2';
-    ctx.shadowBlur = 10 * alpha;
+    ctx.shadowBlur = 15 * alpha;
     ctx.beginPath();
-    ctx.moveTo(0, -2);
-    ctx.lineTo(30, -1);
-    ctx.lineTo(30, 1);
-    ctx.lineTo(0, 2);
+    ctx.moveTo(0, -3);
+    ctx.lineTo(35, -2);
+    ctx.lineTo(35, 2);
+    ctx.lineTo(0, 3);
     ctx.closePath();
+    ctx.fill();
+    
+    // Tip
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(35, 0, 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     
+    // Second dagger
     ctx.save();
     ctx.rotate(angle + 0.2);
     ctx.translate(distance * 0.8, 5);
     ctx.fillStyle = '#9400D3';
+    ctx.shadowColor = '#8A2BE2';
+    ctx.shadowBlur = 15 * alpha;
     ctx.beginPath();
-    ctx.moveTo(0, -2);
-    ctx.lineTo(30, -1);
-    ctx.lineTo(30, 1);
-    ctx.lineTo(0, 2);
+    ctx.moveTo(0, -3);
+    ctx.lineTo(35, -2);
+    ctx.lineTo(35, 2);
+    ctx.lineTo(0, 3);
     ctx.closePath();
     ctx.fill();
+    
+    // Tip
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(35, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
+    
+    // Cross slash effect
+    if (progress > 0.4 && progress < 0.6) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-20, -20);
+        ctx.lineTo(20, 20);
+        ctx.moveTo(-20, 20);
+        ctx.lineTo(20, -20);
+        ctx.stroke();
+        ctx.restore();
+    }
 }
 
 function drawScythe(ctx, attack, angle, progress, distance, alpha) {
     const sweepAngle = progress * Math.PI * 2;
     ctx.rotate(angle - 1 + sweepAngle);
     
+    // Handle
     ctx.save();
     ctx.fillStyle = '#4A4A4A';
     ctx.shadowColor = '#2F4F4F';
     ctx.shadowBlur = 15 * alpha;
     ctx.fillRect(-3, -attack.radius, 6, attack.radius * 2);
     
+    // Blade
     ctx.translate(0, -attack.radius * 0.8);
     ctx.rotate(-0.5);
     ctx.fillStyle = '#2F4F4F';
     ctx.beginPath();
     ctx.moveTo(0, -10);
-    ctx.lineTo(40, -15);
-    ctx.lineTo(40, 5);
+    ctx.lineTo(45, -20);
+    ctx.lineTo(45, 0);
     ctx.lineTo(0, 10);
     ctx.closePath();
     ctx.fill();
     
+    // Edge
+    ctx.strokeStyle = '#C0C0C0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(45, -20);
+    ctx.moveTo(0, 10);
+    ctx.lineTo(45, 0);
+    ctx.stroke();
+    
+    // Tip
     ctx.fillStyle = '#C0C0C0';
     ctx.shadowColor = '#C0C0C0';
     ctx.beginPath();
-    ctx.arc(40, -5, 8, 0, Math.PI * 2);
+    ctx.arc(45, -10, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    
+    // Soul collecting effect
+    if (attack.soulCollect && progress > 0.5) {
+        ctx.save();
+        ctx.fillStyle = `rgba(200, 200, 255, ${alpha * 0.3})`;
+        ctx.shadowColor = '#FFFFFF';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(attack.radius * 0.5, -10, 10 * progress, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 }
 
 function drawFlail(ctx, attack, angle, progress, distance, alpha) {
     const spinAngle = progress * Math.PI * 6;
     
+    // Handle
     ctx.save();
+    ctx.rotate(angle);
     ctx.fillStyle = '#8B4513';
+    ctx.shadowColor = '#654321';
+    ctx.shadowBlur = 10 * alpha;
     ctx.fillRect(-3, -attack.radius * 0.5, 6, attack.radius);
     ctx.restore();
     
+    // Chain and ball
     ctx.save();
-    ctx.translate(attack.radius * 0.7 * Math.sin(spinAngle), 
-                  attack.radius * 0.7 * Math.cos(spinAngle));
+    ctx.translate(
+        attack.x + Math.cos(angle) * attack.radius * 0.7 * Math.sin(spinAngle),
+        attack.y + Math.sin(angle) * attack.radius * 0.7 * Math.cos(spinAngle)
+    );
     
+    // Chain
+    ctx.strokeStyle = '#696969';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 5;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(
+        -Math.cos(angle) * attack.radius * 0.5,
+        -Math.sin(angle) * attack.radius * 0.5
+    );
+    ctx.stroke();
+    
+    // Spiked ball
     ctx.fillStyle = '#B87333';
     ctx.shadowColor = '#CD7F32';
     ctx.shadowBlur = 15 * alpha;
     ctx.beginPath();
-    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
     ctx.fill();
     
-    ctx.strokeStyle = '#696969';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-attack.radius * 0.5 * Math.sin(spinAngle), 
-               -attack.radius * 0.5 * Math.cos(spinAngle));
-    ctx.stroke();
+    // Spikes
+    ctx.fillStyle = '#CD7F32';
+    for (let i = 0; i < 6; i++) {
+        const spikeAngle = (i * Math.PI * 2) / 6 + spinAngle;
+        const spikeX = Math.cos(spikeAngle) * 16;
+        const spikeY = Math.sin(spikeAngle) * 16;
+        ctx.beginPath();
+        ctx.arc(spikeX, spikeY, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
     ctx.restore();
 }
 
 function drawTonfa(ctx, attack, angle, progress, distance, alpha) {
     ctx.rotate(angle);
     
-    ctx.save();
-    ctx.fillStyle = '#708090';
-    ctx.shadowColor = '#778899';
-    ctx.shadowBlur = 10 * alpha;
-    ctx.fillRect(0, -10, 30, 20);
-    
-    ctx.fillStyle = '#2F4F4F';
-    ctx.fillRect(5, -5, 20, 10);
-    ctx.restore();
-    
+    // Blocking stance
     if (attack.blockReduction > 0 && progress < 0.3) {
         ctx.save();
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = 3;
+        ctx.shadowColor = '#FFFFFF';
+        ctx.shadowBlur = 20;
         ctx.beginPath();
-        ctx.arc(15, 0, 30, -0.5, 0.5);
+        ctx.arc(15, 0, 35, -0.3, 0.3);
         ctx.stroke();
         ctx.restore();
     }
+    
+    // Tonfa body
+    ctx.save();
+    ctx.fillStyle = '#708090';
+    ctx.shadowColor = '#778899';
+    ctx.shadowBlur = 10 * alpha;
+    
+    // Main bar
+    ctx.fillRect(0, -12, 40, 24);
+    
+    // Handles
+    ctx.fillStyle = '#2F4F4F';
+    ctx.fillRect(5, -8, 10, 16);
+    ctx.fillRect(25, -8, 10, 16);
+    
+    // Strike effect
+    if (progress > 0.4 && progress < 0.6) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(40, 0, 15 * (1 - progress), 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
 }
 
 function drawDefaultMelee(ctx, attack, angle, progress, distance, alpha) {
