@@ -2,6 +2,10 @@
 // GAME DATA - Weapons, Items, and Stat Buffs
 // ============================================
 
+// Load boomerang image
+const boomerangImage = new Image();
+boomerangImage.src = 'assets/boomerang.png'; // Make sure this path is correct
+
 const GAME_DATA = {
     // Starting player stats
     PLAYER_START: {
@@ -211,6 +215,8 @@ const GAME_DATA = {
             animation: 'boomerang',
             usesAmmo: false,
             maxTargets: 4,
+            useImage: true, // Flag to use PNG image instead of drawing
+            imagePath: 'assets/boomerang.png',
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -219,7 +225,7 @@ const GAME_DATA = {
             }
         },
         
-        // Melee weapons - Enhanced with realistic animations
+        // Melee weapons
         {
             id: 'sword',
             name: 'Iron Sword',
@@ -501,6 +507,8 @@ class WeaponInstance {
         // Boomerang specific properties
         this.returnSpeed = weaponData.returnSpeed || 0;
         this.maxTargets = weaponData.maxTargets || 1;
+        this.useImage = weaponData.useImage || false;
+        this.imagePath = weaponData.imagePath || null;
         
         // Melee properties
         this.pierceCount = weaponData.pierceCount || 1;
@@ -676,6 +684,7 @@ class WeaponInstance {
                     weaponId: this.id,
                     animation: this.animation,
                     isBoomerang: true,
+                    useImage: this.useImage,
                     state: 'outgoing', // outgoing, returning
                     distanceTraveled: 0,
                     targetsHit: [],
@@ -1634,7 +1643,7 @@ function gameLoop() {
     }
     
     drawSpawnIndicators();
-    drawMonsters();
+    drawMonsters(); // FIXED: Monster health bar won't go negative
     drawBossProjectiles();
     drawProjectiles();
     drawMeleeAttacks();
@@ -1745,80 +1754,226 @@ function drawPlayer() {
 }
 
 // ============================================
-// BOOMERANG DRAWING FUNCTION
+// FIXED MONSTER DRAWING FUNCTION - Health bar won't go negative
 // ============================================
 
-function drawBoomerang(ctx, x, y, rotation, alpha = 1) {
+function drawMonsters() {
+    monsters.forEach(monster => {
+        ctx.save();
+        ctx.translate(monster.x, monster.y);
+        
+        // Body
+        ctx.fillStyle = monster.color;
+        ctx.shadowColor = monster.color;
+        ctx.shadowBlur = monster.isBoss ? 20 : 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Type icon
+        if (monster.monsterType && monster.monsterType.icon) {
+            ctx.fillStyle = 'white';
+            ctx.font = `${monster.radius}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(monster.monsterType.icon, 0, 0);
+        }
+        
+        // Eyes
+        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
+        const eyeRadius = monster.radius * 0.2;
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowBlur = 5;
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, 
+                Math.sin(angleToPlayer) * monster.radius * 0.7, 
+                eyeRadius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // FIXED: Health bar - ensure it never goes below 0
+        const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
+        const barWidth = monster.radius * 2;
+        const barHeight = 4;
+        const barX = -monster.radius;
+        const barY = -monster.radius - 10;
+        
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Health fill - only draw if health > 0
+        if (healthPercent > 0) {
+            ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
+            ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+        }
+        
+        ctx.restore();
+    });
+}
+
+// ============================================
+// BOOMERANG DRAWING FUNCTION (USES PNG)
+// ============================================
+
+function drawBoomerang(ctx, x, y, rotation, alpha = 1, useImage = true) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rotation);
-    ctx.scale(0.8, 0.8);
+    ctx.globalAlpha = alpha;
     
-    // Draw boomerang shape
-    ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
-    ctx.shadowBlur = 10 * alpha;
-    
-    // Main body gradient
-    const gradient = ctx.createLinearGradient(-15, -5, 15, 5);
-    gradient.addColorStop(0, '#8B4513');
-    gradient.addColorStop(0.5, '#CD7F32');
-    gradient.addColorStop(1, '#8B4513');
-    
-    ctx.fillStyle = gradient;
-    ctx.strokeStyle = '#654321';
-    ctx.lineWidth = 2;
-    
-    // Draw the classic boomerang V-shape
-    ctx.beginPath();
-    ctx.moveTo(-15, -5);
-    ctx.lineTo(0, -15);
-    ctx.lineTo(15, -5);
-    ctx.lineTo(5, 5);
-    ctx.lineTo(-5, 5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    
-    // Add details
-    ctx.fillStyle = '#654321';
-    ctx.beginPath();
-    ctx.arc(-8, -8, 2, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.arc(8, -8, 2, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Edge highlights
-    ctx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.5})`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(-15, -5);
-    ctx.lineTo(0, -15);
-    ctx.lineTo(15, -5);
-    ctx.stroke();
-    
-    // Rotation trail when returning
-    if (alpha < 1) {
-        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+    if (useImage && boomerangImage.complete && boomerangImage.naturalHeight > 0) {
+        // Draw the PNG image
+        ctx.drawImage(boomerangImage, -20, -20, 40, 40);
+    } else {
+        // Fallback drawing if image not loaded
+        ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
+        ctx.shadowBlur = 10 * alpha;
+        
+        // Main body gradient
+        const gradient = ctx.createLinearGradient(-15, -5, 15, 5);
+        gradient.addColorStop(0, '#8B4513');
+        gradient.addColorStop(0.5, '#CD7F32');
+        gradient.addColorStop(1, '#8B4513');
+        
+        ctx.fillStyle = gradient;
+        ctx.strokeStyle = '#654321';
+        ctx.lineWidth = 2;
+        
+        // Draw the classic boomerang V-shape
+        ctx.beginPath();
+        ctx.moveTo(-15, -5);
+        ctx.lineTo(0, -15);
+        ctx.lineTo(15, -5);
+        ctx.lineTo(5, 5);
+        ctx.lineTo(-5, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Add details
+        ctx.fillStyle = '#654321';
+        ctx.beginPath();
+        ctx.arc(-8, -8, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(8, -8, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Edge highlights
+        ctx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.5})`;
         ctx.lineWidth = 1;
-        for (let i = 1; i <= 3; i++) {
-            ctx.save();
-            ctx.rotate(i * 0.2);
-            ctx.beginPath();
-            ctx.moveTo(-15, -5);
-            ctx.lineTo(0, -15);
-            ctx.lineTo(15, -5);
-            ctx.stroke();
-            ctx.restore();
-        }
+        ctx.beginPath();
+        ctx.moveTo(-15, -5);
+        ctx.lineTo(0, -15);
+        ctx.lineTo(15, -5);
+        ctx.stroke();
     }
     
     ctx.restore();
 }
 
 // ============================================
-// REALISTIC WEAPON ANIMATIONS
+// PROJECTILE DRAWING FUNCTION
+// ============================================
+
+function drawProjectiles() {
+    player.projectiles.forEach(projectile => {
+        if (projectile.isBoomerang) {
+            // Draw boomerang with rotation using PNG
+            drawBoomerang(ctx, projectile.x, projectile.y, projectile.rotation || 0, 1, projectile.useImage);
+            
+            // Draw trail when returning
+            if (projectile.state === 'returning') {
+                ctx.save();
+                ctx.globalAlpha = 0.3;
+                for (let i = 1; i <= 3; i++) {
+                    const trailX = projectile.x - Math.cos(projectile.angle) * i * 5;
+                    const trailY = projectile.y - Math.sin(projectile.angle) * i * 5;
+                    drawBoomerang(ctx, trailX, trailY, (projectile.rotation || 0) - i * 0.1, 0.3, projectile.useImage);
+                }
+                ctx.restore();
+            }
+        } else {
+            // Regular projectile
+            ctx.fillStyle = projectile.color;
+            ctx.shadowColor = projectile.color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = projectile.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+                       projectile.y - Math.sin(projectile.angle) * 10);
+            ctx.lineTo(projectile.x, projectile.y);
+            ctx.stroke();
+        }
+    });
+}
+
+function drawBossProjectiles() {
+    bossProjectiles.forEach(proj => {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        
+        // Draw boss projectile
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 15;
+        
+        // Outer glow
+        ctx.fillStyle = '#ff8888';
+        ctx.beginPath();
+        ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner projectile
+        ctx.fillStyle = proj.color;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Skull icon for boss projectiles
+        ctx.fillStyle = '#000000';
+        ctx.shadowBlur = 0;
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💀', 0, 0);
+        
+        ctx.restore();
+    });
+}
+
+// ============================================
+// MELEE ATTACK DRAWING FUNCTIONS
 // ============================================
 
 function drawMeleeAttacks() {
@@ -2189,6 +2344,10 @@ function drawTrident(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
 }
+
+// ============================================
+// GAME UPDATE FUNCTIONS
+// ============================================
 
 function updateGame(deltaTime) {
     const dx = mouseX - player.x;
@@ -2652,151 +2811,6 @@ function drawVisualEffects() {
                 }
                 break;
         }
-        
-        ctx.restore();
-    });
-}
-
-function drawProjectiles() {
-    player.projectiles.forEach(projectile => {
-        if (projectile.isBoomerang) {
-            // Draw boomerang with rotation
-            drawBoomerang(ctx, projectile.x, projectile.y, projectile.rotation || 0, 1);
-            
-            // Draw trail when returning
-            if (projectile.state === 'returning') {
-                ctx.save();
-                ctx.globalAlpha = 0.3;
-                for (let i = 1; i <= 3; i++) {
-                    const trailX = projectile.x - Math.cos(projectile.angle) * i * 5;
-                    const trailY = projectile.y - Math.sin(projectile.angle) * i * 5;
-                    drawBoomerang(ctx, trailX, trailY, (projectile.rotation || 0) - i * 0.1, 0.3);
-                }
-                ctx.restore();
-            }
-        } else {
-            // Regular projectile
-            ctx.fillStyle = projectile.color;
-            ctx.shadowColor = projectile.color;
-            ctx.shadowBlur = 10;
-            ctx.beginPath();
-            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = projectile.color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
-                       projectile.y - Math.sin(projectile.angle) * 10);
-            ctx.lineTo(projectile.x, projectile.y);
-            ctx.stroke();
-        }
-    });
-}
-
-function drawBossProjectiles() {
-    bossProjectiles.forEach(proj => {
-        ctx.save();
-        ctx.translate(proj.x, proj.y);
-        
-        // Draw boss projectile
-        ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 15;
-        
-        // Outer glow
-        ctx.fillStyle = '#ff8888';
-        ctx.beginPath();
-        ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Inner projectile
-        ctx.fillStyle = proj.color;
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Skull icon for boss projectiles
-        ctx.fillStyle = '#000000';
-        ctx.shadowBlur = 0;
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('💀', 0, 0);
-        
-        ctx.restore();
-    });
-}
-
-function drawMonsters() {
-    monsters.forEach(monster => {
-        ctx.save();
-        ctx.translate(monster.x, monster.y);
-        
-        // Body
-        ctx.fillStyle = monster.color;
-        ctx.shadowColor = monster.color;
-        ctx.shadowBlur = monster.isBoss ? 20 : 10;
-        ctx.beginPath();
-        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Type icon
-        if (monster.monsterType && monster.monsterType.icon) {
-            ctx.fillStyle = 'white';
-            ctx.font = `${monster.radius}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(monster.monsterType.icon, 0, 0);
-        }
-        
-        // Eyes
-        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
-        const eyeRadius = monster.radius * 0.2;
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.shadowBlur = 5;
-        
-        ctx.beginPath();
-        ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, 
-                Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, 
-                eyeRadius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.beginPath();
-        ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, 
-                Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, 
-                eyeRadius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#000000';
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, 
-                Math.sin(angleToPlayer) * monster.radius * 0.7, 
-                eyeRadius * 0.5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Health bar
-        const healthPercent = monster.health / monster.maxHealth;
-        const barWidth = monster.radius * 2;
-        const barHeight = 4;
-        const barX = -monster.radius;
-        const barY = -monster.radius - 10;
-        
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
-        
-        ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
-        ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
         
         ctx.restore();
     });
