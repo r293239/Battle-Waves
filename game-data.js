@@ -31,7 +31,28 @@ const GAME_DATA = {
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120 },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130 },
         { number: 10, monsters: 1, monsterHealth: 2000, monsterDamage: 15, goldReward: 300, isBoss: true },
+
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140 },
+        { number: 12, monsters: 32, monsterHealth: 75, monsterDamage: 12, goldReward: 150 },
+        { number: 13, monsters: 34, monsterHealth: 80, monsterDamage: 13, goldReward: 160 },
+        { number: 14, monsters: 36, monsterHealth: 85, monsterDamage: 14, goldReward: 170 },
+        { number: 15, monsters: 38, monsterHealth: 90, monsterDamage: 15, goldReward: 180 },
+        { number: 16, monsters: 40, monsterHealth: 95, monsterDamage: 16, goldReward: 190 },
+        { number: 17, monsters: 42, monsterHealth: 100, monsterDamage: 17, goldReward: 200 },
+        { number: 18, monsters: 44, monsterHealth: 110, monsterDamage: 18, goldReward: 210 },
+        { number: 19, monsters: 46, monsterHealth: 120, monsterDamage: 19, goldReward: 220 },
+        { number: 20, monsters: 1, monsterHealth: 5000, monsterDamage: 25, goldReward: 500, isBoss: true },
+
+        { number: 21, monsters: 55, monsterHealth: 130, monsterDamage: 20, goldReward: 240 },
+        { number: 22, monsters: 60, monsterHealth: 140, monsterDamage: 21, goldReward: 260 },
+        { number: 23, monsters: 65, monsterHealth: 150, monsterDamage: 22, goldReward: 280 },
+        { number: 24, monsters: 70, monsterHealth: 160, monsterDamage: 23, goldReward: 300 },
+        { number: 25, monsters: 75, monsterHealth: 170, monsterDamage: 24, goldReward: 320 },
+        { number: 26, monsters: 80, monsterHealth: 180, monsterDamage: 25, goldReward: 340 },
+        { number: 27, monsters: 85, monsterHealth: 200, monsterDamage: 26, goldReward: 360 },
+        { number: 28, monsters: 90, monsterHealth: 220, monsterDamage: 27, goldReward: 380 },
+        { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400 },
+        { number: 30, monsters: 1, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true },
     ],
 
     // Stat buffs that appear after each wave
