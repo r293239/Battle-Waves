@@ -195,6 +195,29 @@ const GAME_DATA = {
                 magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
             }
         },
+        {
+            id: 'boomerang',
+            name: 'Boomerang',
+            icon: '🪃',
+            type: 'ranged',
+            baseDamage: 8,
+            attackSpeed: 1.2,
+            range: 450,
+            projectileSpeed: 10,
+            returnSpeed: 15,
+            cost: 95,
+            description: 'Throws a returning boomerang that hits on both paths',
+            projectileColor: '#8B4513',
+            animation: 'boomerang',
+            usesAmmo: false,
+            maxTargets: 4,
+            tierMultipliers: {
+                damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                maxTargets: [1, 1, 2, 2, 3, 4]
+            }
+        },
         
         // Melee weapons - Enhanced with realistic animations
         {
@@ -329,413 +352,6 @@ const GAME_DATA = {
                 pierceCount: [1, 1, 2, 2, 3, 4],
                 range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
             }
-        },
-        
-        // ========== NEW RANGED WEAPONS ==========
-        {
-            id: 'flamethrower',
-            name: 'Flamethrower',
-            icon: '🔥',
-            type: 'ranged',
-            baseDamage: 2,
-            attackSpeed: 4.0,
-            range: 150,
-            projectileSpeed: 6,
-            cost: 140,
-            description: 'Continuous fire that leaves burning ground',
-            projectileColor: '#FF4500',
-            animation: 'flame',
-            usesAmmo: true,
-            magazineSize: 40,
-            reloadTime: 2000,
-            burnDamage: 1,
-            burnDuration: 3000,
-            burnTickRate: 500,
-            groundFireDuration: 2000,
-            groundFireRadius: 30,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                burnDamage: [1, 1.3, 1.6, 2.0, 2.5, 3.0]
-            }
-        },
-        {
-            id: 'railgun',
-            name: 'Rail Cannon',
-            icon: '⚡',
-            type: 'ranged',
-            baseDamage: 30,
-            attackSpeed: 0.3,
-            range: 600,
-            projectileSpeed: 30,
-            cost: 200,
-            description: 'Pierces all enemies in a line',
-            projectileColor: '#4169E1',
-            animation: 'railgun',
-            usesAmmo: true,
-            magazineSize: 3,
-            reloadTime: 3000,
-            pierceCount: 999,
-            beamWidth: 8,
-            chargeTime: 500,
-            tierMultipliers: {
-                damage: [1, 1.4, 1.9, 2.5, 3.2, 4.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                magazine: [1, 1, 2, 2, 3, 3],
-                beamWidth: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
-        },
-        {
-            id: 'boomerang',
-            name: 'Boomerang Blade',
-            icon: '🪃',
-            type: 'ranged',
-            baseDamage: 8,
-            attackSpeed: 1.5,
-            range: 400,
-            projectileSpeed: 12,
-            cost: 90,
-            description: 'Returns to player, can hit twice',
-            projectileColor: '#8B4513',
-            animation: 'boomerang',
-            usesAmmo: false,
-            returnDamage: 12,
-            arcHeight: 100,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.5, 1.8, 2.2, 2.7],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                returnDamage: [1, 1.3, 1.6, 2.0, 2.5, 3.0]
-            }
-        },
-        {
-            id: 'crossbow',
-            name: 'Heavy Crossbow',
-            icon: '🏹',
-            type: 'ranged',
-            baseDamage: 18,
-            attackSpeed: 0.6,
-            range: 450,
-            projectileSpeed: 20,
-            cost: 110,
-            description: 'Slows enemies on hit',
-            projectileColor: '#DAA520',
-            animation: 'arrow',
-            usesAmmo: true,
-            magazineSize: 5,
-            reloadTime: 1800,
-            slowAmount: 0.4,
-            slowDuration: 1500,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.7, 2.2, 2.8, 3.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                slowAmount: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
-        },
-        {
-            id: 'grenade_launcher',
-            name: 'Grenade Launcher',
-            icon: '💣',
-            type: 'ranged',
-            baseDamage: 15,
-            attackSpeed: 0.7,
-            range: 350,
-            projectileSpeed: 8,
-            cost: 160,
-            description: 'Explodes on impact, damages area',
-            projectileColor: '#556B2F',
-            animation: 'grenade',
-            usesAmmo: true,
-            magazineSize: 4,
-            reloadTime: 2200,
-            explosionRadius: 80,
-            explosionDamage: 20,
-            fuseTime: 800,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.7, 2.2, 2.8, 3.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                magazine: [1, 1, 1.5, 2, 2.5, 3],
-                explosionRadius: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                explosionDamage: [1, 1.3, 1.6, 2.0, 2.5, 3.0]
-            }
-        },
-
-        // ========== NEW MELEE WEAPONS ==========
-        {
-            id: 'katana',
-            name: 'Dragon Katana',
-            icon: '🗡️',
-            type: 'melee',
-            meleeType: 'single',
-            baseDamage: 14,
-            attackSpeed: 1.8,
-            range: 95,
-            cost: 150,
-            description: 'Fast slashes that leave fire trails',
-            swingColor: '#FF4500',
-            swingAngle: 120,
-            animation: 'katanaSlash',
-            trailColor: '#FF8C00',
-            sparkleColor: '#FFD700',
-            bladeColor: 'linear-gradient(45deg, #FF4500, #FF8C00)',
-            hiltColor: '#DAA520',
-            gripColor: '#8B4513',
-            fireTrail: true,
-            fireDamage: 2,
-            fireDuration: 2000,
-            usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.4, 1.8, 2.3, 2.9, 3.6],
-                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                fireDamage: [1, 1.3, 1.6, 2.0, 2.5, 3.0]
-            }
-        },
-        {
-            id: 'dual_daggers',
-            name: 'Shadow Daggers',
-            icon: '🗡️🗡️',
-            type: 'melee',
-            meleeType: 'dual',
-            baseDamage: 6,
-            attackSpeed: 3.0,
-            range: 45,
-            cost: 130,
-            description: 'Two rapid strikes per attack',
-            swingColor: '#9400D3',
-            swingAngle: 20,
-            animation: 'dualStab',
-            trailColor: '#8A2BE2',
-            sparkleColor: '#FF00FF',
-            bladeColor: '#9400D3',
-            hiltColor: '#4B0082',
-            gripColor: '#2F4F4F',
-            strikesPerAttack: 2,
-            strikeDelay: 50,
-            usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.5, 1.9, 2.4, 3.0],
-                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                range: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
-                strikesPerAttack: [1, 1, 2, 2, 3, 3]
-            }
-        },
-        {
-            id: 'scythe',
-            name: 'Reaper Scythe',
-            icon: '🌾',
-            type: 'melee',
-            meleeType: 'aoe',
-            baseDamage: 16,
-            attackSpeed: 0.7,
-            range: 110,
-            cost: 180,
-            description: 'Wide sweeping arc that pulls enemies',
-            swingColor: '#4A4A4A',
-            swingAngle: 180,
-            animation: 'scytheSweep',
-            trailColor: '#2F4F4F',
-            sparkleColor: '#C0C0C0',
-            bladeColor: '#2F4F4F',
-            handleColor: '#8B4513',
-            edgeColor: '#C0C0C0',
-            pullStrength: 0.5,
-            soulCollect: true,
-            usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.5, 2.0, 2.6, 3.3, 4.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                pullStrength: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
-            }
-        },
-        {
-            id: 'flail',
-            name: 'Morning Star',
-            icon: '⛓️',
-            type: 'melee',
-            meleeType: 'chain',
-            baseDamage: 13,
-            attackSpeed: 0.9,
-            range: 85,
-            cost: 140,
-            description: 'Spinning chain weapon with stun',
-            swingColor: '#B87333',
-            swingAngle: 360,
-            animation: 'flailSpin',
-            trailColor: '#CD7F32',
-            sparkleColor: '#FFD700',
-            headColor: '#B87333',
-            handleColor: '#8B4513',
-            chainColor: '#696969',
-            stunChance: 0.3,
-            stunDuration: 800,
-            usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.7, 2.2, 2.8, 3.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                stunChance: [1, 1.3, 1.6, 2.0, 2.5, 3.0]
-            }
-        },
-        {
-            id: 'tonfa',
-            name: 'Defender Tonfa',
-            icon: '🛡️',
-            type: 'melee',
-            meleeType: 'defensive',
-            baseDamage: 8,
-            attackSpeed: 1.5,
-            range: 40,
-            cost: 120,
-            description: 'Blocks damage while attacking',
-            swingColor: '#708090',
-            swingAngle: 60,
-            animation: 'tonfaBlock',
-            trailColor: '#778899',
-            sparkleColor: '#FFFFFF',
-            bladeColor: '#708090',
-            gripColor: '#2F4F4F',
-            blockReduction: 0.5,
-            counterDamage: 2.0,
-            usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.7, 2.1, 2.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                range: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
-                blockReduction: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
-        },
-
-        // ========== MAGIC WEAPONS ==========
-        {
-            id: 'fire_staff',
-            name: 'Fire Staff',
-            icon: '🔮',
-            type: 'ranged',
-            baseDamage: 7,
-            attackSpeed: 1.2,
-            range: 300,
-            projectileSpeed: 12,
-            cost: 130,
-            description: 'Fireball that explodes',
-            projectileColor: '#FF6347',
-            animation: 'fireball',
-            usesAmmo: false,
-            explosionRadius: 60,
-            explosionDamage: 10,
-            burnDamage: 2,
-            burnDuration: 2000,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.7, 2.2, 2.8, 3.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                explosionRadius: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                burnDamage: [1, 1.3, 1.6, 2.0, 2.5, 3.0]
-            }
-        },
-        {
-            id: 'ice_staff',
-            name: 'Ice Staff',
-            icon: '❄️',
-            type: 'ranged',
-            baseDamage: 6,
-            attackSpeed: 1.0,
-            range: 280,
-            projectileSpeed: 14,
-            cost: 130,
-            description: 'Freezes enemies in place',
-            projectileColor: '#87CEEB',
-            animation: 'ice',
-            usesAmmo: false,
-            freezeDuration: 1000,
-            freezeChance: 0.7,
-            splashRadius: 40,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.5, 1.9, 2.4, 3.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                freezeDuration: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                freezeChance: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
-        },
-        {
-            id: 'lightning_staff',
-            name: 'Storm Staff',
-            icon: '🌩️',
-            type: 'ranged',
-            baseDamage: 10,
-            attackSpeed: 0.9,
-            range: 320,
-            projectileSpeed: 18,
-            cost: 150,
-            description: 'Chains lightning between enemies',
-            projectileColor: '#FFD700',
-            animation: 'lightning',
-            usesAmmo: false,
-            chainCount: 4,
-            chainRange: 80,
-            chainDamageFalloff: 0.7,
-            stunChance: 0.2,
-            stunDuration: 500,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.7, 2.2, 2.8, 3.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                chainCount: [1, 1, 2, 2, 3, 4],
-                chainRange: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
-        },
-        {
-            id: 'poison_staff',
-            name: 'Venom Staff',
-            icon: '🧪',
-            type: 'ranged',
-            baseDamage: 5,
-            attackSpeed: 1.1,
-            range: 260,
-            projectileSpeed: 11,
-            cost: 140,
-            description: 'Poison clouds that spread',
-            projectileColor: '#32CD32',
-            animation: 'poison',
-            usesAmmo: false,
-            poisonDamage: 3,
-            poisonDuration: 4000,
-            poisonTickRate: 500,
-            cloudDuration: 3000,
-            cloudRadius: 50,
-            spreadChance: 0.3,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.7, 2.1, 2.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                poisonDamage: [1, 1.3, 1.7, 2.2, 2.8, 3.5],
-                cloudRadius: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
-        },
-        {
-            id: 'arcane_staff',
-            name: 'Arcane Staff',
-            icon: '✨',
-            type: 'ranged',
-            baseDamage: 20,
-            attackSpeed: 0.5,
-            range: 350,
-            projectileSpeed: 16,
-            cost: 170,
-            description: 'Homing projectiles that multiply',
-            projectileColor: '#9370DB',
-            animation: 'arcane',
-            usesAmmo: false,
-            homingStrength: 0.8,
-            splitCount: 2,
-            splitDamageMultiplier: 0.5,
-            extraProjectileChance: 0.3,
-            tierMultipliers: {
-                damage: [1, 1.4, 1.9, 2.5, 3.2, 4.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                splitCount: [1, 1, 2, 2, 3, 3],
-                homingStrength: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
         }
     ],
 
@@ -780,128 +396,6 @@ const GAME_DATA = {
             type: 'consumable',
             cost: 30,
             description: 'Fully reload all ranged weapons'
-        },
-        
-        // ========== NEW ITEMS ==========
-        {
-            id: 'vampire_teeth',
-            name: 'Vampire Fangs',
-            icon: '🧛',
-            type: 'permanent',
-            cost: 150,
-            description: 'Gain 5% lifesteal'
-        },
-        {
-            id: 'berserker_ring',
-            name: 'Berserker Ring',
-            icon: '💍',
-            type: 'permanent',
-            cost: 180,
-            description: '+10% damage for each 10% missing health'
-        },
-        {
-            id: 'ninja_scroll',
-            name: 'Ninja Scroll',
-            icon: '📜',
-            type: 'permanent',
-            cost: 140,
-            description: '+15% dodge chance'
-        },
-        {
-            id: 'alchemist_stone',
-            name: 'Alchemist Stone',
-            icon: '💎',
-            type: 'permanent',
-            cost: 200,
-            description: 'Permanent +20% gold find and +20% item value'
-        },
-        {
-            id: 'thorns_armor',
-            name: 'Thorned Carapace',
-            icon: '🌵',
-            type: 'permanent',
-            cost: 160,
-            description: 'Reflect 25% of damage taken back to attackers'
-        },
-        {
-            id: 'wind_charm',
-            name: 'Wind Charm',
-            icon: '🍃',
-            type: 'permanent',
-            cost: 120,
-            description: '+15% attack speed for all weapons'
-        },
-        {
-            id: 'runic_plate',
-            name: 'Runic Plating',
-            icon: '🔰',
-            type: 'permanent',
-            cost: 190,
-            description: 'First hit of each wave deals 50% less damage'
-        },
-        {
-            id: 'explosive_trap',
-            name: 'Explosive Trap',
-            icon: '💥',
-            type: 'consumable',
-            cost: 70,
-            description: 'Place a trap that explodes for 100 damage'
-        },
-        {
-            id: 'healing_fountain',
-            name: 'Healing Totem',
-            icon: '🏺',
-            type: 'permanent',
-            cost: 180,
-            description: 'Regenerate 2 HP every second'
-        },
-        {
-            id: 'sharpening_stone',
-            name: 'Sharpening Stone',
-            icon: '🪨',
-            type: 'consumable',
-            cost: 60,
-            description: 'Increases melee weapon damage by 50% for 1 wave'
-        },
-        {
-            id: 'enchanters_ink',
-            name: 'Enchanter\'s Ink',
-            icon: '🖋️',
-            type: 'consumable',
-            cost: 80,
-            description: 'Adds random elemental effect to a weapon for 2 waves'
-        },
-        {
-            id: 'void_crystal',
-            name: 'Void Crystal',
-            icon: '🟣',
-            type: 'permanent',
-            cost: 250,
-            description: '10% chance on kill to spawn a void zone that damages enemies'
-        },
-        {
-            id: 'guardian_angel',
-            name: 'Guardian Angel',
-            icon: '👼',
-            type: 'permanent',
-            cost: 300,
-            description: 'Once per game, prevent death and restore 50% HP'
-        },
-        {
-            id: 'dice_of_fate',
-            name: 'Dice of Fate',
-            icon: '🎲',
-            type: 'consumable',
-            cost: 50,
-            description: 'Random effect: double damage, full heal, or 100 bonus gold'
-        },
-        {
-            id: 'blood_contract',
-            name: 'Blood Contract',
-            icon: '📝',
-            type: 'permanent',
-            cost: 150,
-            description: '+30% damage but lose 1 HP every 5 seconds'
         }
     ]
 };
@@ -951,125 +445,15 @@ const MONSTER_TYPES = {
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
-        speed: 2,
+        speed: 1.5,
         healthMultiplier: 10,
         damageMultiplier: 2,
         sizeMultiplier: 2.5,
         icon: '👑',
-        isBoss: true
-    },
-    
-    // ========== NEW MONSTER TYPES ==========
-    TELEPORTER: {
-        name: 'Teleporter',
-        color: '#8A2BE2',
-        speed: 1,
-        healthMultiplier: 0.9,
-        damageMultiplier: 0.8,
-        sizeMultiplier: 0.9,
-        icon: '🌀',
-        teleportChance: 0.3,
-        teleportCooldown: 3000,
-        teleportRange: 200
-    },
-    HEALER: {
-        name: 'Healer',
-        color: '#98FB98',
-        speed: 0.6,
-        healthMultiplier: 1.2,
-        damageMultiplier: 0.5,
-        sizeMultiplier: 1,
-        icon: '💚',
-        healRadius: 150,
-        healAmount: 5,
-        healCooldown: 2000
-    },
-    SPITTER: {
-        name: 'Spitter',
-        color: '#32CD32',
-        speed: 0.8,
-        healthMultiplier: 0.7,
-        damageMultiplier: 1.3,
-        sizeMultiplier: 0.9,
-        icon: '🤮',
-        ranged: true,
-        projectileDamage: 8,
-        projectileSpeed: 6,
-        attackRange: 200,
-        projectileColor: '#32CD32'
-    },
-    SHIELDED: {
-        name: 'Shielded',
-        color: '#C0C0C0',
-        speed: 0.4,
-        healthMultiplier: 1.5,
-        damageMultiplier: 1,
-        sizeMultiplier: 1.2,
-        icon: '🛡️',
-        shieldHealth: 30,
-        shieldRecharge: 5000,
-        damageReduction: 0.7
-    },
-    MIMIC: {
-        name: 'Mimic',
-        color: '#8B4513',
-        speed: 0.7,
-        healthMultiplier: 1.3,
-        damageMultiplier: 1.2,
-        sizeMultiplier: 1,
-        icon: '📦',
-        dropsGold: true,
-        goldAmount: 50,
-        disguiseChance: 0.5
-    },
-    PHANTOM: {
-        name: 'Phantom',
-        color: '#9370DB',
-        speed: 1.2,
-        healthMultiplier: 0.6,
-        damageMultiplier: 1.1,
-        sizeMultiplier: 0.8,
-        icon: '👻',
-        phaseChance: 0.5,
-        intangible: true,
-        intangibilityDuration: 2000
-    },
-    FROST: {
-        name: 'Frost',
-        color: '#87CEEB',
-        speed: 0.9,
-        healthMultiplier: 1.1,
-        damageMultiplier: 0.9,
-        sizeMultiplier: 1,
-        icon: '❄️',
-        slowAura: true,
-        slowRadius: 100,
-        slowAmount: 0.3
-    },
-    VAMPIRE: {
-        name: 'Vampire',
-        color: '#8B0000',
-        speed: 1.1,
-        healthMultiplier: 1.2,
-        damageMultiplier: 1.2,
-        sizeMultiplier: 1,
-        icon: '🧛',
-        lifeSteal: 0.2,
-        summonChance: 0.1,
-        summonType: 'NORMAL'
-    },
-    GOLEM: {
-        name: 'Golem',
-        color: '#808080',
-        speed: 0.3,
-        healthMultiplier: 3.0,
-        damageMultiplier: 1.5,
-        sizeMultiplier: 1.8,
-        icon: '🗿',
-        armor: 0.5,
-        smashAttack: true,
-        smashRadius: 80,
-        smashDamage: 2.0
+        isBoss: true,
+        projectileSpeed: 5,
+        projectileDamage: 10,
+        projectileCooldown: 2000
     }
 };
 
@@ -1114,6 +498,10 @@ class WeaponInstance {
         this.bounceCount = weaponData.bounceCount || 0;
         this.bounceRange = weaponData.bounceRange || 0;
         
+        // Boomerang specific properties
+        this.returnSpeed = weaponData.returnSpeed || 0;
+        this.maxTargets = weaponData.maxTargets || 1;
+        
         // Melee properties
         this.pierceCount = weaponData.pierceCount || 1;
         
@@ -1127,49 +515,6 @@ class WeaponInstance {
         this.prongColor = weaponData.prongColor || '#CD7F32';
         this.tipColor = weaponData.tipColor || '#FFD700';
         this.gripColor = weaponData.gripColor || '#8B4513';
-        
-        // New weapon properties
-        this.burnDamage = weaponData.burnDamage || 0;
-        this.burnDuration = weaponData.burnDuration || 0;
-        this.burnTickRate = weaponData.burnTickRate || 500;
-        this.groundFireDuration = weaponData.groundFireDuration || 0;
-        this.groundFireRadius = weaponData.groundFireRadius || 0;
-        this.beamWidth = weaponData.beamWidth || 0;
-        this.chargeTime = weaponData.chargeTime || 0;
-        this.returnDamage = weaponData.returnDamage || 0;
-        this.arcHeight = weaponData.arcHeight || 0;
-        this.slowAmount = weaponData.slowAmount || 0;
-        this.slowDuration = weaponData.slowDuration || 0;
-        this.explosionRadius = weaponData.explosionRadius || 0;
-        this.explosionDamage = weaponData.explosionDamage || 0;
-        this.fuseTime = weaponData.fuseTime || 0;
-        this.fireTrail = weaponData.fireTrail || false;
-        this.fireDamage = weaponData.fireDamage || 0;
-        this.fireDuration = weaponData.fireDuration || 0;
-        this.strikesPerAttack = weaponData.strikesPerAttack || 1;
-        this.strikeDelay = weaponData.strikeDelay || 0;
-        this.pullStrength = weaponData.pullStrength || 0;
-        this.soulCollect = weaponData.soulCollect || false;
-        this.stunChance = weaponData.stunChance || 0;
-        this.stunDuration = weaponData.stunDuration || 0;
-        this.blockReduction = weaponData.blockReduction || 0;
-        this.counterDamage = weaponData.counterDamage || 0;
-        this.freezeDuration = weaponData.freezeDuration || 0;
-        this.freezeChance = weaponData.freezeChance || 0;
-        this.splashRadius = weaponData.splashRadius || 0;
-        this.chainCount = weaponData.chainCount || 0;
-        this.chainRange = weaponData.chainRange || 0;
-        this.chainDamageFalloff = weaponData.chainDamageFalloff || 1;
-        this.poisonDamage = weaponData.poisonDamage || 0;
-        this.poisonDuration = weaponData.poisonDuration || 0;
-        this.poisonTickRate = weaponData.poisonTickRate || 500;
-        this.cloudDuration = weaponData.cloudDuration || 0;
-        this.cloudRadius = weaponData.cloudRadius || 0;
-        this.spreadChance = weaponData.spreadChance || 0;
-        this.homingStrength = weaponData.homingStrength || 0;
-        this.splitCount = weaponData.splitCount || 0;
-        this.splitDamageMultiplier = weaponData.splitDamageMultiplier || 1;
-        this.extraProjectileChance = weaponData.extraProjectileChance || 0;
         
         if (this.type === 'ranged') {
             this.projectileSpeed = weaponData.projectileSpeed;
@@ -1217,89 +562,16 @@ class WeaponInstance {
                 this.bounceCount = Math.round(this.bounceCount * this.tierMultipliers.bounceCount[this.tier]);
             }
             
+            if (this.maxTargets && this.tierMultipliers.maxTargets) {
+                this.maxTargets = Math.round(this.maxTargets * this.tierMultipliers.maxTargets[this.tier]);
+            }
+            
             if (this.pierceCount && this.tierMultipliers.pierceCount) {
                 this.pierceCount = Math.round(this.pierceCount * this.tierMultipliers.pierceCount[this.tier]);
             }
             
             if (this.shockwaveIntensity && this.tierMultipliers.shockwaveIntensity) {
                 this.shockwaveIntensity = this.shockwaveIntensity * this.tierMultipliers.shockwaveIntensity[this.tier];
-            }
-            
-            // New tier multipliers
-            if (this.burnDamage && this.tierMultipliers.burnDamage) {
-                this.burnDamage = Math.round(this.burnDamage * this.tierMultipliers.burnDamage[this.tier]);
-            }
-            
-            if (this.beamWidth && this.tierMultipliers.beamWidth) {
-                this.beamWidth = Math.round(this.beamWidth * this.tierMultipliers.beamWidth[this.tier]);
-            }
-            
-            if (this.returnDamage && this.tierMultipliers.returnDamage) {
-                this.returnDamage = Math.round(this.returnDamage * this.tierMultipliers.returnDamage[this.tier]);
-            }
-            
-            if (this.slowAmount && this.tierMultipliers.slowAmount) {
-                this.slowAmount = Math.min(0.8, this.slowAmount * this.tierMultipliers.slowAmount[this.tier]);
-            }
-            
-            if (this.explosionRadius && this.tierMultipliers.explosionRadius) {
-                this.explosionRadius = Math.round(this.explosionRadius * this.tierMultipliers.explosionRadius[this.tier]);
-            }
-            
-            if (this.explosionDamage && this.tierMultipliers.explosionDamage) {
-                this.explosionDamage = Math.round(this.explosionDamage * this.tierMultipliers.explosionDamage[this.tier]);
-            }
-            
-            if (this.fireDamage && this.tierMultipliers.fireDamage) {
-                this.fireDamage = Math.round(this.fireDamage * this.tierMultipliers.fireDamage[this.tier]);
-            }
-            
-            if (this.strikesPerAttack && this.tierMultipliers.strikesPerAttack) {
-                this.strikesPerAttack = Math.round(this.strikesPerAttack * this.tierMultipliers.strikesPerAttack[this.tier]);
-            }
-            
-            if (this.pullStrength && this.tierMultipliers.pullStrength) {
-                this.pullStrength = Math.min(1, this.pullStrength * this.tierMultipliers.pullStrength[this.tier]);
-            }
-            
-            if (this.stunChance && this.tierMultipliers.stunChance) {
-                this.stunChance = Math.min(1, this.stunChance * this.tierMultipliers.stunChance[this.tier]);
-            }
-            
-            if (this.blockReduction && this.tierMultipliers.blockReduction) {
-                this.blockReduction = Math.min(0.8, this.blockReduction * this.tierMultipliers.blockReduction[this.tier]);
-            }
-            
-            if (this.freezeDuration && this.tierMultipliers.freezeDuration) {
-                this.freezeDuration = Math.round(this.freezeDuration * this.tierMultipliers.freezeDuration[this.tier]);
-            }
-            
-            if (this.freezeChance && this.tierMultipliers.freezeChance) {
-                this.freezeChance = Math.min(1, this.freezeChance * this.tierMultipliers.freezeChance[this.tier]);
-            }
-            
-            if (this.chainCount && this.tierMultipliers.chainCount) {
-                this.chainCount = Math.round(this.chainCount * this.tierMultipliers.chainCount[this.tier]);
-            }
-            
-            if (this.chainRange && this.tierMultipliers.chainRange) {
-                this.chainRange = Math.round(this.chainRange * this.tierMultipliers.chainRange[this.tier]);
-            }
-            
-            if (this.poisonDamage && this.tierMultipliers.poisonDamage) {
-                this.poisonDamage = Math.round(this.poisonDamage * this.tierMultipliers.poisonDamage[this.tier]);
-            }
-            
-            if (this.cloudRadius && this.tierMultipliers.cloudRadius) {
-                this.cloudRadius = Math.round(this.cloudRadius * this.tierMultipliers.cloudRadius[this.tier]);
-            }
-            
-            if (this.homingStrength && this.tierMultipliers.homingStrength) {
-                this.homingStrength = Math.min(1, this.homingStrength * this.tierMultipliers.homingStrength[this.tier]);
-            }
-            
-            if (this.splitCount && this.tierMultipliers.splitCount) {
-                this.splitCount = Math.round(this.splitCount * this.tierMultipliers.splitCount[this.tier]);
             }
         }
     }
@@ -1386,6 +658,30 @@ class WeaponInstance {
                     });
                 }
                 return attacks;
+            } else if (this.id === 'boomerang') {
+                // Boomerang specific attack
+                const angle = Math.atan2(targetY - playerY, targetX - playerX);
+                return {
+                    type: 'ranged',
+                    x: playerX,
+                    y: playerY,
+                    startX: playerX,
+                    startY: playerY,
+                    angle: angle,
+                    speed: this.projectileSpeed,
+                    returnSpeed: this.returnSpeed,
+                    range: this.range,
+                    damage: this.baseDamage,
+                    color: this.projectileColor,
+                    weaponId: this.id,
+                    animation: this.animation,
+                    isBoomerang: true,
+                    state: 'outgoing', // outgoing, returning
+                    distanceTraveled: 0,
+                    targetsHit: [],
+                    maxTargets: this.maxTargets,
+                    rotation: 0
+                };
             } else {
                 const angle = Math.atan2(targetY - playerY, targetX - playerX);
                 return {
@@ -1401,36 +697,7 @@ class WeaponInstance {
                     animation: this.animation,
                     bounceCount: this.bounceCount,
                     bounceRange: this.bounceRange,
-                    targetsHit: [],
-                    
-                    // New weapon properties
-                    burnDamage: this.burnDamage,
-                    burnDuration: this.burnDuration,
-                    groundFireDuration: this.groundFireDuration,
-                    groundFireRadius: this.groundFireRadius,
-                    beamWidth: this.beamWidth,
-                    returnDamage: this.returnDamage,
-                    arcHeight: this.arcHeight,
-                    slowAmount: this.slowAmount,
-                    slowDuration: this.slowDuration,
-                    explosionRadius: this.explosionRadius,
-                    explosionDamage: this.explosionDamage,
-                    fuseTime: this.fuseTime,
-                    freezeDuration: this.freezeDuration,
-                    freezeChance: this.freezeChance,
-                    splashRadius: this.splashRadius,
-                    chainCount: this.chainCount,
-                    chainRange: this.chainRange,
-                    chainDamageFalloff: this.chainDamageFalloff,
-                    poisonDamage: this.poisonDamage,
-                    poisonDuration: this.poisonDuration,
-                    cloudDuration: this.cloudDuration,
-                    cloudRadius: this.cloudRadius,
-                    spreadChance: this.spreadChance,
-                    homingStrength: this.homingStrength,
-                    splitCount: this.splitCount,
-                    splitDamageMultiplier: this.splitDamageMultiplier,
-                    extraProjectileChance: this.extraProjectileChance
+                    targetsHit: []
                 };
             }
         } else {
@@ -1465,20 +732,7 @@ class WeaponInstance {
                 shaftColor: this.shaftColor,
                 prongColor: this.prongColor,
                 tipColor: this.tipColor,
-                gripColor: this.gripColor,
-                
-                // New melee properties
-                fireTrail: this.fireTrail,
-                fireDamage: this.fireDamage,
-                fireDuration: this.fireDuration,
-                strikesPerAttack: this.strikesPerAttack,
-                strikeDelay: this.strikeDelay,
-                pullStrength: this.pullStrength,
-                soulCollect: this.soulCollect,
-                stunChance: this.stunChance,
-                stunDuration: this.stunDuration,
-                blockReduction: this.blockReduction,
-                counterDamage: this.counterDamage
+                gripColor: this.gripColor
             };
         }
     }
@@ -1493,26 +747,12 @@ class WeaponInstance {
         if (this.type === 'ranged') {
             if (this.id === 'shotgun') return 'SHOTGUN';
             if (this.id === 'laser') return 'ENERGY';
-            if (this.id === 'flamethrower') return 'FIRE';
-            if (this.id === 'railgun') return 'RAIL';
-            if (this.id === 'boomerang') return 'RETURN';
-            if (this.id === 'crossbow') return 'SNIPER';
-            if (this.id === 'grenade_launcher') return 'EXPLOSIVE';
-            if (this.id.includes('staff')) {
-                if (this.id.includes('fire')) return 'FIRE';
-                if (this.id.includes('ice')) return 'ICE';
-                if (this.id.includes('lightning')) return 'LIGHTNING';
-                if (this.id.includes('poison')) return 'POISON';
-                if (this.id.includes('arcane')) return 'ARCANE';
-            }
+            if (this.id === 'boomerang') return 'BOOMERANG';
             return 'RANGED';
         }
         if (this.meleeType === 'single') return 'SINGLE';
         if (this.meleeType === 'aoe') return 'AOE 360°';
         if (this.meleeType === 'pierce') return 'PIERCE';
-        if (this.meleeType === 'dual') return 'DUAL';
-        if (this.meleeType === 'chain') return 'CHAIN';
-        if (this.meleeType === 'defensive') return 'DEFENSIVE';
         return 'MELEE';
     }
     
@@ -1549,11 +789,6 @@ class WeaponInstance {
         
         return mergedWeapon;
     }
-}
-
-// Helper function to get weapon by ID
-function getWeaponById(id) {
-    return GAME_DATA.WEAPONS.find(w => w.id === id);
 }
 
 // ============================================
@@ -1600,6 +835,7 @@ const player = {
 };
 
 let monsters = [];
+let bossProjectiles = [];
 let mouseX = 400;
 let mouseY = 300;
 
@@ -1768,6 +1004,7 @@ function initGame() {
     refreshCounter.textContent = 'Refreshes: 0';
     
     monsters = [];
+    bossProjectiles = [];
     player.projectiles = [];
     player.meleeAttacks = [];
     spawnIndicators = [];
@@ -1836,6 +1073,7 @@ function startWave() {
     waveDisplay.style.opacity = 1;
     
     monsters = [];
+    bossProjectiles = [];
     player.projectiles = [];
     player.meleeAttacks = [];
     visualEffects = [];
@@ -1900,20 +1138,23 @@ function spawnMonster() {
         waveConfig.monsterDamage :
         Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
     
-    monsters.push({
+    const monster = {
         x, y,
         radius: waveConfig.isBoss ? 40 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
         health: health,
         maxHealth: health,
         damage: damage,
-        speed: (waveConfig.isBoss ? 0.3 : (1 + wave * 0.1)) * monsterType.speed,
+        speed: (waveConfig.isBoss ? 1.5 : (1 + wave * 0.1)) * monsterType.speed,
         color: monsterType.color,
         type: monsterType.name,
         monsterType: monsterType,
         lastAttack: 0,
         attackCooldown: waveConfig.isBoss ? 1500 : GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        isBoss: waveConfig.isBoss
-    });
+        isBoss: waveConfig.isBoss,
+        lastProjectileTime: 0
+    };
+    
+    monsters.push(monster);
 }
 
 // ============================================
@@ -2145,6 +1386,7 @@ function updateShopDisplay() {
                 } else {
                     if (data.id === 'shotgun') tagClass = 'shotgun-tag';
                     else if (data.id === 'laser') tagClass = 'energy-tag';
+                    else if (data.id === 'boomerang') tagClass = 'boomerang-tag';
                     else tagClass = 'ranged-tag';
                 }
             }
@@ -2153,7 +1395,7 @@ function updateShopDisplay() {
                 <div class="item-info">
                     <div class="item-name">
                         ${data.icon} ${data.name}
-                        ${tagClass ? `<span class="item-tag ${tagClass}">${shopItem.type === 'weapon' ? (data.id === 'shotgun' ? 'SHOTGUN' : data.id === 'laser' ? 'ENERGY' : data.type === 'melee' ? data.meleeType.toUpperCase() : 'RANGED') : 'ITEM'}</span>` : ''}
+                        ${tagClass ? `<span class="item-tag ${tagClass}">${shopItem.type === 'weapon' ? (data.id === 'shotgun' ? 'SHOTGUN' : data.id === 'laser' ? 'ENERGY' : data.id === 'boomerang' ? 'BOOMERANG' : data.type === 'melee' ? data.meleeType.toUpperCase() : 'RANGED') : 'ITEM'}</span>` : ''}
                     </div>
                     <div class="item-effect">${data.description}</div>
                 </div>
@@ -2235,7 +1477,6 @@ function applyItemEffect(item) {
             });
             showMessage("All weapons reloaded!");
             break;
-        // New items will need their effects implemented here
     }
 }
 
@@ -2394,6 +1635,7 @@ function gameLoop() {
     
     drawSpawnIndicators();
     drawMonsters();
+    drawBossProjectiles();
     drawProjectiles();
     drawMeleeAttacks();
     drawVisualEffects();
@@ -2503,6 +1745,79 @@ function drawPlayer() {
 }
 
 // ============================================
+// BOOMERANG DRAWING FUNCTION
+// ============================================
+
+function drawBoomerang(ctx, x, y, rotation, alpha = 1) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.scale(0.8, 0.8);
+    
+    // Draw boomerang shape
+    ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    
+    // Main body gradient
+    const gradient = ctx.createLinearGradient(-15, -5, 15, 5);
+    gradient.addColorStop(0, '#8B4513');
+    gradient.addColorStop(0.5, '#CD7F32');
+    gradient.addColorStop(1, '#8B4513');
+    
+    ctx.fillStyle = gradient;
+    ctx.strokeStyle = '#654321';
+    ctx.lineWidth = 2;
+    
+    // Draw the classic boomerang V-shape
+    ctx.beginPath();
+    ctx.moveTo(-15, -5);
+    ctx.lineTo(0, -15);
+    ctx.lineTo(15, -5);
+    ctx.lineTo(5, 5);
+    ctx.lineTo(-5, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Add details
+    ctx.fillStyle = '#654321';
+    ctx.beginPath();
+    ctx.arc(-8, -8, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.arc(8, -8, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Edge highlights
+    ctx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.5})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-15, -5);
+    ctx.lineTo(0, -15);
+    ctx.lineTo(15, -5);
+    ctx.stroke();
+    
+    // Rotation trail when returning
+    if (alpha < 1) {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+            ctx.save();
+            ctx.rotate(i * 0.2);
+            ctx.beginPath();
+            ctx.moveTo(-15, -5);
+            ctx.lineTo(0, -15);
+            ctx.lineTo(15, -5);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+    
+    ctx.restore();
+}
+
+// ============================================
 // REALISTIC WEAPON ANIMATIONS
 // ============================================
 
@@ -2536,7 +1851,6 @@ function drawMeleeAttacks() {
             case 'spear':
                 drawTrident(ctx, attack, angle, progress, distance, alpha);
                 break;
-            // New melee weapon animations would be added here
         }
         
         ctx.restore();
@@ -2899,6 +2213,7 @@ function updateGame(deltaTime) {
     updateProjectiles();
     updateMeleeAttacks();
     updateMonsters();
+    updateBossProjectiles();
     updateVisualEffects();
     
     if (monsters.length === 0 && spawnIndicators.length === 0) {
@@ -2949,18 +2264,55 @@ function updateProjectiles() {
     for (let i = player.projectiles.length - 1; i >= 0; i--) {
         const projectile = player.projectiles[i];
         
-        projectile.x += Math.cos(projectile.angle) * projectile.speed;
-        projectile.y += Math.sin(projectile.angle) * projectile.speed;
-        
-        const dx = projectile.x - player.x;
-        const dy = projectile.y - player.y;
-        const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distanceFromPlayer > projectile.range) {
-            player.projectiles.splice(i, 1);
-            continue;
+        if (projectile.isBoomerang) {
+            // Boomerang specific movement
+            if (projectile.state === 'outgoing') {
+                projectile.x += Math.cos(projectile.angle) * projectile.speed;
+                projectile.y += Math.sin(projectile.angle) * projectile.speed;
+                
+                const dx = projectile.x - projectile.startX;
+                const dy = projectile.y - projectile.startY;
+                projectile.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
+                
+                // Switch to returning state after reaching max distance
+                if (projectile.distanceTraveled >= projectile.range / 2) {
+                    projectile.state = 'returning';
+                }
+            } else {
+                // Return to player
+                const dx = player.x - projectile.x;
+                const dy = player.y - projectile.y;
+                const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distanceToPlayer < 10) {
+                    player.projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                const angle = Math.atan2(dy, dx);
+                projectile.x += Math.cos(angle) * projectile.returnSpeed;
+                projectile.y += Math.sin(angle) * projectile.returnSpeed;
+                projectile.angle = angle;
+            }
+            
+            // Increment rotation for spinning effect
+            projectile.rotation = (projectile.rotation || 0) + 0.2;
+        } else {
+            // Regular projectile movement
+            projectile.x += Math.cos(projectile.angle) * projectile.speed;
+            projectile.y += Math.sin(projectile.angle) * projectile.speed;
+            
+            const dx = projectile.x - player.x;
+            const dy = projectile.y - player.y;
+            const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distanceFromPlayer > projectile.range) {
+                player.projectiles.splice(i, 1);
+                continue;
+            }
         }
         
+        // Handle bouncing for energy gun
         if (projectile.bounceCount > 0 && projectile.targetsHit) {
             let nextTarget = null;
             let nextTargetDistance = Infinity;
@@ -2986,6 +2338,7 @@ function updateProjectiles() {
             }
         }
         
+        // Check collision with monsters
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             const dx = projectile.x - monster.x;
@@ -3013,6 +2366,23 @@ function updateProjectiles() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
+                // Track hits for boomerang
+                if (projectile.isBoomerang) {
+                    if (!projectile.targetsHit.includes(monster)) {
+                        projectile.targetsHit.push(monster);
+                    }
+                    
+                    // Remove boomerang if it's hit max targets
+                    if (projectile.targetsHit.length >= projectile.maxTargets) {
+                        player.projectiles.splice(i, 1);
+                        break;
+                    }
+                    
+                    // Don't remove boomerang on hit - it continues
+                    continue;
+                }
+                
+                // Remove non-boomerang projectiles on hit
                 if (!projectile.bounceCount || !projectile.targetsHit) {
                     player.projectiles.splice(i, 1);
                 } else {
@@ -3126,6 +2496,12 @@ function updateMonsters() {
         monster.x += (dx / distance) * monster.speed;
         monster.y += (dy / distance) * monster.speed;
         
+        // Boss projectile attack
+        if (monster.isBoss && currentTime - monster.lastProjectileTime >= MONSTER_TYPES.BOSS.projectileCooldown) {
+            shootBossProjectiles(monster);
+            monster.lastProjectileTime = currentTime;
+        }
+        
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 let actualDamage = monster.damage;
@@ -3163,6 +2539,76 @@ function updateMonsters() {
             }
         }
     });
+}
+
+function shootBossProjectiles(boss) {
+    // Shoot projectiles in 4 diagonal directions
+    const directions = [
+        { angle: Math.PI / 4, vx: 1, vy: 1 },     // Down-right
+        { angle: 3 * Math.PI / 4, vx: -1, vy: 1 }, // Down-left
+        { angle: 5 * Math.PI / 4, vx: -1, vy: -1 }, // Up-left
+        { angle: 7 * Math.PI / 4, vx: 1, vy: -1 }   // Up-right
+    ];
+    
+    directions.forEach(dir => {
+        bossProjectiles.push({
+            x: boss.x,
+            y: boss.y,
+            vx: dir.vx * MONSTER_TYPES.BOSS.projectileSpeed,
+            vy: dir.vy * MONSTER_TYPES.BOSS.projectileSpeed,
+            damage: MONSTER_TYPES.BOSS.projectileDamage,
+            radius: 8,
+            color: '#ff4444',
+            startTime: Date.now(),
+            lifetime: 3000 // 3 seconds
+        });
+    });
+}
+
+function updateBossProjectiles() {
+    const currentTime = Date.now();
+    
+    for (let i = bossProjectiles.length - 1; i >= 0; i--) {
+        const proj = bossProjectiles[i];
+        
+        // Move projectile
+        proj.x += proj.vx;
+        proj.y += proj.vy;
+        
+        // Check lifetime
+        if (currentTime - proj.startTime > proj.lifetime) {
+            bossProjectiles.splice(i, 1);
+            continue;
+        }
+        
+        // Check collision with player
+        const dx = player.x - proj.x;
+        const dy = player.y - proj.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < player.radius + proj.radius) {
+            let damage = proj.damage;
+            
+            if (player.damageReduction > 0) {
+                damage *= (1 - player.damageReduction);
+            }
+            
+            player.health -= damage;
+            createDamageIndicator(player.x, player.y, Math.floor(damage), true);
+            
+            if (player.health <= 0) {
+                gameOver();
+            }
+            
+            bossProjectiles.splice(i, 1);
+        }
+        
+        // Remove if off screen
+        if (proj.x < -50 || proj.x > canvas.width + 50 || 
+            proj.y < -50 || proj.y > canvas.height + 50) {
+            bossProjectiles.splice(i, 1);
+        }
+    }
 }
 
 function addVisualEffect(effect) {
@@ -3213,21 +2659,73 @@ function drawVisualEffects() {
 
 function drawProjectiles() {
     player.projectiles.forEach(projectile => {
-        ctx.fillStyle = projectile.color;
-        ctx.shadowColor = projectile.color;
-        ctx.shadowBlur = 10;
+        if (projectile.isBoomerang) {
+            // Draw boomerang with rotation
+            drawBoomerang(ctx, projectile.x, projectile.y, projectile.rotation || 0, 1);
+            
+            // Draw trail when returning
+            if (projectile.state === 'returning') {
+                ctx.save();
+                ctx.globalAlpha = 0.3;
+                for (let i = 1; i <= 3; i++) {
+                    const trailX = projectile.x - Math.cos(projectile.angle) * i * 5;
+                    const trailY = projectile.y - Math.sin(projectile.angle) * i * 5;
+                    drawBoomerang(ctx, trailX, trailY, (projectile.rotation || 0) - i * 0.1, 0.3);
+                }
+                ctx.restore();
+            }
+        } else {
+            // Regular projectile
+            ctx.fillStyle = projectile.color;
+            ctx.shadowColor = projectile.color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = projectile.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+                       projectile.y - Math.sin(projectile.angle) * 10);
+            ctx.lineTo(projectile.x, projectile.y);
+            ctx.stroke();
+        }
+    });
+}
+
+function drawBossProjectiles() {
+    bossProjectiles.forEach(proj => {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        
+        // Draw boss projectile
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 15;
+        
+        // Outer glow
+        ctx.fillStyle = '#ff8888';
         ctx.beginPath();
-        ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
+        ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
         ctx.fill();
         
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = projectile.color;
-        ctx.lineWidth = 2;
+        // Inner projectile
+        ctx.fillStyle = proj.color;
+        ctx.shadowBlur = 20;
         ctx.beginPath();
-        ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
-                   projectile.y - Math.sin(projectile.angle) * 10);
-        ctx.lineTo(projectile.x, projectile.y);
-        ctx.stroke();
+        ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Skull icon for boss projectiles
+        ctx.fillStyle = '#000000';
+        ctx.shadowBlur = 0;
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💀', 0, 0);
+        
+        ctx.restore();
     });
 }
 
@@ -3419,4 +2917,5 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Start game loop
 gameLoop();
