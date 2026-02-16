@@ -30,7 +30,7 @@ const GAME_DATA = {
         { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110 },
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120 },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130 },
-        { number: 10, monsters: 1, monsterHealth: 2000, monsterDamage: 15, goldReward: 300, isBoss: true },
+        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 300, isBoss: true },
 
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140 },
         { number: 12, monsters: 32, monsterHealth: 75, monsterDamage: 12, goldReward: 150 },
