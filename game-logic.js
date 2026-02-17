@@ -42,6 +42,21 @@ const MONSTER_TYPES = {
         explosionRadius: 100,
         explosionDamage: 3.0
     },
+    GUNNER: {
+        name: 'Gunner',
+        color: '#ff69b4',
+        speed: 0.9,
+        healthMultiplier: 0.9,
+        damageMultiplier: 1.2,
+        sizeMultiplier: 0.9,
+        icon: '🔫',
+        ranged: true,
+        projectileDamage: 8,
+        projectileSpeed: 6,
+        attackRange: 250,
+        projectileColor: '#ff69b4',
+        attackCooldown: 1500
+    },
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
@@ -288,7 +303,8 @@ class WeaponInstance {
                     targetsHit: [],
                     maxTargets: this.maxTargets,
                     rotation: 0,
-                    startTime: currentTime
+                    startTime: currentTime,
+                    hitThisFrame: false // Add flag to prevent multiple hits per frame
                 };
             } else {
                 // Apply spread to all other ranged weapons
@@ -478,6 +494,7 @@ let poisonClouds = [];
 let voidZones = [];
 let activeTraps = [];
 let bossProjectiles = [];
+let monsterProjectiles = []; // For gunner monster projectiles
 
 // DOM Elements
 const canvas = document.getElementById('gameCanvas');
@@ -680,6 +697,7 @@ function initGame() {
     voidZones = [];
     activeTraps = [];
     bossProjectiles = [];
+    monsterProjectiles = [];
     
     monsters = [];
     player.projectiles = [];
@@ -755,6 +773,7 @@ function startWave() {
     player.meleeAttacks = [];
     visualEffects = [];
     bossProjectiles = [];
+    monsterProjectiles = [];
     
     // Reset first hit reduction for new wave
     if (player.firstHitReduction) {
@@ -792,14 +811,16 @@ function spawnMonster() {
         if (wave < 3) {
             monsterType = MONSTER_TYPES.NORMAL;
         } else if (wave < 6) {
-            if (rand < 0.6) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.8) monsterType = MONSTER_TYPES.FAST;
-            else monsterType = MONSTER_TYPES.TANK;
-        } else {
-            if (rand < 0.4) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.6) monsterType = MONSTER_TYPES.FAST;
-            else if (rand < 0.8) monsterType = MONSTER_TYPES.TANK;
+            if (rand < 0.5) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.7) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.9) monsterType = MONSTER_TYPES.TANK;
             else monsterType = MONSTER_TYPES.EXPLOSIVE;
+        } else {
+            if (rand < 0.3) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.45) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.6) monsterType = MONSTER_TYPES.TANK;
+            else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
+            else monsterType = MONSTER_TYPES.GUNNER;
         }
     }
     
@@ -832,7 +853,7 @@ function spawnMonster() {
         type: monsterType.name,
         monsterType: monsterType,
         lastAttack: 0,
-        attackCooldown: waveConfig.isBoss ? 1500 : GAME_DATA.MONSTER_ATTACK_COOLDOWN,
+        attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
         isBoss: waveConfig.isBoss,
         
         // Status effects
@@ -845,6 +866,9 @@ function spawnMonster() {
         
         // Explosive properties
         explosive: monsterType.explosive || false,
+        
+        // Gunner properties
+        isGunner: monsterType === MONSTER_TYPES.GUNNER,
         
         originalSpeed: monsterType.speed
     };
@@ -1459,6 +1483,7 @@ function gameLoop() {
     drawMonsters();
     drawProjectiles();
     drawBossProjectiles();
+    drawMonsterProjectiles();
     drawMeleeAttacks();
     drawVisualEffects();
     drawGroundEffects();
@@ -1570,6 +1595,29 @@ function drawProjectiles() {
             ctx.lineTo(projectile.x, projectile.y);
             ctx.stroke();
         }
+        
+        ctx.restore();
+    });
+}
+
+function drawMonsterProjectiles() {
+    monsterProjectiles.forEach(proj => {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        
+        // Draw gunner projectile
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = proj.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner core
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(0, 0, 2, 0, Math.PI * 2);
+        ctx.fill();
         
         ctx.restore();
     });
@@ -2218,6 +2266,7 @@ function updateGame(deltaTime) {
     
     updateWeapons();
     updateProjectiles();
+    updateMonsterProjectiles(currentTime);
     updateBossProjectiles(currentTime);
     updateMeleeAttacks();
     updateMonsters(currentTime);
@@ -2272,6 +2321,67 @@ function updateWeapons() {
             }
         }
     });
+}
+
+function shootGunnerProjectile(gunner) {
+    const currentTime = Date.now();
+    const angle = Math.atan2(player.y - gunner.y, player.x - gunner.x);
+    
+    monsterProjectiles.push({
+        x: gunner.x,
+        y: gunner.y,
+        vx: Math.cos(angle) * MONSTER_TYPES.GUNNER.projectileSpeed,
+        vy: Math.sin(angle) * MONSTER_TYPES.GUNNER.projectileSpeed,
+        damage: MONSTER_TYPES.GUNNER.projectileDamage,
+        radius: 5,
+        color: MONSTER_TYPES.GUNNER.projectileColor,
+        startTime: currentTime,
+        lifetime: 3000
+    });
+}
+
+function updateMonsterProjectiles(currentTime) {
+    for (let i = monsterProjectiles.length - 1; i >= 0; i--) {
+        const proj = monsterProjectiles[i];
+        
+        // Move projectile
+        proj.x += proj.vx;
+        proj.y += proj.vy;
+        
+        // Check lifetime
+        if (currentTime - proj.startTime > proj.lifetime) {
+            monsterProjectiles.splice(i, 1);
+            continue;
+        }
+        
+        // Check collision with player
+        const dx = player.x - proj.x;
+        const dy = player.y - proj.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < player.radius + proj.radius) {
+            let damage = proj.damage;
+            
+            if (player.damageReduction > 0) {
+                damage *= (1 - player.damageReduction);
+            }
+            
+            player.health -= damage;
+            createDamageIndicator(player.x, player.y, Math.floor(damage), false);
+            
+            if (player.health <= 0) {
+                gameOver();
+            }
+            
+            monsterProjectiles.splice(i, 1);
+        }
+        
+        // Remove if off screen
+        if (proj.x < -50 || proj.x > canvas.width + 50 || 
+            proj.y < -50 || proj.y > canvas.height + 50) {
+            monsterProjectiles.splice(i, 1);
+        }
+    }
 }
 
 function updateBossProjectiles(currentTime) {
@@ -2337,7 +2447,7 @@ function shootBossProjectiles(boss) {
             radius: 8,
             color: '#ff4444',
             startTime: Date.now(),
-            lifetime: 3000 // 3 seconds
+            lifetime: 3000
         });
     });
 }
@@ -2388,6 +2498,8 @@ function updateProjectiles() {
             
             // Increment rotation for spinning effect
             projectile.rotation = (projectile.rotation || 0) + 0.2;
+            // Reset hit flag each frame
+            projectile.hitThisFrame = false;
         } else {
             // Regular projectile movement
             projectile.x += Math.cos(projectile.angle) * projectile.speed;
@@ -2438,6 +2550,14 @@ function updateProjectiles() {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < (projectile.isPellet ? 3 : 5) + monster.radius) {
+                // FIXED: For boomerang, prevent multiple hits on same monster in one frame
+                if (projectile.isBoomerang) {
+                    if (projectile.hitThisFrame) {
+                        continue;
+                    }
+                    projectile.hitThisFrame = true;
+                }
+                
                 let damage = projectile.damage;
                 let isCritical = false;
                 
@@ -2483,13 +2603,39 @@ function updateProjectiles() {
                     }
                 }
                 
+                // FIXED: Check if monster health is <= 0 and remove it
                 if (monster.health <= 0) {
-                    // FIXED: Explosive monster death explosion
+                    // Explosive monster death explosion - damages ONLY player
                     if (monster.monsterType && monster.monsterType.explosive) {
-                        createExplosion(monster.x, monster.y, 
-                                      MONSTER_TYPES.EXPLOSIVE.explosionRadius, 
-                                      monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage, 
-                                      true);
+                        // Calculate distance to player for explosion damage
+                        const dx = player.x - monster.x;
+                        const dy = player.y - monster.y;
+                        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distanceToPlayer < MONSTER_TYPES.EXPLOSIVE.explosionRadius) {
+                            const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
+                            player.health -= explosionDamage;
+                            createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
+                        }
+                        
+                        // Visual explosion effect
+                        addVisualEffect({
+                            type: 'explosion',
+                            x: monster.x,
+                            y: monster.y,
+                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius,
+                            startTime: Date.now(),
+                            duration: 500
+                        });
+                        
+                        addVisualEffect({
+                            type: 'shockwave',
+                            x: monster.x,
+                            y: monster.y,
+                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius * 2,
+                            startTime: Date.now(),
+                            duration: 300
+                        });
                     }
                     
                     addVisualEffect({
@@ -2562,13 +2708,39 @@ function updateMeleeAttacks() {
                     break;
                 }
                 
+                // FIXED: Check if monster health is <= 0 and remove it
                 if (monster.health <= 0) {
-                    // FIXED: Explosive monster death explosion
+                    // Explosive monster death explosion - damages ONLY player
                     if (monster.monsterType && monster.monsterType.explosive) {
-                        createExplosion(monster.x, monster.y, 
-                                      MONSTER_TYPES.EXPLOSIVE.explosionRadius, 
-                                      monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage, 
-                                      true);
+                        // Calculate distance to player for explosion damage
+                        const dx = player.x - monster.x;
+                        const dy = player.y - monster.y;
+                        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distanceToPlayer < MONSTER_TYPES.EXPLOSIVE.explosionRadius) {
+                            const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
+                            player.health -= explosionDamage;
+                            createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
+                        }
+                        
+                        // Visual explosion effect
+                        addVisualEffect({
+                            type: 'explosion',
+                            x: monster.x,
+                            y: monster.y,
+                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius,
+                            startTime: Date.now(),
+                            duration: 500
+                        });
+                        
+                        addVisualEffect({
+                            type: 'shockwave',
+                            x: monster.x,
+                            y: monster.y,
+                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius * 2,
+                            startTime: Date.now(),
+                            duration: 300
+                        });
                     }
                     
                     addVisualEffect({
@@ -2623,8 +2795,14 @@ function updateMonsters(currentTime) {
             monster.y += (dy / distance) * monster.speed;
         }
         
+        // Gunner projectile attack
+        if (monster.isGunner && currentTime - monster.lastAttack >= monster.attackCooldown) {
+            shootGunnerProjectile(monster);
+            monster.lastAttack = currentTime;
+        }
+        
         // Boss projectile attack
-        if (monster.isBoss && currentTime - monster.lastAttack >= MONSTER_TYPES.BOSS.projectileCooldown) {
+        if (monster.isBoss && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootBossProjectiles(monster);
             monster.lastAttack = currentTime;
         }
@@ -2725,8 +2903,6 @@ function updateGroundEffects(currentTime) {
                 monster.health -= trap.damage;
                 createDamageIndicator(monster.x, monster.y, trap.damage, true);
                 trap.active = false;
-                
-                createExplosion(trap.x, trap.y, 80, trap.damage, true);
             }
         });
         
@@ -2734,40 +2910,6 @@ function updateGroundEffects(currentTime) {
             activeTraps.splice(i, 1);
         }
     }
-}
-
-function createExplosion(x, y, radius, damage, isCritical) {
-    const currentTime = Date.now();
-    
-    addVisualEffect({
-        type: 'explosion',
-        x: x,
-        y: y,
-        radius: radius,
-        startTime: currentTime,
-        duration: 500
-    });
-    
-    addVisualEffect({
-        type: 'shockwave',
-        x: x,
-        y: y,
-        radius: radius * 2,
-        startTime: currentTime,
-        duration: 300
-    });
-    
-    monsters.forEach(monster => {
-        const dx = monster.x - x;
-        const dy = monster.y - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < radius) {
-            const explosionDamage = damage * (1 - distance / radius * 0.5);
-            monster.health -= explosionDamage;
-            createDamageIndicator(monster.x, monster.y, Math.floor(explosionDamage), isCritical);
-        }
-    });
 }
 
 function addVisualEffect(effect) {
