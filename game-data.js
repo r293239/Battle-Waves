@@ -30,7 +30,7 @@ const GAME_DATA = {
         { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110 },
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120 },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130 },
-        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 300, isBoss: true },
+        { number: 10, monsters: 2, monsterHealth: 3000, monsterDamage: 15, goldReward: 300, isBoss: true },
 
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140 },
         { number: 12, monsters: 32, monsterHealth: 75, monsterDamage: 12, goldReward: 150 },
@@ -41,7 +41,7 @@ const GAME_DATA = {
         { number: 17, monsters: 42, monsterHealth: 100, monsterDamage: 17, goldReward: 200 },
         { number: 18, monsters: 44, monsterHealth: 110, monsterDamage: 18, goldReward: 210 },
         { number: 19, monsters: 46, monsterHealth: 120, monsterDamage: 19, goldReward: 220 },
-        { number: 20, monsters: 1, monsterHealth: 5000, monsterDamage: 25, goldReward: 500, isBoss: true },
+        { number: 20, monsters: 3, monsterHealth: 5000, monsterDamage: 25, goldReward: 500, isBoss: true },
 
         { number: 21, monsters: 55, monsterHealth: 130, monsterDamage: 20, goldReward: 240 },
         { number: 22, monsters: 60, monsterHealth: 140, monsterDamage: 21, goldReward: 260 },
@@ -52,7 +52,7 @@ const GAME_DATA = {
         { number: 27, monsters: 85, monsterHealth: 200, monsterDamage: 26, goldReward: 360 },
         { number: 28, monsters: 90, monsterHealth: 220, monsterDamage: 27, goldReward: 380 },
         { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400 },
-        { number: 30, monsters: 1, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true },
+        { number: 30, monsters: 4, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true },
     ],
 
     // Stat buffs that appear after each wave
