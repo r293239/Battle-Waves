@@ -304,10 +304,10 @@ class WeaponInstance {
                     maxTargets: this.maxTargets,
                     rotation: 0,
                     startTime: currentTime,
-                    hitThisFrame: false // Add flag to prevent multiple hits per frame
+                    hitThisFrame: false // Prevent multiple hits per frame
                 };
             } else {
-                // Apply spread to all other ranged weapons
+                // Apply spread to all other ranged weapons - NO HOMING
                 const baseAngle = Math.atan2(targetY - playerY, targetX - playerX);
                 const spreadAmount = (Math.random() - 0.5) * this.spread;
                 const angle = baseAngle + spreadAmount;
@@ -552,15 +552,18 @@ function getWaveConfig(waveNumber) {
     if (waveNumber <= GAME_DATA.WAVES.length) {
         return GAME_DATA.WAVES[waveNumber - 1];
     } else {
+        // For waves beyond 30, scale up progressively
         const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
-        const scaleFactor = 1 + (waveNumber - 10) * 0.2;
+        const extraWaves = waveNumber - GAME_DATA.WAVES.length;
+        const scaleFactor = 1 + extraWaves * 0.15;
         return {
             number: waveNumber,
             monsters: Math.floor(baseWave.monsters * scaleFactor),
             monsterHealth: Math.floor(baseWave.monsterHealth * scaleFactor),
             monsterDamage: Math.floor(baseWave.monsterDamage * scaleFactor),
             goldReward: Math.floor(baseWave.goldReward * scaleFactor),
-            isBoss: false
+            isBoss: (waveNumber % 10 === 0), // Boss every 10 waves
+            spawnDelay: Math.max(50, 200 - extraWaves * 5) // Faster spawns in later waves
         };
     }
 }
@@ -787,9 +790,23 @@ function startWave() {
     
     showSpawnIndicators();
     
+    // STAGGERED SPAWNING - monsters spawn one by one with delay
     setTimeout(() => {
-        for (let i = 0; i < (waveConfig.isBoss ? 1 : waveConfig.monsters); i++) {
+        const monsterCount = waveConfig.monsters;
+        const spawnDelay = waveConfig.spawnDelay || 200;
+        
+        if (waveConfig.isBoss) {
+            // Boss spawns immediately
             spawnMonster();
+        } else {
+            // Staggered spawning for regular monsters
+            for (let i = 0; i < monsterCount; i++) {
+                setTimeout(() => {
+                    if (gameState === 'wave') { // Only spawn if wave is still active
+                        spawnMonster();
+                    }
+                }, i * spawnDelay);
+            }
         }
         spawnIndicators = [];
     }, 2000);
@@ -815,12 +832,27 @@ function spawnMonster() {
             else if (rand < 0.7) monsterType = MONSTER_TYPES.FAST;
             else if (rand < 0.9) monsterType = MONSTER_TYPES.TANK;
             else monsterType = MONSTER_TYPES.EXPLOSIVE;
-        } else {
+        } else if (wave < 10) {
             if (rand < 0.3) monsterType = MONSTER_TYPES.NORMAL;
             else if (rand < 0.45) monsterType = MONSTER_TYPES.FAST;
             else if (rand < 0.6) monsterType = MONSTER_TYPES.TANK;
             else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
             else monsterType = MONSTER_TYPES.GUNNER;
+        } else if (wave < 15) {
+            if (rand < 0.25) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.4) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.55) monsterType = MONSTER_TYPES.TANK;
+            else if (rand < 0.7) monsterType = MONSTER_TYPES.EXPLOSIVE;
+            else if (rand < 0.85) monsterType = MONSTER_TYPES.GUNNER;
+            else monsterType = MONSTER_TYPES.BOSS; // Mini-boss spawns
+        } else {
+            // Waves 15+ have all types with higher chance of tougher enemies
+            if (rand < 0.2) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.35) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.5) monsterType = MONSTER_TYPES.TANK;
+            else if (rand < 0.65) monsterType = MONSTER_TYPES.EXPLOSIVE;
+            else if (rand < 0.8) monsterType = MONSTER_TYPES.GUNNER;
+            else monsterType = MONSTER_TYPES.BOSS; // Mini-boss spawns
         }
     }
     
@@ -2501,7 +2533,7 @@ function updateProjectiles() {
             // Reset hit flag each frame
             projectile.hitThisFrame = false;
         } else {
-            // Regular projectile movement
+            // Regular projectile movement - NO HOMING, just straight line
             projectile.x += Math.cos(projectile.angle) * projectile.speed;
             projectile.y += Math.sin(projectile.angle) * projectile.speed;
             
