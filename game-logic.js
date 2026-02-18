@@ -797,7 +797,9 @@ function startWave() {
         
         if (waveConfig.isBoss) {
             // Boss spawns immediately
-            spawnMonster();
+            for (let i = 0; i < monsterCount; i++) {
+                spawnMonster();
+            }
         } else {
             // Staggered spawning for regular monsters
             for (let i = 0; i < monsterCount; i++) {
@@ -886,7 +888,7 @@ function spawnMonster() {
         monsterType: monsterType,
         lastAttack: 0,
         attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        isBoss: waveConfig.isBoss,
+        isBoss: waveConfig.isBoss || monsterType.isBoss || false,
         
         // Status effects
         slowed: false,
