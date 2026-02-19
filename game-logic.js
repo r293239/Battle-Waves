@@ -61,13 +61,13 @@ const MONSTER_TYPES = {
         name: 'BOSS',
         color: '#ffd700',
         speed: 0.8,
-        healthMultiplier: 15,
+        healthMultiplier: 20,
         damageMultiplier: 2.5,
         sizeMultiplier: 2.5,
         icon: '👑',
         isBoss: true,
         projectileSpeed: 5,
-        projectileDamage: 15,
+        projectileDamage: 20,
         projectileCooldown: 1800
     }
 };
