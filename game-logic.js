@@ -2628,27 +2628,71 @@ function updateProjectiles() {
                     break;
                 }
                 
-                // FIXED: Check if monster health is <= 0 and remove it - THIS IS THE KEY PART
+                // FIXED: Check if monster health is <= 0 and remove it - WITH AOE EXPLOSION THAT DAMAGES OTHER MONSTERS
                 if (monster.health <= 0) {
-                    // Explosive monster death explosion - damages ONLY player
+                    // Explosive monster death explosion - AOE damages player AND other monsters
                     if (monster.monsterType && monster.monsterType.explosive) {
-                        // Calculate distance to player for explosion damage
-                        const dx = player.x - monster.x;
-                        const dy = player.y - monster.y;
-                        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+                        const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
+                        const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
                         
-                        if (distanceToPlayer < MONSTER_TYPES.EXPLOSIVE.explosionRadius) {
-                            const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
+                        // Damage player if within range
+                        const dxToPlayer = player.x - monster.x;
+                        const dyToPlayer = player.y - monster.y;
+                        const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
+                        
+                        if (distanceToPlayer < explosionRadius + player.radius) {
                             player.health -= explosionDamage;
                             createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
+                            
+                            // Check if player died from explosion
+                            if (player.health <= 0) {
+                                gameOver();
+                            }
                         }
                         
-                        // Visual explosion effect
+                        // AOE: Damage OTHER monsters within explosion radius
+                        for (let k = monsters.length - 1; k >= 0; k--) {
+                            const otherMonster = monsters[k];
+                            
+                            // Skip the exploding monster itself
+                            if (otherMonster === monster) continue;
+                            
+                            const dx = otherMonster.x - monster.x;
+                            const dy = otherMonster.y - monster.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < explosionRadius + otherMonster.radius) {
+                                // Damage other monsters
+                                otherMonster.health -= explosionDamage;
+                                createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
+                                
+                                // Check if other monster died from explosion
+                                if (otherMonster.health <= 0) {
+                                    // Don't trigger chain explosions - just remove and give rewards
+                                    monsters.splice(k, 1);
+                                    kills++;
+                                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
+                                    gold += goldEarned;
+                                    createGoldPopup(otherMonster.x, otherMonster.y, goldEarned);
+                                    
+                                    addVisualEffect({
+                                        type: 'death',
+                                        x: otherMonster.x,
+                                        y: otherMonster.y,
+                                        color: otherMonster.color,
+                                        startTime: Date.now(),
+                                        duration: 300
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Visual explosion effects
                         addVisualEffect({
                             type: 'explosion',
                             x: monster.x,
                             y: monster.y,
-                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius,
+                            radius: explosionRadius,
                             startTime: Date.now(),
                             duration: 500
                         });
@@ -2657,7 +2701,7 @@ function updateProjectiles() {
                             type: 'shockwave',
                             x: monster.x,
                             y: monster.y,
-                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius * 2,
+                            radius: explosionRadius * 2,
                             startTime: Date.now(),
                             duration: 300
                         });
@@ -2733,27 +2777,71 @@ function updateMeleeAttacks() {
                     break;
                 }
                 
-                // FIXED: Check if monster health is <= 0 and remove it
+                // FIXED: Check if monster health is <= 0 and remove it - WITH AOE EXPLOSION THAT DAMAGES OTHER MONSTERS
                 if (monster.health <= 0) {
-                    // Explosive monster death explosion - damages ONLY player
+                    // Explosive monster death explosion - AOE damages player AND other monsters
                     if (monster.monsterType && monster.monsterType.explosive) {
-                        // Calculate distance to player for explosion damage
-                        const dx = player.x - monster.x;
-                        const dy = player.y - monster.y;
-                        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+                        const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
+                        const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
                         
-                        if (distanceToPlayer < MONSTER_TYPES.EXPLOSIVE.explosionRadius) {
-                            const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
+                        // Damage player if within range
+                        const dxToPlayer = player.x - monster.x;
+                        const dyToPlayer = player.y - monster.y;
+                        const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
+                        
+                        if (distanceToPlayer < explosionRadius + player.radius) {
                             player.health -= explosionDamage;
                             createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
+                            
+                            // Check if player died from explosion
+                            if (player.health <= 0) {
+                                gameOver();
+                            }
                         }
                         
-                        // Visual explosion effect
+                        // AOE: Damage OTHER monsters within explosion radius
+                        for (let k = monsters.length - 1; k >= 0; k--) {
+                            const otherMonster = monsters[k];
+                            
+                            // Skip the exploding monster itself
+                            if (otherMonster === monster) continue;
+                            
+                            const dx = otherMonster.x - monster.x;
+                            const dy = otherMonster.y - monster.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < explosionRadius + otherMonster.radius) {
+                                // Damage other monsters
+                                otherMonster.health -= explosionDamage;
+                                createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
+                                
+                                // Check if other monster died from explosion
+                                if (otherMonster.health <= 0) {
+                                    // Don't trigger chain explosions - just remove and give rewards
+                                    monsters.splice(k, 1);
+                                    kills++;
+                                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
+                                    gold += goldEarned;
+                                    createGoldPopup(otherMonster.x, otherMonster.y, goldEarned);
+                                    
+                                    addVisualEffect({
+                                        type: 'death',
+                                        x: otherMonster.x,
+                                        y: otherMonster.y,
+                                        color: otherMonster.color,
+                                        startTime: Date.now(),
+                                        duration: 300
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Visual explosion effects
                         addVisualEffect({
                             type: 'explosion',
                             x: monster.x,
                             y: monster.y,
-                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius,
+                            radius: explosionRadius,
                             startTime: Date.now(),
                             duration: 500
                         });
@@ -2762,7 +2850,7 @@ function updateMeleeAttacks() {
                             type: 'shockwave',
                             x: monster.x,
                             y: monster.y,
-                            radius: MONSTER_TYPES.EXPLOSIVE.explosionRadius * 2,
+                            radius: explosionRadius * 2,
                             startTime: Date.now(),
                             duration: 300
                         });
