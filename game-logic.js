@@ -304,7 +304,7 @@ class WeaponInstance {
                     maxTargets: this.maxTargets,
                     rotation: 0,
                     startTime: currentTime,
-                    hitThisFrame: false // Prevent multiple hits per frame
+                    hitThisFrame: false
                 };
             } else {
                 // Apply spread to all other ranged weapons - NO HOMING
@@ -2486,6 +2486,10 @@ function shootBossProjectiles(boss) {
     });
 }
 
+// ============================================
+// FIXED: UPDATED PROJECTILES FUNCTION - Boomerang now uses SAME damage system as other weapons
+// ============================================
+
 function updateProjectiles() {
     const currentTime = Date.now();
     
@@ -2532,8 +2536,6 @@ function updateProjectiles() {
             
             // Increment rotation for spinning effect
             projectile.rotation = (projectile.rotation || 0) + 0.2;
-            // Reset hit flag each frame
-            projectile.hitThisFrame = false;
         } else {
             // Regular projectile movement - NO HOMING, just straight line
             projectile.x += Math.cos(projectile.angle) * projectile.speed;
@@ -2575,7 +2577,7 @@ function updateProjectiles() {
             }
         }
         
-        // Check collision with monsters
+        // Check collision with monsters - SAME FOR ALL PROJECTILES
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             
@@ -2584,14 +2586,6 @@ function updateProjectiles() {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < (projectile.isPellet ? 3 : 5) + monster.radius) {
-                // FIXED: For boomerang, prevent multiple hits on same monster in one frame
-                if (projectile.isBoomerang) {
-                    if (projectile.hitThisFrame) {
-                        continue;
-                    }
-                    projectile.hitThisFrame = true;
-                }
-                
                 let damage = projectile.damage;
                 let isCritical = false;
                 
@@ -2612,32 +2606,29 @@ function updateProjectiles() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Track hits for boomerang
+                // Track hits for boomerang (but DON'T prevent death detection)
                 if (projectile.isBoomerang) {
                     if (!projectile.targetsHit.includes(monster)) {
                         projectile.targetsHit.push(monster);
                     }
-                    
-                    // Remove boomerang if it's hit max targets
-                    if (projectile.targetsHit.length >= projectile.maxTargets) {
+                }
+                
+                // Remove projectile if it's not a boomerang or if boomerang has hit max targets
+                if (!projectile.isBoomerang) {
+                    if (!projectile.bounceCount || !projectile.targetsHit) {
                         player.projectiles.splice(i, 1);
-                        break;
+                    } else {
+                        if (!projectile.targetsHit.includes(monster)) {
+                            projectile.targetsHit.push(monster);
+                        }
                     }
-                    
-                    // Don't remove boomerang on hit - it continues
-                    continue;
-                }
-                
-                // Remove non-boomerang projectiles on hit
-                if (!projectile.bounceCount || !projectile.targetsHit) {
+                } else if (projectile.isBoomerang && projectile.targetsHit.length >= projectile.maxTargets) {
+                    // Remove boomerang if it's hit max targets
                     player.projectiles.splice(i, 1);
-                } else {
-                    if (!projectile.targetsHit.includes(monster)) {
-                        projectile.targetsHit.push(monster);
-                    }
+                    break;
                 }
                 
-                // FIXED: Check if monster health is <= 0 and remove it
+                // FIXED: Check if monster health is <= 0 and remove it - THIS IS THE KEY PART
                 if (monster.health <= 0) {
                     // Explosive monster death explosion - damages ONLY player
                     if (monster.monsterType && monster.monsterType.explosive) {
