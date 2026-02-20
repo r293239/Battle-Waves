@@ -30,7 +30,19 @@ const GAME_DATA = {
         { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110 },
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120 },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130 },
-        { number: 10, monsters: 2, monsterHealth: 3000, monsterDamage: 15, goldReward: 300, isBoss: true },
+        { 
+            number: 10, 
+            monsters: 8,  // 1 boss + 7 minions
+            monsterHealth: 3000, 
+            monsterDamage: 15, 
+            goldReward: 300, 
+            isBoss: true,
+            minions: [
+                { type: 'NORMAL', count: 3 },
+                { type: 'FAST', count: 2 },
+                { type: 'RANGED', count: 2 }
+            ]
+        },
 
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140 },
         { number: 12, monsters: 32, monsterHealth: 75, monsterDamage: 12, goldReward: 150 },
@@ -41,7 +53,20 @@ const GAME_DATA = {
         { number: 17, monsters: 42, monsterHealth: 100, monsterDamage: 17, goldReward: 200 },
         { number: 18, monsters: 44, monsterHealth: 110, monsterDamage: 18, goldReward: 210 },
         { number: 19, monsters: 46, monsterHealth: 120, monsterDamage: 19, goldReward: 220 },
-        { number: 20, monsters: 3, monsterHealth: 5000, monsterDamage: 25, goldReward: 500, isBoss: true },
+        { 
+            number: 20, 
+            monsters: 11,  // 1 boss + 10 minions
+            monsterHealth: 5000, 
+            monsterDamage: 25, 
+            goldReward: 500, 
+            isBoss: true,
+            minions: [
+                { type: 'NORMAL', count: 4 },
+                { type: 'FAST', count: 3 },
+                { type: 'RANGED', count: 2 },
+                { type: 'TANK', count: 1 }
+            ]
+        },
 
         { number: 21, monsters: 55, monsterHealth: 130, monsterDamage: 20, goldReward: 240 },
         { number: 22, monsters: 60, monsterHealth: 140, monsterDamage: 21, goldReward: 260 },
@@ -52,7 +77,20 @@ const GAME_DATA = {
         { number: 27, monsters: 85, monsterHealth: 200, monsterDamage: 26, goldReward: 360 },
         { number: 28, monsters: 90, monsterHealth: 220, monsterDamage: 27, goldReward: 380 },
         { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400 },
-        { number: 30, monsters: 4, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true },
+        { 
+            number: 30, 
+            monsters: 14,  // 1 boss + 13 minions
+            monsterHealth: 12000, 
+            monsterDamage: 40, 
+            goldReward: 1000, 
+            isBoss: true,
+            minions: [
+                { type: 'NORMAL', count: 5 },
+                { type: 'FAST', count: 4 },
+                { type: 'RANGED', count: 3 },
+                { type: 'TANK', count: 2 }
+            ]
+        },
     ],
 
     // Stat buffs that appear after each wave
@@ -459,6 +497,20 @@ const MONSTER_TYPES = {
         sizeMultiplier: 1.4,
         icon: '🛡️'
     },
+    RANGED: {
+        name: 'Ranged',
+        color: '#9b59b6',
+        speed: 0.8,
+        healthMultiplier: 0.6,
+        damageMultiplier: 0.9,
+        sizeMultiplier: 0.9,
+        icon: '🏹',
+        ranged: true,
+        projectileSpeed: 4,
+        projectileDamage: 5,
+        projectileCooldown: 2000,
+        projectileColor: '#9b59b6'
+    },
     EXPLOSIVE: {
         name: 'Explosive',
         color: '#ff0000',
@@ -480,7 +532,8 @@ const MONSTER_TYPES = {
         isBoss: true,
         projectileSpeed: 5,
         projectileDamage: 10,
-        projectileCooldown: 2000
+        projectileCooldown: 2000,
+        lifeSteal: 0.1  // Boss life steal added here
     }
 };
 
@@ -866,6 +919,7 @@ const player = {
 
 let monsters = [];
 let bossProjectiles = [];
+let rangedMonsterProjectiles = [];
 let mouseX = 400;
 let mouseY = 300;
 
@@ -1035,6 +1089,7 @@ function initGame() {
     
     monsters = [];
     bossProjectiles = [];
+    rangedMonsterProjectiles = [];
     player.projectiles = [];
     player.meleeAttacks = [];
     spawnIndicators = [];
@@ -1065,9 +1120,6 @@ function showSpawnIndicators() {
     spawnIndicators = [];
     
     let monsterCount = waveConfig.monsters;
-    if (waveConfig.isBoss) {
-        monsterCount = 1;
-    }
     
     for (let i = 0; i < monsterCount; i++) {
         const side = Math.floor(Math.random() * 4);
@@ -1084,7 +1136,7 @@ function showSpawnIndicators() {
             x, y,
             timer: 2000,
             startTime: Date.now(),
-            isBoss: waveConfig.isBoss
+            isBoss: waveConfig.isBoss && i === 0 // First indicator is boss
         });
     }
 }
@@ -1096,7 +1148,7 @@ function startWave() {
     waveDisplay.classList.remove('boss-wave');
     
     if (waveConfig.isBoss) {
-        waveDisplay.textContent = `BOSS WAVE ${wave} - GIANT MONSTER!`;
+        waveDisplay.textContent = `BOSS WAVE ${wave} - WITH MINIONS!`;
         waveDisplay.classList.add('boss-wave');
     }
     
@@ -1104,6 +1156,7 @@ function startWave() {
     
     monsters = [];
     bossProjectiles = [];
+    rangedMonsterProjectiles = [];
     player.projectiles = [];
     player.meleeAttacks = [];
     visualEffects = [];
@@ -1116,9 +1169,7 @@ function startWave() {
     showSpawnIndicators();
     
     setTimeout(() => {
-        for (let i = 0; i < (waveConfig.isBoss ? 1 : waveConfig.monsters); i++) {
-            spawnMonster();
-        }
+        spawnMonsters();
         spawnIndicators = [];
     }, 2000);
     
@@ -1127,28 +1178,50 @@ function startWave() {
     }, 2000);
 }
 
-function spawnMonster() {
+function spawnMonsters() {
     const waveConfig = getWaveConfig(wave);
     
-    let monsterType;
-    
     if (waveConfig.isBoss) {
-        monsterType = MONSTER_TYPES.BOSS;
+        // Spawn boss first
+        spawnMonsterOfType('BOSS', true);
+        
+        // Spawn minions
+        if (waveConfig.minions) {
+            waveConfig.minions.forEach(minionGroup => {
+                for (let i = 0; i < minionGroup.count; i++) {
+                    spawnMonsterOfType(minionGroup.type, false);
+                }
+            });
+        }
     } else {
-        const rand = Math.random();
-        if (wave < 3) {
-            monsterType = MONSTER_TYPES.NORMAL;
-        } else if (wave < 6) {
-            if (rand < 0.6) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.8) monsterType = MONSTER_TYPES.FAST;
-            else monsterType = MONSTER_TYPES.TANK;
-        } else {
-            if (rand < 0.4) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.6) monsterType = MONSTER_TYPES.FAST;
-            else if (rand < 0.8) monsterType = MONSTER_TYPES.TANK;
-            else monsterType = MONSTER_TYPES.EXPLOSIVE;
+        // Regular wave - spawn normal monsters
+        for (let i = 0; i < waveConfig.monsters; i++) {
+            let monsterType;
+            const rand = Math.random();
+            
+            if (wave < 3) {
+                monsterType = 'NORMAL';
+            } else if (wave < 6) {
+                if (rand < 0.5) monsterType = 'NORMAL';
+                else if (rand < 0.7) monsterType = 'FAST';
+                else if (rand < 0.85) monsterType = 'RANGED';
+                else monsterType = 'TANK';
+            } else {
+                if (rand < 0.3) monsterType = 'NORMAL';
+                else if (rand < 0.5) monsterType = 'FAST';
+                else if (rand < 0.7) monsterType = 'RANGED';
+                else if (rand < 0.85) monsterType = 'TANK';
+                else monsterType = 'EXPLOSIVE';
+            }
+            
+            spawnMonsterOfType(monsterType, false);
         }
     }
+}
+
+function spawnMonsterOfType(type, isBoss) {
+    const waveConfig = getWaveConfig(wave);
+    const monsterType = MONSTER_TYPES[type];
     
     const side = Math.floor(Math.random() * 4);
     let x, y;
@@ -1160,28 +1233,29 @@ function spawnMonster() {
         case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
     }
     
-    const health = waveConfig.isBoss ? 
+    const health = isBoss ? 
         waveConfig.monsterHealth : 
-        Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
+        Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier * (0.8 + Math.random() * 0.4));
     
-    const damage = waveConfig.isBoss ?
+    const damage = isBoss ?
         waveConfig.monsterDamage :
         Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
     
     const monster = {
         x, y,
-        radius: waveConfig.isBoss ? 40 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
+        radius: isBoss ? 40 : (12 + Math.random() * 8) * monsterType.sizeMultiplier,
         health: health,
         maxHealth: health,
         damage: damage,
-        speed: (waveConfig.isBoss ? 1.5 : (1 + wave * 0.1)) * monsterType.speed,
+        speed: (isBoss ? 1.2 : (0.8 + wave * 0.05)) * monsterType.speed,
         color: monsterType.color,
         type: monsterType.name,
         monsterType: monsterType,
         lastAttack: 0,
-        attackCooldown: waveConfig.isBoss ? 1500 : GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        isBoss: waveConfig.isBoss,
-        lastProjectileTime: 0
+        attackCooldown: isBoss ? 1500 : GAME_DATA.MONSTER_ATTACK_COOLDOWN,
+        isBoss: isBoss,
+        lastProjectileTime: 0,
+        lifeSteal: monsterType.lifeSteal || 0 // Add life steal to boss
     };
     
     monsters.push(monster);
@@ -1664,8 +1738,9 @@ function gameLoop() {
     }
     
     drawSpawnIndicators();
-    drawMonsters(); // FIXED: Monster health bar won't go negative
+    drawMonsters();
     drawBossProjectiles();
+    drawRangedMonsterProjectiles();
     drawProjectiles();
     drawMeleeAttacks();
     drawVisualEffects();
@@ -1775,7 +1850,7 @@ function drawPlayer() {
 }
 
 // ============================================
-// FIXED MONSTER DRAWING FUNCTION - Health bar won't go negative
+// MONSTER DRAWING FUNCTION
 // ============================================
 
 function drawMonsters() {
@@ -1807,6 +1882,13 @@ function drawMonsters() {
             ctx.fillText(monster.monsterType.icon, 0, 0);
         }
         
+        // Life steal indicator for boss
+        if (monster.isBoss && monster.lifeSteal > 0) {
+            ctx.fillStyle = '#ff69b4';
+            ctx.font = '12px Arial';
+            ctx.fillText('🩸', -monster.radius - 10, -monster.radius - 5);
+        }
+        
         // Eyes
         const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
         const eyeRadius = monster.radius * 0.2;
@@ -1834,18 +1916,16 @@ function drawMonsters() {
                 eyeRadius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // FIXED: Health bar - ensure it never goes below 0
+        // Health bar
         const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
         const barWidth = monster.radius * 2;
         const barHeight = 4;
         const barX = -monster.radius;
         const barY = -monster.radius - 10;
         
-        // Background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(barX, barY, barWidth, barHeight);
         
-        // Health fill - only draw if health > 0
         if (healthPercent > 0) {
             ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
             ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
@@ -1856,7 +1936,35 @@ function drawMonsters() {
 }
 
 // ============================================
-// BOOMERANG DRAWING FUNCTION (USES PNG)
+// RANGED MONSTER PROJECTILES
+// ============================================
+
+function drawRangedMonsterProjectiles() {
+    rangedMonsterProjectiles.forEach(proj => {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur = 10;
+        
+        ctx.fillStyle = proj.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#000000';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🏹', 0, 0);
+        
+        ctx.restore();
+    });
+}
+
+// ============================================
+// BOOMERANG DRAWING FUNCTION
 // ============================================
 
 function drawBoomerang(ctx, x, y, rotation, alpha = 1, useImage = true) {
@@ -1866,14 +1974,11 @@ function drawBoomerang(ctx, x, y, rotation, alpha = 1, useImage = true) {
     ctx.globalAlpha = alpha;
     
     if (useImage && boomerangImage.complete && boomerangImage.naturalHeight > 0) {
-        // Draw the PNG image
         ctx.drawImage(boomerangImage, -20, -20, 40, 40);
     } else {
-        // Fallback drawing if image not loaded
         ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
         ctx.shadowBlur = 10 * alpha;
         
-        // Main body gradient
         const gradient = ctx.createLinearGradient(-15, -5, 15, 5);
         gradient.addColorStop(0, '#8B4513');
         gradient.addColorStop(0.5, '#CD7F32');
@@ -1883,7 +1988,6 @@ function drawBoomerang(ctx, x, y, rotation, alpha = 1, useImage = true) {
         ctx.strokeStyle = '#654321';
         ctx.lineWidth = 2;
         
-        // Draw the classic boomerang V-shape
         ctx.beginPath();
         ctx.moveTo(-15, -5);
         ctx.lineTo(0, -15);
@@ -1894,7 +1998,6 @@ function drawBoomerang(ctx, x, y, rotation, alpha = 1, useImage = true) {
         ctx.fill();
         ctx.stroke();
         
-        // Add details
         ctx.fillStyle = '#654321';
         ctx.beginPath();
         ctx.arc(-8, -8, 2, 0, Math.PI * 2);
@@ -1904,7 +2007,6 @@ function drawBoomerang(ctx, x, y, rotation, alpha = 1, useImage = true) {
         ctx.arc(8, -8, 2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Edge highlights
         ctx.strokeStyle = `rgba(255, 215, 0, ${alpha * 0.5})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -1924,10 +2026,8 @@ function drawBoomerang(ctx, x, y, rotation, alpha = 1, useImage = true) {
 function drawProjectiles() {
     player.projectiles.forEach(projectile => {
         if (projectile.isBoomerang) {
-            // Draw boomerang with rotation using PNG
             drawBoomerang(ctx, projectile.x, projectile.y, projectile.rotation || 0, 1, projectile.useImage);
             
-            // Draw trail when returning
             if (projectile.state === 'returning') {
                 ctx.save();
                 ctx.globalAlpha = 0.3;
@@ -1939,7 +2039,6 @@ function drawProjectiles() {
                 ctx.restore();
             }
         } else {
-            // Regular projectile
             ctx.fillStyle = projectile.color;
             ctx.shadowColor = projectile.color;
             ctx.shadowBlur = 10;
@@ -1964,24 +2063,20 @@ function drawBossProjectiles() {
         ctx.save();
         ctx.translate(proj.x, proj.y);
         
-        // Draw boss projectile
         ctx.shadowColor = '#ff0000';
         ctx.shadowBlur = 15;
         
-        // Outer glow
         ctx.fillStyle = '#ff8888';
         ctx.beginPath();
         ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Inner projectile
         ctx.fillStyle = proj.color;
         ctx.shadowBlur = 20;
         ctx.beginPath();
         ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Skull icon for boss projectiles
         ctx.fillStyle = '#000000';
         ctx.shadowBlur = 0;
         ctx.font = '12px Arial';
@@ -2034,7 +2129,6 @@ function drawMeleeAttacks() {
 }
 
 function drawSword(ctx, attack, angle, progress, distance, alpha) {
-    // Sword animation - arc swing
     const swingProgress = Math.sin(progress * Math.PI);
     const currentAngle = angle - 0.5 + swingProgress * 1;
     
@@ -2042,11 +2136,9 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
     ctx.shadowBlur = 10 * alpha;
     
-    // Blade
     ctx.save();
     ctx.translate(10, 0);
     
-    // Blade gradient
     const gradient = ctx.createLinearGradient(0, -5, attack.radius, -5);
     gradient.addColorStop(0, '#C0C0C0');
     gradient.addColorStop(1, '#E8E8E8');
@@ -2055,7 +2147,6 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(192, 192, 192, 0.5)';
     ctx.shadowBlur = 15 * alpha;
     
-    // Blade shape
     ctx.beginPath();
     ctx.moveTo(0, -5);
     ctx.lineTo(attack.radius * 0.9, -2);
@@ -2064,7 +2155,6 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
-    // Edge highlight
     ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -2074,7 +2164,6 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     ctx.lineTo(attack.radius * 0.9, 2);
     ctx.stroke();
     
-    // Tip
     ctx.fillStyle = '#FFD700';
     ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
     ctx.beginPath();
@@ -2082,24 +2171,20 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
     
-    // Hilt
     ctx.save();
     ctx.fillStyle = '#8B4513';
     ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
     ctx.fillRect(-5, -4, 15, 8);
     
-    // Guard
     ctx.fillStyle = '#B87333';
     ctx.fillRect(-8, -8, 8, 16);
     
-    // Pommel
     ctx.fillStyle = '#CD7F32';
     ctx.beginPath();
     ctx.arc(-10, 0, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     
-    // Trail effect
     if (progress < 0.5) {
         ctx.save();
         ctx.rotate(-0.2);
@@ -2114,25 +2199,21 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
 }
 
 function drawAxe(ctx, attack, angle, progress, distance, alpha) {
-    // Axe animation - spinning
     const spinAngle = progress * Math.PI * 4;
     
     ctx.rotate(spinAngle);
     ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
     ctx.shadowBlur = 15 * alpha;
     
-    // Handle
     ctx.save();
     ctx.fillStyle = '#654321';
     ctx.fillRect(-3, -attack.radius * 0.8, 6, attack.radius * 1.6);
     ctx.restore();
     
-    // Axe head
     ctx.save();
     ctx.translate(0, -attack.radius * 0.4);
     ctx.rotate(-0.3);
     
-    // Blade
     const bladeGradient = ctx.createLinearGradient(0, -15, 30, -15);
     bladeGradient.addColorStop(0, '#8B4513');
     bladeGradient.addColorStop(1, '#CD7F32');
@@ -2148,7 +2229,6 @@ function drawAxe(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
-    // Edge
     ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -2157,7 +2237,6 @@ function drawAxe(ctx, attack, angle, progress, distance, alpha) {
     ctx.stroke();
     ctx.restore();
     
-    // Shockwave ring for AOE
     if (attack.meleeType === 'aoe' && progress > 0.3 && progress < 0.7) {
         ctx.save();
         ctx.rotate(0);
@@ -2172,7 +2251,6 @@ function drawAxe(ctx, attack, angle, progress, distance, alpha) {
 }
 
 function drawDagger(ctx, attack, angle, progress, distance, alpha) {
-    // Dagger animation - quick stab forward
     const stabProgress = Math.min(progress * 2, 1);
     const stabDistance = distance * 1.5;
     
@@ -2181,7 +2259,6 @@ function drawDagger(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(70, 130, 180, 0.5)';
     ctx.shadowBlur = 10 * alpha;
     
-    // Blade
     ctx.save();
     const bladeGradient = ctx.createLinearGradient(0, -3, 40, -3);
     bladeGradient.addColorStop(0, '#4682B4');
@@ -2196,7 +2273,6 @@ function drawDagger(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
-    // Edge highlight
     ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -2207,7 +2283,6 @@ function drawDagger(ctx, attack, angle, progress, distance, alpha) {
     ctx.stroke();
     ctx.restore();
     
-    // Tip sparkle
     if (progress > 0.7) {
         ctx.save();
         ctx.translate(40, 0);
@@ -2219,16 +2294,13 @@ function drawDagger(ctx, attack, angle, progress, distance, alpha) {
         ctx.restore();
     }
     
-    // Hilt
     ctx.save();
     ctx.fillStyle = '#2F4F4F';
     ctx.fillRect(-8, -4, 12, 8);
     
-    // Grip
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(-8, -3, 10, 6);
     
-    // Pommel
     ctx.fillStyle = '#4682B4';
     ctx.beginPath();
     ctx.arc(-12, 0, 4, 0, Math.PI * 2);
@@ -2237,7 +2309,6 @@ function drawDagger(ctx, attack, angle, progress, distance, alpha) {
 }
 
 function drawHammer(ctx, attack, angle, progress, distance, alpha) {
-    // Hammer animation - overhead smash
     ctx.rotate(angle);
     
     const lift = Math.sin(progress * Math.PI) * 30;
@@ -2247,13 +2318,11 @@ function drawHammer(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(105, 105, 105, 0.7)';
     ctx.shadowBlur = 20 * alpha;
     
-    // Handle
     ctx.save();
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(-3, 0, 6, 50);
     ctx.restore();
     
-    // Hammer head
     ctx.save();
     ctx.translate(0, -15);
     
@@ -2261,17 +2330,14 @@ function drawHammer(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(105, 105, 105, 0.7)';
     ctx.fillRect(-15, -15, 30, 20);
     
-    // Striking face
     ctx.fillStyle = '#808080';
     ctx.fillRect(-18, -15, 6, 20);
     ctx.fillRect(12, -15, 6, 20);
     
-    // Top
     ctx.fillStyle = '#A9A9A9';
     ctx.fillRect(-15, -20, 30, 5);
     ctx.restore();
     
-    // Impact shockwave
     if (progress > 0.5 && progress < 0.8) {
         ctx.save();
         ctx.translate(0, 0);
@@ -2287,7 +2353,6 @@ function drawHammer(ctx, attack, angle, progress, distance, alpha) {
 }
 
 function drawTrident(ctx, attack, angle, progress, distance, alpha) {
-    // Trident animation - straight thrust forward
     const thrustProgress = Math.min(progress * 1.5, 1);
     const thrustDistance = distance * 1.3 * thrustProgress;
     
@@ -2296,23 +2361,19 @@ function drawTrident(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(50, 205, 50, 0.5)';
     ctx.shadowBlur = 15 * alpha;
     
-    // Shaft
     ctx.save();
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(-3, -3, attack.radius + 20, 6);
     
-    // Shaft detail
     ctx.fillStyle = '#654321';
     for (let i = 0; i < 3; i++) {
         ctx.fillRect(i * 20, -4, 2, 8);
     }
     ctx.restore();
     
-    // Three prongs
     ctx.save();
     ctx.translate(attack.radius + 10, 0);
     
-    // Center prong
     ctx.fillStyle = '#CD7F32';
     ctx.beginPath();
     ctx.moveTo(0, -2);
@@ -2322,7 +2383,6 @@ function drawTrident(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
-    // Left prong
     ctx.save();
     ctx.translate(0, -8);
     ctx.rotate(-0.1);
@@ -2335,7 +2395,6 @@ function drawTrident(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
     
-    // Right prong
     ctx.save();
     ctx.translate(0, 8);
     ctx.rotate(0.1);
@@ -2348,7 +2407,6 @@ function drawTrident(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
     
-    // Tips
     ctx.fillStyle = '#FFD700';
     ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
     
@@ -2394,6 +2452,7 @@ function updateGame(deltaTime) {
     updateMeleeAttacks();
     updateMonsters();
     updateBossProjectiles();
+    updateRangedMonsterProjectiles();
     updateVisualEffects();
     
     if (monsters.length === 0 && spawnIndicators.length === 0) {
@@ -2445,7 +2504,6 @@ function updateProjectiles() {
         const projectile = player.projectiles[i];
         
         if (projectile.isBoomerang) {
-            // Boomerang specific movement
             if (projectile.state === 'outgoing') {
                 projectile.x += Math.cos(projectile.angle) * projectile.speed;
                 projectile.y += Math.sin(projectile.angle) * projectile.speed;
@@ -2454,12 +2512,10 @@ function updateProjectiles() {
                 const dy = projectile.y - projectile.startY;
                 projectile.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
                 
-                // Switch to returning state after reaching max distance
                 if (projectile.distanceTraveled >= projectile.range / 2) {
                     projectile.state = 'returning';
                 }
             } else {
-                // Return to player
                 const dx = player.x - projectile.x;
                 const dy = player.y - projectile.y;
                 const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
@@ -2475,10 +2531,8 @@ function updateProjectiles() {
                 projectile.angle = angle;
             }
             
-            // Increment rotation for spinning effect
             projectile.rotation = (projectile.rotation || 0) + 0.2;
         } else {
-            // Regular projectile movement
             projectile.x += Math.cos(projectile.angle) * projectile.speed;
             projectile.y += Math.sin(projectile.angle) * projectile.speed;
             
@@ -2492,7 +2546,6 @@ function updateProjectiles() {
             }
         }
         
-        // Handle bouncing for energy gun
         if (projectile.bounceCount > 0 && projectile.targetsHit) {
             let nextTarget = null;
             let nextTargetDistance = Infinity;
@@ -2518,7 +2571,6 @@ function updateProjectiles() {
             }
         }
         
-        // Check collision with monsters
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             const dx = projectile.x - monster.x;
@@ -2546,23 +2598,26 @@ function updateProjectiles() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Track hits for boomerang
+                // Boss life steal
+                if (monster.isBoss && monster.lifeSteal > 0) {
+                    const bossHeal = damage * monster.lifeSteal;
+                    monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
+                    createHealthPopup(monster.x, monster.y, Math.floor(bossHeal));
+                }
+                
                 if (projectile.isBoomerang) {
                     if (!projectile.targetsHit.includes(monster)) {
                         projectile.targetsHit.push(monster);
                     }
                     
-                    // Remove boomerang if it's hit max targets
                     if (projectile.targetsHit.length >= projectile.maxTargets) {
                         player.projectiles.splice(i, 1);
                         break;
                     }
                     
-                    // Don't remove boomerang on hit - it continues
                     continue;
                 }
                 
-                // Remove non-boomerang projectiles on hit
                 if (!projectile.bounceCount || !projectile.targetsHit) {
                     player.projectiles.splice(i, 1);
                 } else {
@@ -2635,6 +2690,13 @@ function updateMeleeAttacks() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
+                // Boss life steal
+                if (monster.isBoss && monster.lifeSteal > 0) {
+                    const bossHeal = damage * monster.lifeSteal;
+                    monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
+                    createHealthPopup(monster.x, monster.y, Math.floor(bossHeal));
+                }
+                
                 hits++;
                 
                 if (attack.meleeType === 'pierce' && hits >= attack.pierceCount) {
@@ -2682,6 +2744,13 @@ function updateMonsters() {
             monster.lastProjectileTime = currentTime;
         }
         
+        // Ranged monster projectile attack
+        if (monster.monsterType && monster.monsterType.ranged && 
+            currentTime - monster.lastProjectileTime >= monster.monsterType.projectileCooldown) {
+            shootRangedProjectile(monster);
+            monster.lastProjectileTime = currentTime;
+        }
+        
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 let actualDamage = monster.damage;
@@ -2696,7 +2765,6 @@ function updateMonsters() {
                 createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
                 
                 if (monster.monsterType && monster.monsterType.explosive) {
-                    // Explosive monster explosion on death
                     setTimeout(() => {
                         if (monster.health <= 0) {
                             const explosionDamage = monster.damage * 2;
@@ -2722,12 +2790,11 @@ function updateMonsters() {
 }
 
 function shootBossProjectiles(boss) {
-    // Shoot projectiles in 4 diagonal directions
     const directions = [
-        { angle: Math.PI / 4, vx: 1, vy: 1 },     // Down-right
-        { angle: 3 * Math.PI / 4, vx: -1, vy: 1 }, // Down-left
-        { angle: 5 * Math.PI / 4, vx: -1, vy: -1 }, // Up-left
-        { angle: 7 * Math.PI / 4, vx: 1, vy: -1 }   // Up-right
+        { angle: Math.PI / 4, vx: 1, vy: 1 },
+        { angle: 3 * Math.PI / 4, vx: -1, vy: 1 },
+        { angle: 5 * Math.PI / 4, vx: -1, vy: -1 },
+        { angle: 7 * Math.PI / 4, vx: 1, vy: -1 }
     ];
     
     directions.forEach(dir => {
@@ -2740,8 +2807,29 @@ function shootBossProjectiles(boss) {
             radius: 8,
             color: '#ff4444',
             startTime: Date.now(),
-            lifetime: 3000 // 3 seconds
+            lifetime: 3000
         });
+    });
+}
+
+function shootRangedProjectile(monster) {
+    const dx = player.x - monster.x;
+    const dy = player.y - monster.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    const vx = (dx / distance) * monster.monsterType.projectileSpeed;
+    const vy = (dy / distance) * monster.monsterType.projectileSpeed;
+    
+    rangedMonsterProjectiles.push({
+        x: monster.x,
+        y: monster.y,
+        vx: vx,
+        vy: vy,
+        damage: monster.monsterType.projectileDamage,
+        radius: 5,
+        color: monster.monsterType.projectileColor || '#9b59b6',
+        startTime: Date.now(),
+        lifetime: 3000
     });
 }
 
@@ -2751,17 +2839,14 @@ function updateBossProjectiles() {
     for (let i = bossProjectiles.length - 1; i >= 0; i--) {
         const proj = bossProjectiles[i];
         
-        // Move projectile
         proj.x += proj.vx;
         proj.y += proj.vy;
         
-        // Check lifetime
         if (currentTime - proj.startTime > proj.lifetime) {
             bossProjectiles.splice(i, 1);
             continue;
         }
         
-        // Check collision with player
         const dx = player.x - proj.x;
         const dy = player.y - proj.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -2783,10 +2868,51 @@ function updateBossProjectiles() {
             bossProjectiles.splice(i, 1);
         }
         
-        // Remove if off screen
         if (proj.x < -50 || proj.x > canvas.width + 50 || 
             proj.y < -50 || proj.y > canvas.height + 50) {
             bossProjectiles.splice(i, 1);
+        }
+    }
+}
+
+function updateRangedMonsterProjectiles() {
+    const currentTime = Date.now();
+    
+    for (let i = rangedMonsterProjectiles.length - 1; i >= 0; i--) {
+        const proj = rangedMonsterProjectiles[i];
+        
+        proj.x += proj.vx;
+        proj.y += proj.vy;
+        
+        if (currentTime - proj.startTime > proj.lifetime) {
+            rangedMonsterProjectiles.splice(i, 1);
+            continue;
+        }
+        
+        const dx = player.x - proj.x;
+        const dy = player.y - proj.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < player.radius + proj.radius) {
+            let damage = proj.damage;
+            
+            if (player.damageReduction > 0) {
+                damage *= (1 - player.damageReduction);
+            }
+            
+            player.health -= damage;
+            createDamageIndicator(player.x, player.y, Math.floor(damage), false);
+            
+            if (player.health <= 0) {
+                gameOver();
+            }
+            
+            rangedMonsterProjectiles.splice(i, 1);
+        }
+        
+        if (proj.x < -50 || proj.x > canvas.width + 50 || 
+            proj.y < -50 || proj.y > canvas.height + 50) {
+            rangedMonsterProjectiles.splice(i, 1);
         }
     }
 }
