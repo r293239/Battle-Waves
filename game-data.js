@@ -19,7 +19,7 @@ const GAME_DATA = {
     // Monster attack cooldown in milliseconds
     MONSTER_ATTACK_COOLDOWN: 1000,
 
-    // Wave configurations
+    // Wave configurations - UPDATED WITH MINIONS AND PROPER HEALTH SCALING
     WAVES: [
         { number: 1, monsters: 5, monsterHealth: 20, monsterDamage: 2, goldReward: 50 },
         { number: 2, monsters: 7, monsterHealth: 25, monsterDamage: 3, goldReward: 60 },
@@ -33,10 +33,13 @@ const GAME_DATA = {
         { 
             number: 10, 
             monsters: 8,  // 1 boss + 7 minions
-            monsterHealth: 3000, 
-            monsterDamage: 15, 
+            monsterHealth: 3000,  // Boss health
+            monsterDamage: 15,    // Boss damage
             goldReward: 300, 
             isBoss: true,
+            bossHealthMultiplier: 20,  // Boss has 20x health of a normal wave monster
+            minionHealthMultiplier: 0.15, // Minions have 15% of boss health (450 HP)
+            minionDamageMultiplier: 0.8,  // Minions have 80% of boss damage (12 damage)
             minions: [
                 { type: 'NORMAL', count: 3 },
                 { type: 'FAST', count: 2 },
@@ -56,10 +59,13 @@ const GAME_DATA = {
         { 
             number: 20, 
             monsters: 11,  // 1 boss + 10 minions
-            monsterHealth: 5000, 
-            monsterDamage: 25, 
+            monsterHealth: 5000,  // Boss health
+            monsterDamage: 25,    // Boss damage
             goldReward: 500, 
             isBoss: true,
+            bossHealthMultiplier: 25,  // Boss has 25x health of a normal wave monster
+            minionHealthMultiplier: 0.12, // Minions have 12% of boss health (600 HP)
+            minionDamageMultiplier: 0.75,  // Minions have 75% of boss damage (18.75 damage)
             minions: [
                 { type: 'NORMAL', count: 4 },
                 { type: 'FAST', count: 3 },
@@ -80,10 +86,13 @@ const GAME_DATA = {
         { 
             number: 30, 
             monsters: 14,  // 1 boss + 13 minions
-            monsterHealth: 12000, 
-            monsterDamage: 40, 
+            monsterHealth: 12000,  // Boss health
+            monsterDamage: 40,    // Boss damage
             goldReward: 1000, 
             isBoss: true,
+            bossHealthMultiplier: 30,  // Boss has 30x health of a normal wave monster
+            minionHealthMultiplier: 0.1, // Minions have 10% of boss health (1200 HP)
+            minionDamageMultiplier: 0.7,  // Minions have 70% of boss damage (28 damage)
             minions: [
                 { type: 'NORMAL', count: 5 },
                 { type: 'FAST', count: 4 },
@@ -1233,13 +1242,36 @@ function spawnMonsterOfType(type, isBoss) {
         case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
     }
     
-    const health = isBoss ? 
-        waveConfig.monsterHealth : 
-        Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier * (0.8 + Math.random() * 0.4));
+    let health, damage;
     
-    const damage = isBoss ?
-        waveConfig.monsterDamage :
-        Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
+    if (waveConfig.isBoss) {
+        if (isBoss) {
+            // Boss gets full health from wave config
+            health = waveConfig.monsterHealth;
+            damage = waveConfig.monsterDamage;
+        } else {
+            // Minions get scaled health based on boss health
+            const baseBossHealth = waveConfig.monsterHealth;
+            const baseBossDamage = waveConfig.monsterDamage;
+            
+            // Apply monster type multipliers and minion scaling
+            health = Math.floor(baseBossHealth * 
+                              waveConfig.minionHealthMultiplier * 
+                              monsterType.healthMultiplier);
+            
+            damage = Math.floor(baseBossDamage * 
+                               waveConfig.minionDamageMultiplier * 
+                               monsterType.damageMultiplier);
+            
+            // Ensure minions have at least some health
+            health = Math.max(20, health);
+            damage = Math.max(5, damage);
+        }
+    } else {
+        // Regular wave - use wave config health and damage with monster type multipliers
+        health = Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier * (0.8 + Math.random() * 0.4));
+        damage = Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
+    }
     
     const monster = {
         x, y,
