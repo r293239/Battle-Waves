@@ -19,8 +19,9 @@ const GAME_DATA = {
     // Monster attack cooldown in milliseconds
     MONSTER_ATTACK_COOLDOWN: 1000,
 
-    // Wave configurations - UPDATED WITH MINIONS AND PROPER HEALTH SCALING
+    // Wave configurations - COMPLETE WITH ALL 30 WAVES
     WAVES: [
+        // Wave 1-9: Regular waves
         { number: 1, monsters: 5, monsterHealth: 20, monsterDamage: 2, goldReward: 50 },
         { number: 2, monsters: 7, monsterHealth: 25, monsterDamage: 3, goldReward: 60 },
         { number: 3, monsters: 9, monsterHealth: 30, monsterDamage: 4, goldReward: 70 },
@@ -30,6 +31,8 @@ const GAME_DATA = {
         { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110 },
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120 },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130 },
+        
+        // Wave 10: First Boss Wave with Minions
         { 
             number: 10, 
             monsters: 8,  // 1 boss + 7 minions
@@ -37,9 +40,9 @@ const GAME_DATA = {
             monsterDamage: 15,    // Boss damage
             goldReward: 300, 
             isBoss: true,
-            bossHealthMultiplier: 20,  // Boss has 20x health of a normal wave monster
-            minionHealthMultiplier: 0.15, // Minions have 15% of boss health (450 HP)
-            minionDamageMultiplier: 0.8,  // Minions have 80% of boss damage (12 damage)
+            bossHealthMultiplier: 20,
+            minionHealthMultiplier: 0.15,
+            minionDamageMultiplier: 0.8,
             minions: [
                 { type: 'NORMAL', count: 3 },
                 { type: 'FAST', count: 2 },
@@ -47,6 +50,7 @@ const GAME_DATA = {
             ]
         },
 
+        // Waves 11-19: Regular waves
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140 },
         { number: 12, monsters: 32, monsterHealth: 75, monsterDamage: 12, goldReward: 150 },
         { number: 13, monsters: 34, monsterHealth: 80, monsterDamage: 13, goldReward: 160 },
@@ -56,6 +60,8 @@ const GAME_DATA = {
         { number: 17, monsters: 42, monsterHealth: 100, monsterDamage: 17, goldReward: 200 },
         { number: 18, monsters: 44, monsterHealth: 110, monsterDamage: 18, goldReward: 210 },
         { number: 19, monsters: 46, monsterHealth: 120, monsterDamage: 19, goldReward: 220 },
+        
+        // Wave 20: Second Boss Wave with Minions
         { 
             number: 20, 
             monsters: 11,  // 1 boss + 10 minions
@@ -63,9 +69,9 @@ const GAME_DATA = {
             monsterDamage: 25,    // Boss damage
             goldReward: 500, 
             isBoss: true,
-            bossHealthMultiplier: 25,  // Boss has 25x health of a normal wave monster
-            minionHealthMultiplier: 0.12, // Minions have 12% of boss health (600 HP)
-            minionDamageMultiplier: 0.75,  // Minions have 75% of boss damage (18.75 damage)
+            bossHealthMultiplier: 25,
+            minionHealthMultiplier: 0.12,
+            minionDamageMultiplier: 0.75,
             minions: [
                 { type: 'NORMAL', count: 4 },
                 { type: 'FAST', count: 3 },
@@ -74,6 +80,7 @@ const GAME_DATA = {
             ]
         },
 
+        // Waves 21-29: Regular waves
         { number: 21, monsters: 55, monsterHealth: 130, monsterDamage: 20, goldReward: 240 },
         { number: 22, monsters: 60, monsterHealth: 140, monsterDamage: 21, goldReward: 260 },
         { number: 23, monsters: 65, monsterHealth: 150, monsterDamage: 22, goldReward: 280 },
@@ -83,6 +90,8 @@ const GAME_DATA = {
         { number: 27, monsters: 85, monsterHealth: 200, monsterDamage: 26, goldReward: 360 },
         { number: 28, monsters: 90, monsterHealth: 220, monsterDamage: 27, goldReward: 380 },
         { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400 },
+        
+        // Wave 30: Third Boss Wave with Minions
         { 
             number: 30, 
             monsters: 14,  // 1 boss + 13 minions
@@ -90,9 +99,9 @@ const GAME_DATA = {
             monsterDamage: 40,    // Boss damage
             goldReward: 1000, 
             isBoss: true,
-            bossHealthMultiplier: 30,  // Boss has 30x health of a normal wave monster
-            minionHealthMultiplier: 0.1, // Minions have 10% of boss health (1200 HP)
-            minionDamageMultiplier: 0.7,  // Minions have 70% of boss damage (28 damage)
+            bossHealthMultiplier: 30,
+            minionHealthMultiplier: 0.1,
+            minionDamageMultiplier: 0.7,
             minions: [
                 { type: 'NORMAL', count: 5 },
                 { type: 'FAST', count: 4 },
@@ -283,7 +292,7 @@ const GAME_DATA = {
             animation: 'boomerang',
             usesAmmo: false,
             maxTargets: 4,
-            useImage: true, // Flag to use PNG image instead of drawing
+            useImage: true,
             imagePath: 'assets/boomerang.png',
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9],
@@ -750,7 +759,6 @@ class WeaponInstance {
                 }
                 return attacks;
             } else if (this.id === 'boomerang') {
-                // Boomerang specific attack
                 const angle = Math.atan2(targetY - playerY, targetX - playerX);
                 return {
                     type: 'ranged',
@@ -768,7 +776,7 @@ class WeaponInstance {
                     animation: this.animation,
                     isBoomerang: true,
                     useImage: this.useImage,
-                    state: 'outgoing', // outgoing, returning
+                    state: 'outgoing',
                     distanceTraveled: 0,
                     targetsHit: [],
                     maxTargets: this.maxTargets,
@@ -1238,6 +1246,7 @@ function startWave() {
     }, 2500);
 }
 
+// FIXED spawnMonsters function - removed extra parameter
 function spawnMonsters() {
     const waveConfig = getWaveConfig(wave);
     
@@ -1320,6 +1329,7 @@ function spawnMonsters() {
                             const offsetX = (Math.random() - 0.5) * 60;
                             const offsetY = (Math.random() - 0.5) * 60;
                             
+                            // FIXED: Only pass 4 parameters (type, isBoss, x, y)
                             spawnMonsterOfType(monsterType, false, 
                                               clusterX + offsetX, 
                                               clusterY + offsetY);
