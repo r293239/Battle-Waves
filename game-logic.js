@@ -441,7 +441,10 @@ let waveActive = false;
 let spawnComplete = false;
 let waveEndTimer = null;
 let waveEndDelay = 10000; // 10 seconds delay in milliseconds
-let waveEndCountdown = null; // Track countdown for display
+let waveEndCountdown = null;
+let totalMonstersToSpawn = 0;
+let monstersSpawned = 0;
+let safetyMonsterSpawned = false; // Track if safety monster has been spawned
 
 // Game Objects
 const player = {
@@ -693,11 +696,15 @@ function initGame() {
     gameState = 'wave';
     waveActive = false;
     spawnComplete = false;
+    monstersSpawned = 0;
+    safetyMonsterSpawned = false;
+    
     if (waveEndTimer) {
         clearTimeout(waveEndTimer);
         waveEndTimer = null;
     }
     waveEndCountdown = null;
+    
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     visualEffects = [];
@@ -772,6 +779,9 @@ function startWave() {
     gameState = 'wave';
     waveActive = true;
     spawnComplete = false;
+    monstersSpawned = 0;
+    safetyMonsterSpawned = false;
+    
     if (waveEndTimer) {
         clearTimeout(waveEndTimer);
         waveEndTimer = null;
@@ -779,6 +789,8 @@ function startWave() {
     waveEndCountdown = null;
     
     const waveConfig = getWaveConfig(wave);
+    totalMonstersToSpawn = waveConfig.monsters;
+    
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.classList.remove('boss-wave');
     
@@ -789,7 +801,7 @@ function startWave() {
     
     waveDisplay.style.opacity = 1;
     
-    // Clear all arrays
+    // Clear all arrays but KEEP monsters array empty initially
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
@@ -814,34 +826,44 @@ function startWave() {
     setTimeout(() => {
         if (gameState !== 'wave') return; // Don't spawn if wave ended
         
-        const monsterCount = waveConfig.monsters;
-        const spawnDelay = waveConfig.spawnDelay || 200;
-        
         if (waveConfig.isBoss) {
             // Boss spawns immediately
-            for (let i = 0; i < monsterCount; i++) {
+            for (let i = 0; i < totalMonstersToSpawn; i++) {
                 spawnMonster();
+                monstersSpawned++;
             }
             // Clear indicators after boss spawns
             spawnIndicators = [];
+            
+            // Spawn safety monster if needed (but not for boss waves)
+            if (!waveConfig.isBoss && !safetyMonsterSpawned) {
+                spawnSafetyMonster();
+            }
+            
             spawnComplete = true;
         } else {
             // Staggered spawning for regular monsters
             let spawnedCount = 0;
             
-            for (let i = 0; i < monsterCount; i++) {
+            for (let i = 0; i < totalMonstersToSpawn; i++) {
                 setTimeout(() => {
                     if (gameState === 'wave') { // Only spawn if wave is still active
                         spawnMonster();
                         spawnedCount++;
+                        monstersSpawned++;
+                        
+                        // Spawn safety monster after first monster spawns
+                        if (i === 0 && !safetyMonsterSpawned) {
+                            spawnSafetyMonster();
+                        }
                         
                         // Mark spawn complete when last monster spawns
-                        if (spawnedCount >= monsterCount) {
+                        if (spawnedCount >= totalMonstersToSpawn) {
                             spawnIndicators = [];
                             spawnComplete = true;
                         }
                     }
-                }, i * spawnDelay);
+                }, i * (waveConfig.spawnDelay || 200));
             }
         }
     }, 2000); // Wait 2 seconds for indicators to show
@@ -849,6 +871,82 @@ function startWave() {
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
     }, 2500);
+}
+
+// New function to spawn a safety monster off-screen
+function spawnSafetyMonster() {
+    if (safetyMonsterSpawned) return;
+    
+    const waveConfig = getWaveConfig(wave);
+    if (waveConfig.isBoss) return; // Don't spawn safety monster on boss waves
+    
+    safetyMonsterSpawned = true;
+    
+    // Choose a random non-boss monster type
+    const monsterTypes = ['NORMAL', 'FAST', 'TANK', 'EXPLOSIVE', 'GUNNER'];
+    const randomType = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
+    const monsterType = MONSTER_TYPES[randomType];
+    
+    // Spawn far off-screen
+    const side = Math.floor(Math.random() * 4);
+    let x, y;
+    const offScreenDistance = 200; // Far off-screen
+    
+    switch(side) {
+        case 0: x = -offScreenDistance; y = Math.random() * canvas.height; break;
+        case 1: x = canvas.width + offScreenDistance; y = Math.random() * canvas.height; break;
+        case 2: x = Math.random() * canvas.width; y = -offScreenDistance; break;
+        case 3: x = Math.random() * canvas.width; y = canvas.height + offScreenDistance; break;
+    }
+    
+    const health = Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
+    const damage = Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
+    
+    const monster = {
+        x, y,
+        radius: (15 + Math.random() * 10) * monsterType.sizeMultiplier,
+        health: health,
+        maxHealth: health,
+        damage: damage,
+        speed: (1 + wave * 0.1) * monsterType.speed,
+        color: monsterType.color,
+        type: monsterType.name,
+        monsterType: monsterType,
+        lastAttack: 0,
+        attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
+        isBoss: false,
+        
+        // Status effects
+        slowed: false,
+        slowUntil: 0,
+        frozen: false,
+        frozenUntil: 0,
+        stunned: false,
+        stunnedUntil: 0,
+        
+        // Explosive properties
+        explosive: monsterType.explosive || false,
+        
+        // Gunner properties
+        isGunner: monsterType === MONSTER_TYPES.GUNNER,
+        
+        originalSpeed: monsterType.speed,
+        isSafetyMonster: true // Mark as safety monster
+    };
+    
+    monsters.push(monster);
+    
+    // Add spawn effect but make it subtle since it's off-screen
+    addVisualEffect({
+        type: 'spawn',
+        x: x,
+        y: y,
+        color: monsterType.color,
+        startTime: Date.now(),
+        duration: 300
+    });
+    
+    console.log("Safety monster spawned at", x, y); // For debugging
 }
 
 function spawnMonster() {
@@ -947,7 +1045,8 @@ function spawnMonster() {
         // Gunner properties
         isGunner: monsterType === MONSTER_TYPES.GUNNER,
         
-        originalSpeed: monsterType.speed
+        originalSpeed: monsterType.speed,
+        isSafetyMonster: false
     };
     
     monsters.push(monster);
@@ -986,11 +1085,16 @@ function updateUI() {
         healthFill.style.background = 'linear-gradient(90deg, #ff416c, #ff4b2b)';
     }
     
-    monsterCount.textContent = `Monsters: ${monsters.length}`;
-    
-    // Show countdown if wave is ending
-    if (waveEndCountdown !== null) {
-        monsterCount.textContent += ` | Wave ends in: ${Math.ceil(waveEndCountdown / 1000)}s`;
+    // Show monster count and spawn status
+    if (!spawnComplete) {
+        monsterCount.textContent = `Spawning: ${monstersSpawned}/${totalMonstersToSpawn}`;
+    } else {
+        monsterCount.textContent = `Monsters: ${monsters.length}`;
+        
+        // Show countdown if wave is ending
+        if (waveEndCountdown !== null && monsters.length === 0) {
+            monsterCount.textContent += ` | Wave ends in: ${Math.ceil(waveEndCountdown / 1000)}s`;
+        }
     }
 }
 
@@ -1482,6 +1586,11 @@ function endWave() {
     waveActive = false;
     waveEndCountdown = null;
     
+    if (waveEndTimer) {
+        clearTimeout(waveEndTimer);
+        waveEndTimer = null;
+    }
+    
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
     
@@ -1504,6 +1613,11 @@ function gameOver() {
     gameState = 'gameover';
     waveActive = false;
     waveEndCountdown = null;
+    
+    if (waveEndTimer) {
+        clearTimeout(waveEndTimer);
+        waveEndTimer = null;
+    }
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
@@ -2370,19 +2484,32 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    // Check if all monsters are dead and spawn is complete
-    if (waveActive && spawnComplete && monsters.length === 0 && spawnIndicators.length === 0) {
-        // Start the 10-second countdown if not already started
-        if (!waveEndTimer) {
-            waveEndTimer = setTimeout(() => {
-                wave++;
-                endWave();
+    // ROBUST WAVE COMPLETION CHECK
+    // Only check if wave is active, spawn is complete, AND we have monsters spawned
+    if (waveActive && spawnComplete && monstersSpawned > 0) {
+        // Check if all monsters are dead
+        if (monsters.length === 0 && spawnIndicators.length === 0) {
+            // Start the 10-second countdown if not already started
+            if (!waveEndTimer) {
+                console.log("All monsters dead, starting 10s countdown");
+                waveEndTimer = setTimeout(() => {
+                    wave++;
+                    endWave();
+                    waveEndTimer = null;
+                    waveEndCountdown = null;
+                }, waveEndDelay);
+                
+                // Initialize countdown for display
+                waveEndCountdown = waveEndDelay;
+            }
+        } else {
+            // If monsters reappear (shouldn't happen, but just in case), cancel the timer
+            if (waveEndTimer) {
+                clearTimeout(waveEndTimer);
                 waveEndTimer = null;
                 waveEndCountdown = null;
-            }, waveEndDelay);
-            
-            // Initialize countdown for display
-            waveEndCountdown = waveEndDelay;
+                console.log("Timer cancelled - monsters still alive");
+            }
         }
     }
     
