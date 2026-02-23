@@ -437,6 +437,8 @@ let mergeTargetIndex = -1;
 let lastFrameTime = Date.now();
 let refreshCount = 0;
 let refreshCost = 5;
+let waveActive = false; // Add this flag to track if wave is actively spawning/running
+let spawnComplete = false; // Track if all monsters have been spawned
 
 // Game Objects
 const player = {
@@ -686,6 +688,8 @@ function initGame() {
     gold = GAME_DATA.PLAYER_START.gold;
     kills = 0;
     gameState = 'wave';
+    waveActive = false;
+    spawnComplete = false;
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     visualEffects = [];
@@ -758,6 +762,8 @@ function showSpawnIndicators() {
 
 function startWave() {
     gameState = 'wave';
+    waveActive = true;
+    spawnComplete = false;
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.classList.remove('boss-wave');
@@ -792,6 +798,8 @@ function startWave() {
     
     // Schedule monster spawning AFTER indicators
     setTimeout(() => {
+        if (gameState !== 'wave') return; // Don't spawn if wave ended
+        
         const monsterCount = waveConfig.monsters;
         const spawnDelay = waveConfig.spawnDelay || 200;
         
@@ -802,6 +810,7 @@ function startWave() {
             }
             // Clear indicators after boss spawns
             spawnIndicators = [];
+            spawnComplete = true;
         } else {
             // Staggered spawning for regular monsters
             let spawnedCount = 0;
@@ -812,9 +821,10 @@ function startWave() {
                         spawnMonster();
                         spawnedCount++;
                         
-                        // Clear all indicators when last monster spawns
+                        // Mark spawn complete when last monster spawns
                         if (spawnedCount >= monsterCount) {
                             spawnIndicators = [];
+                            spawnComplete = true;
                         }
                     }
                 }, i * spawnDelay);
@@ -1450,6 +1460,7 @@ function selectStatBuff(buff) {
 
 function endWave() {
     gameState = 'statSelect';
+    waveActive = false;
     
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
@@ -1471,12 +1482,14 @@ function endWave() {
 
 function gameOver() {
     gameState = 'gameover';
+    waveActive = false;
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
         player.guardianAngelUsed = true;
         player.health = player.maxHealth * 0.5;
         gameState = 'wave';
+        waveActive = true;
         showMessage("GUARDIAN ANGEL SAVED YOU!");
         return;
     }
@@ -2336,7 +2349,8 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    if (monsters.length === 0 && spawnIndicators.length === 0) {
+    // FIXED: Only check for wave completion if spawn is complete and wave is active
+    if (waveActive && spawnComplete && monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
         endWave();
     }
@@ -2516,7 +2530,7 @@ function shootBossProjectiles(boss) {
 }
 
 // ============================================
-// FIXED PROJECTILES FUNCTION
+// PROJECTILES UPDATE FUNCTION
 // ============================================
 
 function updateProjectiles() {
