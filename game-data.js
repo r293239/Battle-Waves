@@ -1121,32 +1121,82 @@ function initGame() {
 }
 
 // ============================================
-// WAVE MANAGEMENT
+// UPDATED WAVE MANAGEMENT WITH CLUSTER SPAWNING
 // ============================================
 
 function showSpawnIndicators() {
     const waveConfig = getWaveConfig(wave);
     spawnIndicators = [];
     
-    let monsterCount = waveConfig.monsters;
-    
-    for (let i = 0; i < monsterCount; i++) {
-        const side = Math.floor(Math.random() * 4);
-        let x, y;
-        
-        switch(side) {
-            case 0: x = -50; y = Math.random() * canvas.height; break;
-            case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
-            case 2: x = Math.random() * canvas.width; y = -50; break;
-            case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
-        }
-        
+    // For boss waves, we'll have multiple spawn points for different clusters
+    if (waveConfig.isBoss) {
+        // Boss gets a dramatic spawn point in the center
         spawnIndicators.push({
-            x, y,
-            timer: 2000,
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            timer: 3000, // Longer timer for boss
             startTime: Date.now(),
-            isBoss: waveConfig.isBoss && i === 0 // First indicator is boss
+            isBoss: true,
+            clusterSize: 1
         });
+        
+        // Minions spawn in clusters at different locations
+        if (waveConfig.minions) {
+            // Create 3-4 cluster spawn points around the map
+            const clusterCount = Math.min(4, Math.ceil(waveConfig.monsters / 3));
+            
+            for (let c = 0; c < clusterCount; c++) {
+                // Generate random position inside canvas (with padding)
+                const padding = 100;
+                const x = padding + Math.random() * (canvas.width - padding * 2);
+                const y = padding + Math.random() * (canvas.height - padding * 2);
+                
+                // Calculate how many monsters in this cluster
+                let clusterSize = 0;
+                if (c < waveConfig.minions.length) {
+                    // Distribute minions across clusters
+                    clusterSize = waveConfig.minions[c]?.count || 2;
+                } else {
+                    clusterSize = 2; // Default size
+                }
+                
+                spawnIndicators.push({
+                    x, y,
+                    timer: 2000,
+                    startTime: Date.now(),
+                    isBoss: false,
+                    clusterSize: clusterSize,
+                    clusterIndex: c
+                });
+            }
+        }
+    } else {
+        // Regular waves - create multiple cluster spawn points
+        const clusterCount = Math.max(2, Math.min(4, Math.floor(waveConfig.monsters / 4)));
+        const monstersPerCluster = Math.ceil(waveConfig.monsters / clusterCount);
+        
+        for (let c = 0; c < clusterCount; c++) {
+            // Generate random position inside canvas (with padding)
+            const padding = 80;
+            const x = padding + Math.random() * (canvas.width - padding * 2);
+            const y = padding + Math.random() * (canvas.height - padding * 2);
+            
+            // Last cluster gets remaining monsters
+            let clusterSize = monstersPerCluster;
+            if (c === clusterCount - 1) {
+                const spawnedSoFar = c * monstersPerCluster;
+                clusterSize = waveConfig.monsters - spawnedSoFar;
+            }
+            
+            spawnIndicators.push({
+                x, y,
+                timer: 2000,
+                startTime: Date.now(),
+                isBoss: false,
+                clusterSize: clusterSize,
+                clusterIndex: c
+            });
+        }
     }
 }
 
@@ -1177,70 +1227,135 @@ function startWave() {
     
     showSpawnIndicators();
     
+    // Spawn monsters after indicators
     setTimeout(() => {
         spawnMonsters();
         spawnIndicators = [];
-    }, 2000);
+    }, 2500); // Slightly longer to see indicators
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
-    }, 2000);
+    }, 2500);
 }
 
 function spawnMonsters() {
     const waveConfig = getWaveConfig(wave);
     
     if (waveConfig.isBoss) {
-        // Spawn boss first
-        spawnMonsterOfType('BOSS', true);
+        // Spawn boss first with dramatic entrance
+        setTimeout(() => {
+            spawnMonsterOfType('BOSS', true, canvas.width / 2, canvas.height / 2);
+        }, 500);
         
-        // Spawn minions
+        // Spawn minions in clusters with delays between clusters
         if (waveConfig.minions) {
-            waveConfig.minions.forEach(minionGroup => {
-                for (let i = 0; i < minionGroup.count; i++) {
-                    spawnMonsterOfType(minionGroup.type, false);
-                }
+            let clusterDelay = 800; // Delay between clusters
+            
+            waveConfig.minions.forEach((minionGroup, groupIndex) => {
+                setTimeout(() => {
+                    // Generate random cluster position inside canvas
+                    const padding = 100;
+                    const clusterX = padding + Math.random() * (canvas.width - padding * 2);
+                    const clusterY = padding + Math.random() * (canvas.height - padding * 2);
+                    
+                    // Spawn minions in this cluster with small delay between each
+                    for (let i = 0; i < minionGroup.count; i++) {
+                        setTimeout(() => {
+                            if (gameState === 'wave') {
+                                // Add slight variation to position within cluster
+                                const offsetX = (Math.random() - 0.5) * 80;
+                                const offsetY = (Math.random() - 0.5) * 80;
+                                spawnMonsterOfType(minionGroup.type, false, 
+                                                  clusterX + offsetX, 
+                                                  clusterY + offsetY);
+                            }
+                        }, i * 200); // 200ms between each minion in cluster
+                    }
+                }, 1000 + groupIndex * clusterDelay); // Delay between different minion types
             });
         }
     } else {
-        // Regular wave - spawn normal monsters
-        for (let i = 0; i < waveConfig.monsters; i++) {
-            let monsterType;
-            const rand = Math.random();
-            
-            if (wave < 3) {
-                monsterType = 'NORMAL';
-            } else if (wave < 6) {
-                if (rand < 0.5) monsterType = 'NORMAL';
-                else if (rand < 0.7) monsterType = 'FAST';
-                else if (rand < 0.85) monsterType = 'RANGED';
-                else monsterType = 'TANK';
-            } else {
-                if (rand < 0.3) monsterType = 'NORMAL';
-                else if (rand < 0.5) monsterType = 'FAST';
-                else if (rand < 0.7) monsterType = 'RANGED';
-                else if (rand < 0.85) monsterType = 'TANK';
-                else monsterType = 'EXPLOSIVE';
+        // Regular waves - spawn in clusters
+        const clusterCount = Math.max(2, Math.min(4, Math.floor(waveConfig.monsters / 4)));
+        const monstersPerCluster = Math.ceil(waveConfig.monsters / clusterCount);
+        
+        for (let c = 0; c < clusterCount; c++) {
+            // Calculate how many monsters in this cluster
+            let clusterSize = monstersPerCluster;
+            if (c === clusterCount - 1) {
+                const spawnedSoFar = c * monstersPerCluster;
+                clusterSize = waveConfig.monsters - spawnedSoFar;
             }
             
-            spawnMonsterOfType(monsterType, false);
+            // Generate random cluster position inside canvas
+            const padding = 80;
+            const clusterX = padding + Math.random() * (canvas.width - padding * 2);
+            const clusterY = padding + Math.random() * (canvas.height - padding * 2);
+            
+            // Spawn monsters in this cluster with delay between clusters
+            setTimeout(() => {
+                for (let i = 0; i < clusterSize; i++) {
+                    setTimeout(() => {
+                        if (gameState === 'wave') {
+                            // Determine monster type for this spawn
+                            let monsterType;
+                            const rand = Math.random();
+                            
+                            if (wave < 3) {
+                                monsterType = 'NORMAL';
+                            } else if (wave < 6) {
+                                if (rand < 0.5) monsterType = 'NORMAL';
+                                else if (rand < 0.7) monsterType = 'FAST';
+                                else if (rand < 0.85) monsterType = 'RANGED';
+                                else monsterType = 'TANK';
+                            } else {
+                                if (rand < 0.3) monsterType = 'NORMAL';
+                                else if (rand < 0.5) monsterType = 'FAST';
+                                else if (rand < 0.7) monsterType = 'RANGED';
+                                else if (rand < 0.85) monsterType = 'TANK';
+                                else monsterType = 'EXPLOSIVE';
+                            }
+                            
+                            // Add slight variation to position within cluster
+                            const offsetX = (Math.random() - 0.5) * 60;
+                            const offsetY = (Math.random() - 0.5) * 60;
+                            
+                            spawnMonsterOfType(monsterType, false, 
+                                              clusterX + offsetX, 
+                                              clusterY + offsetY);
+                        }
+                    }, i * 150); // 150ms between each monster in cluster
+                }
+            }, c * 1000); // 1 second between clusters
         }
     }
 }
 
-function spawnMonsterOfType(type, isBoss) {
+// Updated spawnMonsterOfType to accept specific coordinates
+function spawnMonsterOfType(type, isBoss, spawnX = null, spawnY = null) {
     const waveConfig = getWaveConfig(wave);
     const monsterType = MONSTER_TYPES[type];
     
-    const side = Math.floor(Math.random() * 4);
     let x, y;
     
-    switch(side) {
-        case 0: x = -50; y = Math.random() * canvas.height; break;
-        case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
-        case 2: x = Math.random() * canvas.width; y = -50; break;
-        case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+    if (spawnX !== null && spawnY !== null) {
+        // Use provided spawn coordinates
+        x = spawnX;
+        y = spawnY;
+    } else {
+        // Fallback to edge spawn (shouldn't happen with new system)
+        const side = Math.floor(Math.random() * 4);
+        switch(side) {
+            case 0: x = -50; y = Math.random() * canvas.height; break;
+            case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
+            case 2: x = Math.random() * canvas.width; y = -50; break;
+            case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+        }
     }
+    
+    // Ensure monster stays within canvas bounds (with some padding)
+    x = Math.max(30, Math.min(canvas.width - 30, x));
+    y = Math.max(30, Math.min(canvas.height - 30, y));
     
     let health, damage;
     
@@ -1290,7 +1405,103 @@ function spawnMonsterOfType(type, isBoss) {
         lifeSteal: monsterType.lifeSteal || 0 // Add life steal to boss
     };
     
+    // Add spawn animation effect
+    addVisualEffect({
+        type: 'spawn',
+        x: x,
+        y: y,
+        color: monsterType.color,
+        startTime: Date.now(),
+        duration: 500
+    });
+    
     monsters.push(monster);
+}
+
+// Update the drawSpawnIndicators function to show cluster sizes
+function drawSpawnIndicators() {
+    const currentTime = Date.now();
+    
+    for (let i = spawnIndicators.length - 1; i >= 0; i--) {
+        const indicator = spawnIndicators[i];
+        const elapsed = currentTime - indicator.startTime;
+        
+        if (elapsed > indicator.timer) {
+            spawnIndicators.splice(i, 1);
+            continue;
+        }
+        
+        const progress = elapsed / indicator.timer;
+        const pulseScale = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
+        
+        ctx.save();
+        ctx.translate(indicator.x, indicator.y);
+        
+        if (indicator.isBoss) {
+            // Boss indicator - more dramatic
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 20;
+            
+            // Outer ring
+            ctx.beginPath();
+            ctx.arc(0, 0, 40 * pulseScale, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner ring
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.7)';
+            ctx.stroke();
+            
+            // Cross
+            ctx.beginPath();
+            ctx.moveTo(-30, -30);
+            ctx.lineTo(30, 30);
+            ctx.moveTo(30, -30);
+            ctx.lineTo(-30, 30);
+            ctx.stroke();
+            
+            // "BOSS" text
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowBlur = 15;
+            ctx.fillText('BOSS', 0, -60);
+            
+        } else {
+            // Regular spawn indicator with cluster size
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 10;
+            
+            // Pulsing circle
+            ctx.beginPath();
+            ctx.arc(0, 0, 30 * pulseScale, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner circle
+            ctx.beginPath();
+            ctx.arc(0, 0, 15, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.stroke();
+            
+            // Show cluster size
+            if (indicator.clusterSize > 1) {
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 10;
+                ctx.fillText(`×${indicator.clusterSize}`, 0, 0);
+            }
+        }
+        
+        ctx.restore();
+    }
 }
 
 // ============================================
@@ -1801,50 +2012,6 @@ function drawGrid() {
         ctx.moveTo(0, y);
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
-    }
-}
-
-function drawSpawnIndicators() {
-    const currentTime = Date.now();
-    
-    for (let i = spawnIndicators.length - 1; i >= 0; i--) {
-        const indicator = spawnIndicators[i];
-        const elapsed = currentTime - indicator.startTime;
-        
-        if (elapsed > indicator.timer) {
-            spawnIndicators.splice(i, 1);
-            continue;
-        }
-        
-        ctx.save();
-        ctx.translate(indicator.x, indicator.y);
-        
-        if (indicator.isBoss) {
-            ctx.strokeStyle = '#ffd700';
-            ctx.lineWidth = 4;
-            ctx.shadowColor = '#ffd700';
-            ctx.shadowBlur = 10;
-        } else {
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 3;
-        }
-        
-        ctx.lineCap = 'round';
-        
-        ctx.beginPath();
-        ctx.moveTo(-15, -15);
-        ctx.lineTo(15, 15);
-        ctx.moveTo(15, -15);
-        ctx.lineTo(-15, 15);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.arc(0, 0, indicator.isBoss ? 30 : 20, 0, Math.PI * 2);
-        ctx.strokeStyle = indicator.isBoss ? 'rgba(255, 215, 0, 0.5)' : 'rgba(255, 0, 0, 0.3)';
-        ctx.lineWidth = indicator.isBoss ? 3 : 2;
-        ctx.stroke();
-        
-        ctx.restore();
     }
 }
 
@@ -2457,6 +2624,86 @@ function drawTrident(ctx, attack, angle, progress, distance, alpha) {
 }
 
 // ============================================
+// UPDATED VISUAL EFFECTS DRAWING FUNCTION WITH SPAWN EFFECT
+// ============================================
+
+function drawVisualEffects() {
+    const currentTime = Date.now();
+    
+    visualEffects.forEach(effect => {
+        const progress = (currentTime - effect.startTime) / effect.duration;
+        if (progress > 1) return;
+        
+        const alpha = 1 - progress;
+        
+        ctx.save();
+        
+        switch(effect.type) {
+            case 'death':
+                ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
+                const particles = 8;
+                for (let i = 0; i < particles; i++) {
+                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
+                    const distance = progress * 30;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+                
+            case 'spawn':
+                // Spawn effect - expanding ring
+                ctx.strokeStyle = effect.color || '#ffffff';
+                ctx.lineWidth = 3 * (1 - progress);
+                ctx.shadowColor = effect.color || '#ffffff';
+                ctx.shadowBlur = 15 * alpha;
+                
+                // Expanding ring
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 20 + progress * 30, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner glow
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 10, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'explosion':
+                const explosionSize = (effect.radius || 40) * (1 - progress * 0.5);
+                const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                gradient.addColorStop(0.3, `rgba(255, 200, 0, ${alpha})`);
+                gradient.addColorStop(0.6, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                
+                ctx.fillStyle = gradient;
+                ctx.shadowColor = '#FF4500';
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, explosionSize, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'shockwave':
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#FFFFFF';
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, (effect.radius || 80) * progress, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+        }
+        
+        ctx.restore();
+    });
+}
+
+// ============================================
 // GAME UPDATE FUNCTIONS
 // ============================================
 
@@ -2964,35 +3211,6 @@ function updateVisualEffects() {
             continue;
         }
     }
-}
-
-function drawVisualEffects() {
-    const currentTime = Date.now();
-    
-    visualEffects.forEach(effect => {
-        const progress = (currentTime - effect.startTime) / effect.duration;
-        const alpha = 1 - progress;
-        
-        ctx.save();
-        
-        switch(effect.type) {
-            case 'death':
-                ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
-                const particles = 8;
-                for (let i = 0; i < particles; i++) {
-                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
-                    const distance = progress * 30;
-                    ctx.beginPath();
-                    ctx.arc(effect.x + Math.cos(angle) * distance, 
-                           effect.y + Math.sin(angle) * distance, 
-                           3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-        }
-        
-        ctx.restore();
-    });
 }
 
 function createDamageIndicator(x, y, damage, isCritical) {
