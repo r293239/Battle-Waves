@@ -427,7 +427,7 @@ class WeaponInstance {
 // Game State
 let gameState = 'start';
 let wave = 1;
-let gold = GAME_DATA.PLAYER_START.gold;
+let gold = 50;
 let kills = 0;
 let shopItems = [];
 let spawnIndicators = [];
@@ -443,10 +443,10 @@ const player = {
     x: 400,
     y: 300,
     radius: 20,
-    health: GAME_DATA.PLAYER_START.health,
-    maxHealth: GAME_DATA.PLAYER_START.maxHealth,
-    baseDamage: GAME_DATA.PLAYER_START.damage,
-    speed: GAME_DATA.PLAYER_START.speed,
+    health: 20,
+    maxHealth: 20,
+    baseDamage: 5,
+    speed: 3,
     color: '#ff6b6b',
     
     lifeSteal: 0,
@@ -726,7 +726,7 @@ function initGame() {
 }
 
 // ============================================
-// WAVE MANAGEMENT
+// FIXED WAVE MANAGEMENT
 // ============================================
 
 function showSpawnIndicators() {
@@ -734,9 +734,6 @@ function showSpawnIndicators() {
     spawnIndicators = [];
     
     let monsterCount = waveConfig.monsters;
-    if (waveConfig.isBoss) {
-        monsterCount = 1;
-    }
     
     for (let i = 0; i < monsterCount; i++) {
         const side = Math.floor(Math.random() * 4);
@@ -753,7 +750,8 @@ function showSpawnIndicators() {
             x, y,
             timer: 2000,
             startTime: Date.now(),
-            isBoss: waveConfig.isBoss
+            isBoss: waveConfig.isBoss,
+            index: i
         });
     }
 }
@@ -771,6 +769,7 @@ function startWave() {
     
     waveDisplay.style.opacity = 1;
     
+    // Clear all arrays
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
@@ -788,9 +787,10 @@ function startWave() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     
+    // Show spawn indicators
     showSpawnIndicators();
     
-    // STAGGERED SPAWNING - monsters spawn one by one with delay
+    // Schedule monster spawning AFTER indicators
     setTimeout(() => {
         const monsterCount = waveConfig.monsters;
         const spawnDelay = waveConfig.spawnDelay || 200;
@@ -800,22 +800,31 @@ function startWave() {
             for (let i = 0; i < monsterCount; i++) {
                 spawnMonster();
             }
+            // Clear indicators after boss spawns
+            spawnIndicators = [];
         } else {
             // Staggered spawning for regular monsters
+            let spawnedCount = 0;
+            
             for (let i = 0; i < monsterCount; i++) {
                 setTimeout(() => {
                     if (gameState === 'wave') { // Only spawn if wave is still active
                         spawnMonster();
+                        spawnedCount++;
+                        
+                        // Clear all indicators when last monster spawns
+                        if (spawnedCount >= monsterCount) {
+                            spawnIndicators = [];
+                        }
                     }
                 }, i * spawnDelay);
             }
         }
-        spawnIndicators = [];
-    }, 2000);
+    }, 2000); // Wait 2 seconds for indicators to show
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
-    }, 2000);
+    }, 2500);
 }
 
 function spawnMonster() {
@@ -846,26 +855,36 @@ function spawnMonster() {
             else if (rand < 0.55) monsterType = MONSTER_TYPES.TANK;
             else if (rand < 0.7) monsterType = MONSTER_TYPES.EXPLOSIVE;
             else if (rand < 0.85) monsterType = MONSTER_TYPES.GUNNER;
-            else monsterType = MONSTER_TYPES.BOSS; // Mini-boss spawns
+            else monsterType = MONSTER_TYPES.BOSS;
         } else {
-            // Waves 15+ have all types with higher chance of tougher enemies
             if (rand < 0.2) monsterType = MONSTER_TYPES.NORMAL;
             else if (rand < 0.35) monsterType = MONSTER_TYPES.FAST;
             else if (rand < 0.5) monsterType = MONSTER_TYPES.TANK;
             else if (rand < 0.65) monsterType = MONSTER_TYPES.EXPLOSIVE;
             else if (rand < 0.8) monsterType = MONSTER_TYPES.GUNNER;
-            else monsterType = MONSTER_TYPES.BOSS; // Mini-boss spawns
+            else monsterType = MONSTER_TYPES.BOSS;
         }
     }
     
-    const side = Math.floor(Math.random() * 4);
+    // Try to use indicator position if available
     let x, y;
     
-    switch(side) {
-        case 0: x = -50; y = Math.random() * canvas.height; break;
-        case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
-        case 2: x = Math.random() * canvas.width; y = -50; break;
-        case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+    if (spawnIndicators.length > 0) {
+        // Use the first indicator's position
+        const indicator = spawnIndicators[0];
+        x = indicator.x;
+        y = indicator.y;
+        // Remove that indicator
+        spawnIndicators.shift();
+    } else {
+        // Fallback to random edge spawn
+        const side = Math.floor(Math.random() * 4);
+        switch(side) {
+            case 0: x = -50; y = Math.random() * canvas.height; break;
+            case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
+            case 2: x = Math.random() * canvas.width; y = -50; break;
+            case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+        }
     }
     
     const health = waveConfig.isBoss ? 
@@ -908,6 +927,16 @@ function spawnMonster() {
     };
     
     monsters.push(monster);
+    
+    // Add spawn effect
+    addVisualEffect({
+        type: 'spawn',
+        x: x,
+        y: y,
+        color: monsterType.color,
+        startTime: Date.now(),
+        duration: 300
+    });
 }
 
 // ============================================
@@ -2487,7 +2516,7 @@ function shootBossProjectiles(boss) {
 }
 
 // ============================================
-// FIXED: UPDATED PROJECTILES FUNCTION - Boomerang now uses SAME damage system as other weapons
+// FIXED PROJECTILES FUNCTION
 // ============================================
 
 function updateProjectiles() {
@@ -2628,9 +2657,9 @@ function updateProjectiles() {
                     break;
                 }
                 
-                // FIXED: Check if monster health is <= 0 and remove it - WITH AOE EXPLOSION THAT DAMAGES OTHER MONSTERS
+                // Check if monster health is <= 0 and remove it
                 if (monster.health <= 0) {
-                    // Explosive monster death explosion - AOE damages player AND other monsters
+                    // Explosive monster death explosion
                     if (monster.monsterType && monster.monsterType.explosive) {
                         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
                         const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
@@ -2668,7 +2697,6 @@ function updateProjectiles() {
                                 
                                 // Check if other monster died from explosion
                                 if (otherMonster.health <= 0) {
-                                    // Don't trigger chain explosions - just remove and give rewards
                                     monsters.splice(k, 1);
                                     kills++;
                                     const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
@@ -2777,9 +2805,8 @@ function updateMeleeAttacks() {
                     break;
                 }
                 
-                // FIXED: Check if monster health is <= 0 and remove it - WITH AOE EXPLOSION THAT DAMAGES OTHER MONSTERS
                 if (monster.health <= 0) {
-                    // Explosive monster death explosion - AOE damages player AND other monsters
+                    // Explosive monster death explosion
                     if (monster.monsterType && monster.monsterType.explosive) {
                         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
                         const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
@@ -2817,7 +2844,6 @@ function updateMeleeAttacks() {
                                 
                                 // Check if other monster died from explosion
                                 if (otherMonster.health <= 0) {
-                                    // Don't trigger chain explosions - just remove and give rewards
                                     monsters.splice(k, 1);
                                     kills++;
                                     const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
@@ -3047,6 +3073,8 @@ function drawVisualEffects() {
     
     visualEffects.forEach(effect => {
         const progress = (currentTime - effect.startTime) / effect.duration;
+        if (progress > 1) return;
+        
         const alpha = 1 - progress;
         
         ctx.save();
@@ -3064,6 +3092,25 @@ function drawVisualEffects() {
                            3, 0, Math.PI * 2);
                     ctx.fill();
                 }
+                break;
+                
+            case 'spawn':
+                // Spawn effect - expanding ring
+                ctx.strokeStyle = effect.color || '#ffffff';
+                ctx.lineWidth = 3 * (1 - progress);
+                ctx.shadowColor = effect.color || '#ffffff';
+                ctx.shadowBlur = 15 * alpha;
+                
+                // Expanding ring
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 20 + progress * 30, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner glow
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 10, 0, Math.PI * 2);
+                ctx.fill();
                 break;
                 
             case 'explosion':
@@ -3166,7 +3213,7 @@ function drawMonsters() {
                 eyeRadius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // FIXED: Health bar - ensure it never goes below 0
+        // Health bar
         const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
         const barWidth = monster.radius * 2;
         const barHeight = 4;
