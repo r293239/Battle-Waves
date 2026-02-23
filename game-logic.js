@@ -437,8 +437,11 @@ let mergeTargetIndex = -1;
 let lastFrameTime = Date.now();
 let refreshCount = 0;
 let refreshCost = 5;
-let waveActive = false; // Add this flag to track if wave is actively spawning/running
-let spawnComplete = false; // Track if all monsters have been spawned
+let waveActive = false;
+let spawnComplete = false;
+let waveEndTimer = null;
+let waveEndDelay = 10000; // 10 seconds delay in milliseconds
+let waveEndCountdown = null; // Track countdown for display
 
 // Game Objects
 const player = {
@@ -690,6 +693,11 @@ function initGame() {
     gameState = 'wave';
     waveActive = false;
     spawnComplete = false;
+    if (waveEndTimer) {
+        clearTimeout(waveEndTimer);
+        waveEndTimer = null;
+    }
+    waveEndCountdown = null;
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     visualEffects = [];
@@ -764,6 +772,12 @@ function startWave() {
     gameState = 'wave';
     waveActive = true;
     spawnComplete = false;
+    if (waveEndTimer) {
+        clearTimeout(waveEndTimer);
+        waveEndTimer = null;
+    }
+    waveEndCountdown = null;
+    
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.classList.remove('boss-wave');
@@ -973,6 +987,11 @@ function updateUI() {
     }
     
     monsterCount.textContent = `Monsters: ${monsters.length}`;
+    
+    // Show countdown if wave is ending
+    if (waveEndCountdown !== null) {
+        monsterCount.textContent += ` | Wave ends in: ${Math.ceil(waveEndCountdown / 1000)}s`;
+    }
 }
 
 function updateWeaponDisplay() {
@@ -1461,6 +1480,7 @@ function selectStatBuff(buff) {
 function endWave() {
     gameState = 'statSelect';
     waveActive = false;
+    waveEndCountdown = null;
     
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
@@ -1483,6 +1503,7 @@ function endWave() {
 function gameOver() {
     gameState = 'gameover';
     waveActive = false;
+    waveEndCountdown = null;
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
@@ -2349,10 +2370,25 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    // FIXED: Only check for wave completion if spawn is complete and wave is active
+    // Check if all monsters are dead and spawn is complete
     if (waveActive && spawnComplete && monsters.length === 0 && spawnIndicators.length === 0) {
-        wave++;
-        endWave();
+        // Start the 10-second countdown if not already started
+        if (!waveEndTimer) {
+            waveEndTimer = setTimeout(() => {
+                wave++;
+                endWave();
+                waveEndTimer = null;
+                waveEndCountdown = null;
+            }, waveEndDelay);
+            
+            // Initialize countdown for display
+            waveEndCountdown = waveEndDelay;
+        }
+    }
+    
+    // Update countdown for display
+    if (waveEndTimer && waveEndCountdown !== null) {
+        waveEndCountdown = Math.max(0, waveEndDelay - (Date.now() - (lastFrameTime - (waveEndDelay - waveEndCountdown))));
     }
     
     updateUI();
