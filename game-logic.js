@@ -69,18 +69,6 @@ const MONSTER_TYPES = {
         projectileSpeed: 5,
         projectileDamage: 20,
         projectileCooldown: 1800
-    },
-    // SAFETY MONSTER - Added to prevent premature wave completion
-    SAFETY: {
-        name: 'Safety',
-        color: 'rgba(255, 255, 255, 0.1)',
-        speed: 0,
-        healthMultiplier: 1000000, // Massive health
-        damageMultiplier: 0, // No damage
-        sizeMultiplier: 0.2, // Tiny
-        icon: '⬤',
-        isSafety: true,
-        selfDestructTimer: 10000 // Dies after 10 seconds
     }
 };
 
@@ -450,11 +438,8 @@ let lastFrameTime = Date.now();
 let refreshCount = 0;
 let refreshCost = 5;
 let waveActive = false;
-
-// Safety Monster Variables
-let safetyMonster = null;
-let safetyMonsterTimer = null;
 let waveStartTime = 0;
+const MIN_WAVE_DURATION = 6000; // 6 seconds minimum wave duration
 
 // Game Objects
 const player = {
@@ -698,13 +683,7 @@ function initGame() {
     kills = 0;
     gameState = 'wave';
     waveActive = false;
-    
-    // Clear safety monster
-    if (safetyMonsterTimer) {
-        clearTimeout(safetyMonsterTimer);
-        safetyMonsterTimer = null;
-    }
-    safetyMonster = null;
+    waveStartTime = 0;
     
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
@@ -746,7 +725,7 @@ function initGame() {
 }
 
 // ============================================
-// FIXED WAVE MANAGEMENT WITH SAFETY MONSTER
+// WAVE MANAGEMENT
 // ============================================
 
 function showSpawnIndicators() {
@@ -768,7 +747,7 @@ function showSpawnIndicators() {
         
         spawnIndicators.push({
             x, y,
-            timer: 1000,
+            timer: 2000,
             startTime: Date.now(),
             isBoss: waveConfig.isBoss,
             index: i
@@ -776,64 +755,10 @@ function showSpawnIndicators() {
     }
 }
 
-function spawnSafetyMonster() {
-    const safetyType = MONSTER_TYPES.SAFETY;
-    
-    // Choose a random side far off-screen
-    const side = Math.floor(Math.random() * 4);
-    let x, y;
-    const offScreenDistance = 500;
-    
-    switch(side) {
-        case 0: x = -offScreenDistance; y = Math.random() * canvas.height; break;
-        case 1: x = canvas.width + offScreenDistance; y = Math.random() * canvas.height; break;
-        case 2: x = Math.random() * canvas.width; y = -offScreenDistance; break;
-        case 3: x = Math.random() * canvas.width; y = canvas.height + offScreenDistance; break;
-    }
-    
-    const health = 1000000; // 1 million health
-    const damage = 0;
-    
-    const safetyMonsterObj = {
-        x, y,
-        radius: 5, // Small but visible enough to be counted
-        health: health,
-        maxHealth: health,
-        damage: damage,
-        speed: 0,
-        color: 'rgba(255, 255, 255, 0.1)',
-        type: 'Safety',
-        monsterType: safetyType,
-        lastAttack: 0,
-        attackCooldown: 999999,
-        isBoss: false,
-        isSafety: true,
-        originalSpeed: 0,
-        spawnTime: Date.now()
-    };
-    
-    monsters.push(safetyMonsterObj);
-    safetyMonster = safetyMonsterObj;
-    console.log("Safety monster spawned with 1M health - will die in 10 seconds");
-    
-    // Set timer to kill it after 10 seconds
-    safetyMonsterTimer = setTimeout(() => {
-        // Find and kill the safety monster
-        const index = monsters.findIndex(m => m.isSafety);
-        if (index !== -1) {
-            monsters[index].health = 0; // Kill it
-            monsters.splice(index, 1); // Remove it
-            console.log("Safety monster died");
-        }
-        safetyMonster = null;
-        safetyMonsterTimer = null;
-    }, 10000);
-}
-
 function startWave() {
     gameState = 'wave';
     waveActive = true;
-    waveStartTime = Date.now();
+    waveStartTime = Date.now(); // Record when wave started
     
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
@@ -854,13 +779,6 @@ function startWave() {
     bossProjectiles = [];
     monsterProjectiles = [];
     
-    // Clear any existing safety monster
-    if (safetyMonsterTimer) {
-        clearTimeout(safetyMonsterTimer);
-        safetyMonsterTimer = null;
-    }
-    safetyMonster = null;
-    
     // Reset first hit reduction for new wave
     if (player.firstHitReduction) {
         player.firstHitReduction = false;
@@ -874,61 +792,48 @@ function startWave() {
     // Show spawn indicators
     showSpawnIndicators();
     
-    // SPAWN SAFETY MONSTER IMMEDIATELY - This prevents wave from ending
-    spawnSafetyMonster();
-    
-    // Store monster count
-    const monsterCount = waveConfig.monsters;
-    
-    // Spawn real monsters after a short delay
+    // Spawn monsters after a short delay
     setTimeout(() => {
-        console.log(`Spawning ${monsterCount} real monsters for wave ${wave}`);
+        const monsterCount = waveConfig.monsters;
+        const spawnDelay = waveConfig.spawnDelay || 200;
         
         if (waveConfig.isBoss) {
-            // Spawn boss at center
-            const boss = createMonster(true, canvas.width / 2, canvas.height / 2);
-            if (boss) {
-                monsters.push(boss);
-                console.log("Boss spawned");
-            }
-        } else {
-            // Spawn all monsters at once
+            // Boss spawns immediately
             for (let i = 0; i < monsterCount; i++) {
-                // Generate random spawn position around edges
-                const side = Math.floor(Math.random() * 4);
-                let x, y;
-                
-                switch(side) {
-                    case 0: x = -30; y = Math.random() * canvas.height; break;
-                    case 1: x = canvas.width + 30; y = Math.random() * canvas.height; break;
-                    case 2: x = Math.random() * canvas.width; y = -30; break;
-                    case 3: x = Math.random() * canvas.width; y = canvas.height + 30; break;
-                }
-                
-                const monster = createMonster(false, x, y);
-                if (monster) {
-                    monsters.push(monster);
-                }
+                spawnMonster();
             }
-            console.log(`${monsterCount} real monsters spawned (plus safety monster)`);
+            spawnIndicators = [];
+        } else {
+            // Staggered spawning for regular monsters
+            let spawnedCount = 0;
+            
+            for (let i = 0; i < monsterCount; i++) {
+                setTimeout(() => {
+                    if (gameState === 'wave') { // Only spawn if wave is still active
+                        spawnMonster();
+                        spawnedCount++;
+                        
+                        // Clear indicators when last monster spawns
+                        if (spawnedCount >= monsterCount) {
+                            spawnIndicators = [];
+                        }
+                    }
+                }, i * spawnDelay);
+            }
         }
-        
-        // Clear indicators after spawning
-        spawnIndicators = [];
-        
-    }, 1000); // Wait 1 second for indicators to show
+    }, 2000); // Wait 2 seconds for indicators to show
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
-    }, 1500);
+    }, 2500);
 }
 
-function createMonster(isBoss, spawnX, spawnY) {
+function spawnMonster() {
     const waveConfig = getWaveConfig(wave);
     
     let monsterType;
     
-    if (isBoss) {
+    if (waveConfig.isBoss) {
         monsterType = MONSTER_TYPES.BOSS;
     } else {
         const rand = Math.random();
@@ -962,28 +867,48 @@ function createMonster(isBoss, spawnX, spawnY) {
         }
     }
     
-    const health = isBoss ? 
+    // Try to use indicator position if available
+    let x, y;
+    
+    if (spawnIndicators.length > 0) {
+        // Use the first indicator's position
+        const indicator = spawnIndicators[0];
+        x = indicator.x;
+        y = indicator.y;
+        // Remove that indicator
+        spawnIndicators.shift();
+    } else {
+        // Fallback to random edge spawn
+        const side = Math.floor(Math.random() * 4);
+        switch(side) {
+            case 0: x = -50; y = Math.random() * canvas.height; break;
+            case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
+            case 2: x = Math.random() * canvas.width; y = -50; break;
+            case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+        }
+    }
+    
+    const health = waveConfig.isBoss ? 
         waveConfig.monsterHealth * monsterType.healthMultiplier : 
         Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
     
-    const damage = isBoss ?
+    const damage = waveConfig.isBoss ?
         waveConfig.monsterDamage * monsterType.damageMultiplier :
         Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
     
     const monster = {
-        x: spawnX,
-        y: spawnY,
-        radius: isBoss ? 45 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
+        x, y,
+        radius: waveConfig.isBoss ? 45 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
         health: health,
         maxHealth: health,
         damage: damage,
-        speed: (isBoss ? 0.8 : (1 + wave * 0.1)) * monsterType.speed,
+        speed: (waveConfig.isBoss ? 0.8 : (1 + wave * 0.1)) * monsterType.speed,
         color: monsterType.color,
         type: monsterType.name,
         monsterType: monsterType,
         lastAttack: 0,
         attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        isBoss: isBoss || monsterType.isBoss || false,
+        isBoss: waveConfig.isBoss || monsterType.isBoss || false,
         
         // Status effects
         slowed: false,
@@ -999,21 +924,20 @@ function createMonster(isBoss, spawnX, spawnY) {
         // Gunner properties
         isGunner: monsterType === MONSTER_TYPES.GUNNER,
         
-        originalSpeed: monsterType.speed,
-        isSafety: false
+        originalSpeed: monsterType.speed
     };
+    
+    monsters.push(monster);
     
     // Add spawn effect
     addVisualEffect({
         type: 'spawn',
-        x: spawnX,
-        y: spawnY,
+        x: x,
+        y: y,
         color: monsterType.color,
         startTime: Date.now(),
         duration: 300
     });
-    
-    return monster;
 }
 
 // ============================================
@@ -1039,14 +963,7 @@ function updateUI() {
         healthFill.style.background = 'linear-gradient(90deg, #ff416c, #ff4b2b)';
     }
     
-    // Show monster count with safety monster info
-    const realMonsters = monsters.filter(m => !m.isSafety).length;
-    if (safetyMonster) {
-        const timeLeft = Math.max(0, Math.ceil((10000 - (Date.now() - waveStartTime)) / 1000));
-        monsterCount.textContent = `Monsters: ${realMonsters} | Safety: ${timeLeft}s`;
-    } else {
-        monsterCount.textContent = `Monsters: ${realMonsters}`;
-    }
+    monsterCount.textContent = `Monsters: ${monsters.length}`;
 }
 
 function updateWeaponDisplay() {
@@ -1106,8 +1023,6 @@ function updateWeaponDisplay() {
 }
 
 function updateConsumablesDisplay() {
-    if (!consumablesGrid) return;
-    
     consumablesGrid.innerHTML = '';
     
     if (player.consumables.length === 0) {
@@ -1559,13 +1474,6 @@ function endWave() {
 function gameOver() {
     gameState = 'gameover';
     waveActive = false;
-    
-    // Clear safety monster
-    if (safetyMonsterTimer) {
-        clearTimeout(safetyMonsterTimer);
-        safetyMonsterTimer = null;
-    }
-    safetyMonster = null;
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
@@ -2432,9 +2340,9 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    // WAVE COMPLETION CHECK - Includes safety monster!
-    // This will only trigger when ALL monsters (including safety monster) are dead
-    if (waveActive && monsters.length === 0 && spawnIndicators.length === 0) {
+    // Wave completion check - only after minimum duration
+    if (waveActive && monsters.length === 0 && spawnIndicators.length === 0 && 
+        Date.now() - waveStartTime >= MIN_WAVE_DURATION) {
         wave++;
         endWave();
     }
@@ -2446,11 +2354,7 @@ function updateWeapons() {
     const currentTime = Date.now();
     
     player.weapons.forEach(weapon => {
-        if (!weapon) return;
-        
-        // Only target real monsters, not safety monster
-        const realMonsters = monsters.filter(m => !m.isSafety);
-        if (realMonsters.length === 0) return;
+        if (!weapon || monsters.length === 0) return;
         
         // Apply attack speed multiplier
         const originalAttackSpeed = weapon.attackSpeed;
@@ -2462,7 +2366,7 @@ function updateWeapons() {
             let closestMonster = null;
             let closestDistance = Infinity;
             
-            realMonsters.forEach(monster => {
+            monsters.forEach(monster => {
                 const dx = monster.x - player.x;
                 const dy = monster.y - player.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -2687,10 +2591,7 @@ function updateProjectiles() {
             let nextTarget = null;
             let nextTargetDistance = Infinity;
             
-            // Only target real monsters, not safety monster
-            const realMonsters = monsters.filter(m => !m.isSafety);
-            
-            realMonsters.forEach(monster => {
+            monsters.forEach(monster => {
                 if (projectile.targetsHit.includes(monster)) return;
                 
                 const dx = projectile.x - monster.x;
@@ -2711,12 +2612,9 @@ function updateProjectiles() {
             }
         }
         
-        // Check collision with monsters - skip safety monster
+        // Check collision with monsters - SAME FOR ALL PROJECTILES
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
-            
-            // Skip safety monster - it shouldn't take damage
-            if (monster.isSafety) continue;
             
             const dx = projectile.x - monster.x;
             const dy = projectile.y - monster.y;
@@ -2882,9 +2780,6 @@ function updateMeleeAttacks() {
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             
-            // Skip safety monster
-            if (monster.isSafety) continue;
-            
             const dx = monster.x - attack.x;
             const dy = monster.y - attack.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -3018,9 +2913,6 @@ function updateMeleeAttacks() {
 
 function updateMonsters(currentTime) {
     monsters.forEach(monster => {
-        // Skip safety monster - it doesn't move or attack
-        if (monster.isSafety) return;
-        
         if (monster.slowed && monster.slowUntil < currentTime) {
             monster.slowed = false;
             monster.speed = monster.originalSpeed;
@@ -3107,9 +2999,6 @@ function updateGroundEffects(currentTime) {
         }
         
         monsters.forEach(monster => {
-            // Skip safety monster
-            if (monster.isSafety) return;
-            
             const dx = monster.x - fire.x;
             const dy = monster.y - fire.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -3132,9 +3021,6 @@ function updateGroundEffects(currentTime) {
         }
         
         monsters.forEach(monster => {
-            // Skip safety monster
-            if (monster.isSafety) return;
-            
             const dx = monster.x - cloud.x;
             const dy = monster.y - cloud.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -3154,9 +3040,6 @@ function updateGroundEffects(currentTime) {
         if (!trap.active) continue;
         
         monsters.forEach(monster => {
-            // Skip safety monster
-            if (monster.isSafety) return;
-            
             const dx = monster.x - trap.x;
             const dy = monster.y - trap.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -3271,20 +3154,8 @@ function drawMonsters() {
     const currentTime = Date.now();
     
     monsters.forEach(monster => {
-        // Skip drawing safety monster if it's too far off-screen
-        if (monster.isSafety && 
-            (monster.x < -200 || monster.x > canvas.width + 200 || 
-             monster.y < -200 || monster.y > canvas.height + 200)) {
-            return; // Don't draw if too far off-screen
-        }
-        
         ctx.save();
         ctx.translate(monster.x, monster.y);
-        
-        // Make safety monster almost invisible
-        if (monster.isSafety) {
-            ctx.globalAlpha = 0.1;
-        }
         
         ctx.fillStyle = monster.color;
         ctx.shadowColor = monster.color;
@@ -3314,7 +3185,7 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
-        if (monster.monsterType && monster.monsterType.icon && !monster.isSafety) {
+        if (monster.monsterType && monster.monsterType.icon) {
             ctx.fillStyle = 'white';
             ctx.font = `${monster.radius}px Arial`;
             ctx.textAlign = 'center';
@@ -3322,50 +3193,47 @@ function drawMonsters() {
             ctx.fillText(monster.monsterType.icon, 0, 0);
         }
         
-        // Don't draw eyes for safety monster
-        if (!monster.isSafety) {
-            const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
-            const eyeRadius = monster.radius * 0.2;
-            
-            ctx.fillStyle = '#FFFFFF';
-            ctx.shadowBlur = 5;
-            
-            ctx.beginPath();
-            ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, 
-                    Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, 
-                    eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, 
-                    Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, 
-                    eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = '#000000';
-            ctx.shadowBlur = 0;
-            ctx.beginPath();
-            ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, 
-                    Math.sin(angleToPlayer) * monster.radius * 0.7, 
-                    eyeRadius * 0.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
+        const eyeRadius = monster.radius * 0.2;
         
-        // Health bar - don't show for safety monster
-        if (!monster.isSafety) {
-            const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
-            const barWidth = monster.radius * 2;
-            const barHeight = 4;
-            const barX = -monster.radius;
-            const barY = -monster.radius - 10;
-            
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-            
-            if (healthPercent > 0) {
-                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
-                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
-            }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowBlur = 5;
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, 
+                Math.sin(angleToPlayer) * monster.radius * 0.7, 
+                eyeRadius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Health bar
+        const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
+        const barWidth = monster.radius * 2;
+        const barHeight = 4;
+        const barX = -monster.radius;
+        const barY = -monster.radius - 10;
+        
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Health fill - only draw if health > 0
+        if (healthPercent > 0) {
+            ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
+            ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
         }
         
         ctx.restore();
