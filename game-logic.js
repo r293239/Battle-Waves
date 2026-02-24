@@ -69,6 +69,18 @@ const MONSTER_TYPES = {
         projectileSpeed: 5,
         projectileDamage: 20,
         projectileCooldown: 1800
+    },
+    // Add this inside the MONSTER_TYPES object (around line 50-60)
+    SAFETY: {
+        name: 'Safety',
+        color: 'rgba(255, 255, 255, 0.01)', // Almost invisible
+        speed: 0,
+        healthMultiplier: 1000000, // Massive health
+        damageMultiplier: 0, // No damage
+        sizeMultiplier: 0.1, // Tiny
+        icon: '⬤',
+        isSafety: true,
+        selfDestructTimer: 10000 // Dies after 10 seconds
     }
 };
 
