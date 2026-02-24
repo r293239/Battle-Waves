@@ -438,7 +438,8 @@ let lastFrameTime = Date.now();
 let refreshCount = 0;
 let refreshCost = 5;
 let waveActive = false;
-let waveStartDelayed = false; // Flag to prevent wave completion during initial sleep
+let waveStartTime = 0;
+let waveStartDelayed = false;
 
 // Game Objects
 const player = {
@@ -724,7 +725,7 @@ function initGame() {
 }
 
 // ============================================
-// WAVE MANAGEMENT WITH 7-SECOND INITIAL SLEEP
+// WAVE MANAGEMENT WITH PROPER SPAWNING
 // ============================================
 
 function showSpawnIndicators() {
@@ -734,14 +735,15 @@ function showSpawnIndicators() {
     let monsterCount = waveConfig.monsters;
     
     for (let i = 0; i < monsterCount; i++) {
+        // Spawn indicators around the edges of the screen
         const side = Math.floor(Math.random() * 4);
         let x, y;
         
         switch(side) {
-            case 0: x = -50; y = Math.random() * canvas.height; break;
-            case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
-            case 2: x = Math.random() * canvas.width; y = -50; break;
-            case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+            case 0: x = 50; y = Math.random() * (canvas.height - 100) + 50; break; // Left edge
+            case 1: x = canvas.width - 50; y = Math.random() * (canvas.height - 100) + 50; break; // Right edge
+            case 2: x = Math.random() * (canvas.width - 100) + 50; y = 50; break; // Top edge
+            case 3: x = Math.random() * (canvas.width - 100) + 50; y = canvas.height - 50; break; // Bottom edge
         }
         
         spawnIndicators.push({
@@ -757,7 +759,8 @@ function showSpawnIndicators() {
 function startWave() {
     gameState = 'wave';
     waveActive = true;
-    waveStartDelayed = true; // Prevent wave completion during initial sleep
+    waveStartDelayed = false;
+    waveStartTime = Date.now();
     
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
@@ -788,59 +791,53 @@ function startWave() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     
-    // Wait 7 seconds before even showing spawn indicators
+    // Show spawn indicators immediately
+    showSpawnIndicators();
+    
+    // Spawn monsters after a short delay
     setTimeout(() => {
-        // Show spawn indicators
-        showSpawnIndicators();
+        const monsterCount = waveConfig.monsters;
+        const spawnDelay = waveConfig.spawnDelay || 200;
         
-        // After indicators, spawn monsters with staggered delay
-        setTimeout(() => {
-            const monsterCount = waveConfig.monsters;
-            const spawnDelay = waveConfig.spawnDelay || 200;
-            
-            if (waveConfig.isBoss) {
-                // Boss spawns immediately
-                for (let i = 0; i < monsterCount; i++) {
-                    spawnMonster();
-                }
-                spawnIndicators = [];
-            } else {
-                // Staggered spawning for regular monsters
-                let spawnedCount = 0;
-                
-                for (let i = 0; i < monsterCount; i++) {
-                    setTimeout(() => {
-                        if (gameState === 'wave') { // Only spawn if wave is still active
-                            spawnMonster();
-                            spawnedCount++;
-                            
-                            // Clear indicators when last monster spawns
-                            if (spawnedCount >= monsterCount) {
-                                spawnIndicators = [];
-                            }
+        if (waveConfig.isBoss) {
+            // Boss spawns at center
+            spawnMonster(true, canvas.width / 2, canvas.height / 2);
+            spawnIndicators = [];
+        } else {
+            // Spawn all monsters with slight stagger for visual effect
+            for (let i = 0; i < monsterCount; i++) {
+                setTimeout(() => {
+                    if (gameState === 'wave') {
+                        // Use indicator positions if available
+                        if (spawnIndicators.length > i) {
+                            const indicator = spawnIndicators[i];
+                            spawnMonster(false, indicator.x, indicator.y);
+                        } else {
+                            // Fallback to random edge spawn
+                            spawnMonster(false);
                         }
-                    }, i * spawnDelay);
-                }
+                    }
+                }, i * spawnDelay);
             }
             
-            // After spawning has started, allow wave completion
-            waveStartDelayed = false;
-            
-        }, 2000); // 2 seconds for indicators
-        
-    }, 7000); // 7-second initial sleep
+            // Clear indicators after all monsters have spawned
+            setTimeout(() => {
+                spawnIndicators = [];
+            }, monsterCount * spawnDelay + 100);
+        }
+    }, 500); // Short delay before spawning
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
-    }, 9500); // 7+2+0.5 = 9.5 seconds
+    }, 2000);
 }
 
-function spawnMonster() {
+function spawnMonster(isBoss = false, spawnX = null, spawnY = null) {
     const waveConfig = getWaveConfig(wave);
     
     let monsterType;
     
-    if (waveConfig.isBoss) {
+    if (isBoss) {
         monsterType = MONSTER_TYPES.BOSS;
     } else {
         const rand = Math.random();
@@ -874,48 +871,43 @@ function spawnMonster() {
         }
     }
     
-    // Try to use indicator position if available
     let x, y;
     
-    if (spawnIndicators.length > 0) {
-        // Use the first indicator's position
-        const indicator = spawnIndicators[0];
-        x = indicator.x;
-        y = indicator.y;
-        // Remove that indicator
-        spawnIndicators.shift();
+    if (spawnX !== null && spawnY !== null) {
+        x = spawnX;
+        y = spawnY;
     } else {
-        // Fallback to random edge spawn
+        // Random edge spawn
         const side = Math.floor(Math.random() * 4);
         switch(side) {
-            case 0: x = -50; y = Math.random() * canvas.height; break;
-            case 1: x = canvas.width + 50; y = Math.random() * canvas.height; break;
-            case 2: x = Math.random() * canvas.width; y = -50; break;
-            case 3: x = Math.random() * canvas.width; y = canvas.height + 50; break;
+            case 0: x = 50; y = Math.random() * (canvas.height - 100) + 50; break;
+            case 1: x = canvas.width - 50; y = Math.random() * (canvas.height - 100) + 50; break;
+            case 2: x = Math.random() * (canvas.width - 100) + 50; y = 50; break;
+            case 3: x = Math.random() * (canvas.width - 100) + 50; y = canvas.height - 50; break;
         }
     }
     
-    const health = waveConfig.isBoss ? 
+    const health = isBoss ? 
         waveConfig.monsterHealth * monsterType.healthMultiplier : 
         Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
     
-    const damage = waveConfig.isBoss ?
+    const damage = isBoss ?
         waveConfig.monsterDamage * monsterType.damageMultiplier :
         Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
     
     const monster = {
         x, y,
-        radius: waveConfig.isBoss ? 45 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
+        radius: isBoss ? 45 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
         health: health,
         maxHealth: health,
         damage: damage,
-        speed: (waveConfig.isBoss ? 0.8 : (1 + wave * 0.1)) * monsterType.speed,
+        speed: (isBoss ? 0.8 : (1 + wave * 0.1)) * monsterType.speed,
         color: monsterType.color,
         type: monsterType.name,
         monsterType: monsterType,
         lastAttack: 0,
         attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        isBoss: waveConfig.isBoss || monsterType.isBoss || false,
+        isBoss: isBoss || monsterType.isBoss || false,
         
         // Status effects
         slowed: false,
@@ -971,19 +963,7 @@ function updateUI() {
     }
     
     monsterCount.textContent = `Monsters: ${monsters.length}`;
-    
-    // Show countdown during initial delay
-    if (waveStartDelayed) {
-        const timeSinceStart = Date.now() - (window.waveStartTime || Date.now());
-        const remaining = Math.max(0, 7000 - timeSinceStart);
-        if (remaining > 0) {
-            monsterCount.textContent = `Wave starts in: ${Math.ceil(remaining/1000)}s`;
-        }
-    }
 }
-
-// Store wave start time for countdown display
-window.waveStartTime = 0;
 
 function updateWeaponDisplay() {
     weaponsGrid.innerHTML = '';
@@ -2363,8 +2343,8 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    // Wave completion check - only if not in initial delay
-    if (waveActive && !waveStartDelayed && monsters.length === 0 && spawnIndicators.length === 0) {
+    // Wave completion check
+    if (waveActive && monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
         endWave();
     }
