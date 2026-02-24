@@ -860,7 +860,7 @@ function startWave() {
     // Show spawn indicators
     showSpawnIndicators();
     
-    // Spawn safety monster IMMEDIATELY to prevent wave completion
+    // SPAWN SAFETY MONSTER IMMEDIATELY - This prevents wave from ending
     spawnSafetyMonster();
     
     // Store monster count
@@ -1025,11 +1025,11 @@ function updateUI() {
         healthFill.style.background = 'linear-gradient(90deg, #ff416c, #ff4b2b)';
     }
     
-    // Show monster count (excluding safety monster from count if desired)
+    // Show monster count with safety monster info
     const realMonsters = monsters.filter(m => !m.isSafetyMonster).length;
     if (safetyMonster) {
         const timeLeft = Math.max(0, Math.ceil((10000 - (Date.now() - waveStartTime)) / 1000));
-        monsterCount.textContent = `Monsters: ${realMonsters} | Spawning: ${timeLeft}s`;
+        monsterCount.textContent = `Monsters: ${realMonsters} | Safety: ${timeLeft}s`;
     } else {
         monsterCount.textContent = `Monsters: ${realMonsters}`;
     }
@@ -2438,9 +2438,9 @@ function updateGame(deltaTime) {
         }
     }
     
-    // Wave completion check - only real monsters count
-    const realMonsters = monsters.filter(m => !m.isSafetyMonster).length;
-    if (waveActive && realMonsters === 0 && spawnIndicators.length === 0) {
+    // WAVE COMPLETION CHECK - Includes safety monster!
+    // This will only trigger when ALL monsters (including safety monster) are dead
+    if (waveActive && monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
         endWave();
     }
