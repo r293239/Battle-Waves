@@ -70,14 +70,14 @@ const MONSTER_TYPES = {
         projectileDamage: 20,
         projectileCooldown: 1800
     },
-    // Add this inside the MONSTER_TYPES object (around line 50-60)
+    // SAFETY MONSTER - Added to prevent premature wave completion
     SAFETY: {
         name: 'Safety',
-        color: 'rgba(255, 255, 255, 0.01)', // Almost invisible
+        color: 'rgba(255, 255, 255, 0.1)',
         speed: 0,
         healthMultiplier: 1000000, // Massive health
         damageMultiplier: 0, // No damage
-        sizeMultiplier: 0.1, // Tiny
+        sizeMultiplier: 0.2, // Tiny
         icon: '⬤',
         isSafety: true,
         selfDestructTimer: 10000 // Dies after 10 seconds
@@ -777,14 +777,12 @@ function showSpawnIndicators() {
 }
 
 function spawnSafetyMonster() {
-    // Create an invincible monster far off-screen that slowly dies over 10 seconds
-    const safetyMonsterHealth = 1000000; // Effectively invincible
-    const damagePerSecond = 100000; // Will die in exactly 10 seconds
+    const safetyType = MONSTER_TYPES.SAFETY;
     
     // Choose a random side far off-screen
     const side = Math.floor(Math.random() * 4);
     let x, y;
-    const offScreenDistance = 500; // Way off-screen
+    const offScreenDistance = 500;
     
     switch(side) {
         case 0: x = -offScreenDistance; y = Math.random() * canvas.height; break;
@@ -793,34 +791,38 @@ function spawnSafetyMonster() {
         case 3: x = Math.random() * canvas.width; y = canvas.height + offScreenDistance; break;
     }
     
-    safetyMonster = {
-        x: x,
-        y: y,
-        radius: 1, // Tiny - barely visible
-        health: safetyMonsterHealth,
-        maxHealth: safetyMonsterHealth,
-        damage: 0, // Does no damage
-        speed: 0, // Doesn't move
-        color: 'rgba(255, 255, 255, 0.1)', // Almost invisible
-        type: 'Safety Monster',
-        monsterType: null,
+    const health = 1000000; // 1 million health
+    const damage = 0;
+    
+    const safetyMonsterObj = {
+        x, y,
+        radius: 5, // Small but visible enough to be counted
+        health: health,
+        maxHealth: health,
+        damage: damage,
+        speed: 0,
+        color: 'rgba(255, 255, 255, 0.1)',
+        type: 'Safety',
+        monsterType: safetyType,
         lastAttack: 0,
         attackCooldown: 999999,
         isBoss: false,
-        isSafetyMonster: true,
-        damagePerSecond: damagePerSecond,
+        isSafety: true,
+        originalSpeed: 0,
         spawnTime: Date.now()
     };
     
-    monsters.push(safetyMonster);
-    console.log("Safety monster spawned - will die in 10 seconds");
+    monsters.push(safetyMonsterObj);
+    safetyMonster = safetyMonsterObj;
+    console.log("Safety monster spawned with 1M health - will die in 10 seconds");
     
-    // Set timer to ensure it dies after 10 seconds
+    // Set timer to kill it after 10 seconds
     safetyMonsterTimer = setTimeout(() => {
-        // Find and remove the safety monster
-        const index = monsters.findIndex(m => m.isSafetyMonster);
+        // Find and kill the safety monster
+        const index = monsters.findIndex(m => m.isSafety);
         if (index !== -1) {
-            monsters.splice(index, 1);
+            monsters[index].health = 0; // Kill it
+            monsters.splice(index, 1); // Remove it
             console.log("Safety monster died");
         }
         safetyMonster = null;
@@ -908,7 +910,7 @@ function startWave() {
                     monsters.push(monster);
                 }
             }
-            console.log(`${monsters.length - 1} real monsters spawned (plus safety monster)`);
+            console.log(`${monsterCount} real monsters spawned (plus safety monster)`);
         }
         
         // Clear indicators after spawning
@@ -998,7 +1000,7 @@ function createMonster(isBoss, spawnX, spawnY) {
         isGunner: monsterType === MONSTER_TYPES.GUNNER,
         
         originalSpeed: monsterType.speed,
-        isSafetyMonster: false
+        isSafety: false
     };
     
     // Add spawn effect
@@ -1038,7 +1040,7 @@ function updateUI() {
     }
     
     // Show monster count with safety monster info
-    const realMonsters = monsters.filter(m => !m.isSafetyMonster).length;
+    const realMonsters = monsters.filter(m => !m.isSafety).length;
     if (safetyMonster) {
         const timeLeft = Math.max(0, Math.ceil((10000 - (Date.now() - waveStartTime)) / 1000));
         monsterCount.textContent = `Monsters: ${realMonsters} | Safety: ${timeLeft}s`;
@@ -2430,26 +2432,6 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    // Check if safety monster should take damage over time
-    if (safetyMonster) {
-        const timeAlive = currentTime - waveStartTime;
-        // Health decreases over 10 seconds
-        safetyMonster.health = Math.max(0, 1000000 - (timeAlive * 100000));
-        
-        // Remove safety monster if dead
-        if (safetyMonster.health <= 0) {
-            const index = monsters.findIndex(m => m.isSafetyMonster);
-            if (index !== -1) {
-                monsters.splice(index, 1);
-            }
-            safetyMonster = null;
-            if (safetyMonsterTimer) {
-                clearTimeout(safetyMonsterTimer);
-                safetyMonsterTimer = null;
-            }
-        }
-    }
-    
     // WAVE COMPLETION CHECK - Includes safety monster!
     // This will only trigger when ALL monsters (including safety monster) are dead
     if (waveActive && monsters.length === 0 && spawnIndicators.length === 0) {
@@ -2467,7 +2449,7 @@ function updateWeapons() {
         if (!weapon) return;
         
         // Only target real monsters, not safety monster
-        const realMonsters = monsters.filter(m => !m.isSafetyMonster);
+        const realMonsters = monsters.filter(m => !m.isSafety);
         if (realMonsters.length === 0) return;
         
         // Apply attack speed multiplier
@@ -2706,7 +2688,7 @@ function updateProjectiles() {
             let nextTargetDistance = Infinity;
             
             // Only target real monsters, not safety monster
-            const realMonsters = monsters.filter(m => !m.isSafetyMonster);
+            const realMonsters = monsters.filter(m => !m.isSafety);
             
             realMonsters.forEach(monster => {
                 if (projectile.targetsHit.includes(monster)) return;
@@ -2734,7 +2716,7 @@ function updateProjectiles() {
             const monster = monsters[j];
             
             // Skip safety monster - it shouldn't take damage
-            if (monster.isSafetyMonster) continue;
+            if (monster.isSafety) continue;
             
             const dx = projectile.x - monster.x;
             const dy = projectile.y - monster.y;
@@ -2901,7 +2883,7 @@ function updateMeleeAttacks() {
             const monster = monsters[j];
             
             // Skip safety monster
-            if (monster.isSafetyMonster) continue;
+            if (monster.isSafety) continue;
             
             const dx = monster.x - attack.x;
             const dy = monster.y - attack.y;
@@ -3037,7 +3019,7 @@ function updateMeleeAttacks() {
 function updateMonsters(currentTime) {
     monsters.forEach(monster => {
         // Skip safety monster - it doesn't move or attack
-        if (monster.isSafetyMonster) return;
+        if (monster.isSafety) return;
         
         if (monster.slowed && monster.slowUntil < currentTime) {
             monster.slowed = false;
@@ -3126,7 +3108,7 @@ function updateGroundEffects(currentTime) {
         
         monsters.forEach(monster => {
             // Skip safety monster
-            if (monster.isSafetyMonster) return;
+            if (monster.isSafety) return;
             
             const dx = monster.x - fire.x;
             const dy = monster.y - fire.y;
@@ -3151,7 +3133,7 @@ function updateGroundEffects(currentTime) {
         
         monsters.forEach(monster => {
             // Skip safety monster
-            if (monster.isSafetyMonster) return;
+            if (monster.isSafety) return;
             
             const dx = monster.x - cloud.x;
             const dy = monster.y - cloud.y;
@@ -3173,7 +3155,7 @@ function updateGroundEffects(currentTime) {
         
         monsters.forEach(monster => {
             // Skip safety monster
-            if (monster.isSafetyMonster) return;
+            if (monster.isSafety) return;
             
             const dx = monster.x - trap.x;
             const dy = monster.y - trap.y;
@@ -3290,7 +3272,7 @@ function drawMonsters() {
     
     monsters.forEach(monster => {
         // Skip drawing safety monster if it's too far off-screen
-        if (monster.isSafetyMonster && 
+        if (monster.isSafety && 
             (monster.x < -200 || monster.x > canvas.width + 200 || 
              monster.y < -200 || monster.y > canvas.height + 200)) {
             return; // Don't draw if too far off-screen
@@ -3300,7 +3282,7 @@ function drawMonsters() {
         ctx.translate(monster.x, monster.y);
         
         // Make safety monster almost invisible
-        if (monster.isSafetyMonster) {
+        if (monster.isSafety) {
             ctx.globalAlpha = 0.1;
         }
         
@@ -3332,7 +3314,7 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
-        if (monster.monsterType && monster.monsterType.icon && !monster.isSafetyMonster) {
+        if (monster.monsterType && monster.monsterType.icon && !monster.isSafety) {
             ctx.fillStyle = 'white';
             ctx.font = `${monster.radius}px Arial`;
             ctx.textAlign = 'center';
@@ -3341,7 +3323,7 @@ function drawMonsters() {
         }
         
         // Don't draw eyes for safety monster
-        if (!monster.isSafetyMonster) {
+        if (!monster.isSafety) {
             const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
             const eyeRadius = monster.radius * 0.2;
             
@@ -3370,7 +3352,7 @@ function drawMonsters() {
         }
         
         // Health bar - don't show for safety monster
-        if (!monster.isSafetyMonster) {
+        if (!monster.isSafety) {
             const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
             const barWidth = monster.radius * 2;
             const barHeight = 4;
