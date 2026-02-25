@@ -57,28 +57,17 @@ const MONSTER_TYPES = {
         projectileColor: '#ff69b4',
         attackCooldown: 1500
     },
-    MINION: {
-        name: 'Minion',
-        color: '#9370db',
-        speed: 1.2,
-        healthMultiplier: 0.3,
-        damageMultiplier: 0.5,
-        sizeMultiplier: 0.6,
-        icon: '👾',
-        isMinion: true
-    },
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
         speed: 0.8,
-        healthMultiplier: 15,
-        damageMultiplier: 2.0,
-        sizeMultiplier: 2.2,
+        healthMultiplier: 20,
+        damageMultiplier: 2.5,
+        sizeMultiplier: 2.5,
         icon: '👑',
         isBoss: true,
-        lifeSteal: 0.1,
         projectileSpeed: 5,
-        projectileDamage: 15,
+        projectileDamage: 20,
         projectileCooldown: 1800
     }
 };
@@ -450,7 +439,6 @@ let refreshCount = 0;
 let refreshCost = 5;
 let waveActive = false;
 let waveStartTime = 0;
-let bossSlowField = null; // For wave 30 boss
 
 // Game Objects
 const player = {
@@ -556,23 +544,21 @@ function getWeaponById(id) {
 }
 
 function getWaveConfig(waveNumber) {
-    // This now simply returns the wave config from GAME_DATA
     if (waveNumber <= GAME_DATA.WAVES.length) {
         return GAME_DATA.WAVES[waveNumber - 1];
     } else {
-        // For waves beyond the defined ones, scale up
+        // For waves beyond 30, scale up progressively
         const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
         const extraWaves = waveNumber - GAME_DATA.WAVES.length;
-        const scaleFactor = 1 + extraWaves * 0.1;
+        const scaleFactor = 1 + extraWaves * 0.15;
         return {
             number: waveNumber,
             monsters: Math.floor(baseWave.monsters * scaleFactor),
             monsterHealth: Math.floor(baseWave.monsterHealth * scaleFactor),
             monsterDamage: Math.floor(baseWave.monsterDamage * scaleFactor),
             goldReward: Math.floor(baseWave.goldReward * scaleFactor),
-            isBoss: (waveNumber % 10 === 0),
-            minionChance: 0.3,
-            spawnDelay: Math.max(50, 200 - extraWaves * 5)
+            isBoss: (waveNumber % 10 === 0), // Boss every 10 waves
+            spawnDelay: Math.max(50, 200 - extraWaves * 5) // Faster spawns in later waves
         };
     }
 }
@@ -712,7 +698,6 @@ function initGame() {
     activeTraps = [];
     bossProjectiles = [];
     monsterProjectiles = [];
-    bossSlowField = null;
     
     monsters = [];
     player.projectiles = [];
@@ -746,9 +731,6 @@ function showSpawnIndicators() {
     spawnIndicators = [];
     
     let monsterCount = waveConfig.monsters;
-    if (waveConfig.minions) {
-        monsterCount += waveConfig.minions;
-    }
     
     for (let i = 0; i < monsterCount; i++) {
         // Spawn indicators around the edges of the screen
@@ -764,97 +746,25 @@ function showSpawnIndicators() {
         
         spawnIndicators.push({
             x, y,
-            timer: 3000,
+            timer: 2000,
             startTime: Date.now(),
             isBoss: waveConfig.isBoss && i === 0,
-            index: i,
-            scale: 1,
-            rotation: 0
+            index: i
         });
     }
-}
-
-function spawnMinions(count, type, centerX, centerY) {
-    for (let i = 0; i < count; i++) {
-        // Spawn minions in a cluster around the center
-        const angle = (i / count) * Math.PI * 2;
-        const distance = 80 + Math.random() * 50;
-        const x = centerX + Math.cos(angle) * distance;
-        const y = centerY + Math.sin(angle) * distance;
-        
-        const minion = createMonsterFromType(MONSTER_TYPES[type], false, x, y, true);
-        if (minion) {
-            minion.isMinion = true;
-            monsters.push(minion);
-        }
-    }
-}
-
-function createMonsterFromType(monsterType, isBoss, spawnX, spawnY, isMinion = false) {
-    const waveConfig = getWaveConfig(wave);
-    
-    let health, damage;
-    
-    if (isBoss) {
-        health = waveConfig.monsterHealth * monsterType.healthMultiplier;
-        damage = waveConfig.monsterDamage * monsterType.damageMultiplier;
-    } else if (isMinion) {
-        health = Math.floor(waveConfig.monsterHealth * 0.3);
-        damage = Math.floor(waveConfig.monsterDamage * 0.5);
-    } else {
-        health = Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
-        damage = Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
-    }
-    
-    const monster = {
-        x: spawnX,
-        y: spawnY,
-        radius: isBoss ? 45 : isMinion ? 12 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
-        health: health,
-        maxHealth: health,
-        damage: damage,
-        speed: (isBoss ? 0.7 : (1 + wave * 0.05)) * monsterType.speed,
-        color: monsterType.color,
-        type: monsterType.name,
-        monsterType: monsterType,
-        lastAttack: 0,
-        attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        isBoss: isBoss || monsterType.isBoss || false,
-        isMinion: isMinion,
-        lifeSteal: monsterType.lifeSteal || 0,
-        
-        // Status effects
-        slowed: false,
-        slowUntil: 0,
-        frozen: false,
-        frozenUntil: 0,
-        stunned: false,
-        stunnedUntil: 0,
-        
-        // Explosive properties
-        explosive: monsterType.explosive || false,
-        
-        // Gunner properties
-        isGunner: monsterType === MONSTER_TYPES.GUNNER,
-        
-        originalSpeed: monsterType.speed
-    };
-    
-    return monster;
 }
 
 function startWave() {
     gameState = 'wave';
     waveActive = true;
     waveStartTime = Date.now();
-    bossSlowField = null;
     
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.classList.remove('boss-wave');
     
     if (waveConfig.isBoss) {
-        waveDisplay.textContent = `BOSS WAVE ${wave} - ELITE BOSS!`;
+        waveDisplay.textContent = `BOSS WAVE ${wave} - TANKY BOSS!`;
         waveDisplay.classList.add('boss-wave');
     }
     
@@ -881,93 +791,153 @@ function startWave() {
     // Show spawn indicators
     showSpawnIndicators();
     
-    // Spawn monsters after indicator delay
+    // Spawn monsters after a short delay
     setTimeout(() => {
+        const monsterCount = waveConfig.monsters;
+        const spawnDelay = waveConfig.spawnDelay || 200;
+        
         if (waveConfig.isBoss) {
-            // Spawn boss at center
-            const boss = createMonsterFromType(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
-            if (boss) {
-                boss.lifeSteal = 0.1; // Add life steal to boss
-                monsters.push(boss);
-                
-                // Add dramatic spawn effect for boss
-                addVisualEffect({
-                    type: 'bossSpawn',
-                    x: boss.x,
-                    y: boss.y,
-                    radius: 100,
-                    startTime: Date.now(),
-                    duration: 1000
-                });
-                
-                // Spawn minions if configured
-                if (waveConfig.minions) {
-                    spawnMinions(waveConfig.minions, waveConfig.minionType || 'MINION', boss.x, boss.y);
-                }
+            // Boss spawns immediately
+            for (let i = 0; i < monsterCount; i++) {
+                spawnMonster();
             }
+            spawnIndicators = [];
         } else {
-            // Regular wave with possible minions
-            const monsterCount = waveConfig.monsters;
-            const spawnDelay = waveConfig.spawnDelay || 150;
+            // Staggered spawning for regular monsters
+            let spawnedCount = 0;
             
             for (let i = 0; i < monsterCount; i++) {
                 setTimeout(() => {
                     if (gameState === 'wave') {
-                        let monsterType;
-                        
-                        // Determine if this monster should be a minion
-                        const isMinion = waveConfig.minionChance ? Math.random() < waveConfig.minionChance : false;
-                        
-                        if (isMinion) {
-                            monsterType = MONSTER_TYPES.MINION;
-                        } else {
-                            const rand = Math.random();
-                            if (wave < 3) {
-                                monsterType = MONSTER_TYPES.NORMAL;
-                            } else if (wave < 6) {
-                                if (rand < 0.4) monsterType = MONSTER_TYPES.NORMAL;
-                                else if (rand < 0.6) monsterType = MONSTER_TYPES.FAST;
-                                else if (rand < 0.8) monsterType = MONSTER_TYPES.TANK;
-                                else monsterType = MONSTER_TYPES.EXPLOSIVE;
-                            } else if (wave < 10) {
-                                if (rand < 0.25) monsterType = MONSTER_TYPES.NORMAL;
-                                else if (rand < 0.4) monsterType = MONSTER_TYPES.FAST;
-                                else if (rand < 0.55) monsterType = MONSTER_TYPES.TANK;
-                                else if (rand < 0.7) monsterType = MONSTER_TYPES.EXPLOSIVE;
-                                else if (rand < 0.85) monsterType = MONSTER_TYPES.GUNNER;
-                                else monsterType = MONSTER_TYPES.MINION;
-                            } else {
-                                if (rand < 0.15) monsterType = MONSTER_TYPES.NORMAL;
-                                else if (rand < 0.3) monsterType = MONSTER_TYPES.FAST;
-                                else if (rand < 0.45) monsterType = MONSTER_TYPES.TANK;
-                                else if (rand < 0.6) monsterType = MONSTER_TYPES.EXPLOSIVE;
-                                else if (rand < 0.75) monsterType = MONSTER_TYPES.GUNNER;
-                                else monsterType = MONSTER_TYPES.MINION;
-                            }
-                        }
-                        
                         // Use indicator position if available
                         if (spawnIndicators.length > i) {
                             const indicator = spawnIndicators[i];
-                            const monster = createMonsterFromType(monsterType, false, indicator.x, indicator.y, isMinion);
-                            if (monster) {
-                                monsters.push(monster);
-                            }
+                            spawnMonster(false, indicator.x, indicator.y);
+                        } else {
+                            spawnMonster(false);
+                        }
+                        spawnedCount++;
+                        
+                        // Clear indicators when last monster spawns
+                        if (spawnedCount >= monsterCount) {
+                            spawnIndicators = [];
                         }
                     }
                 }, i * spawnDelay);
             }
-            
-            // Clear indicators after all monsters have spawned
-            setTimeout(() => {
-                spawnIndicators = [];
-            }, monsterCount * spawnDelay + 500);
         }
-    }, 3000); // Wait 3 seconds for indicators
+    }, 2000); // Wait 2 seconds for indicators to show
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
-    }, 3500);
+    }, 2500);
+}
+
+function spawnMonster(isBoss = false, spawnX = null, spawnY = null) {
+    const waveConfig = getWaveConfig(wave);
+    
+    let monsterType;
+    
+    if (isBoss || waveConfig.isBoss) {
+        monsterType = MONSTER_TYPES.BOSS;
+    } else {
+        const rand = Math.random();
+        if (wave < 3) {
+            monsterType = MONSTER_TYPES.NORMAL;
+        } else if (wave < 6) {
+            if (rand < 0.5) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.7) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.9) monsterType = MONSTER_TYPES.TANK;
+            else monsterType = MONSTER_TYPES.EXPLOSIVE;
+        } else if (wave < 10) {
+            if (rand < 0.3) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.45) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.6) monsterType = MONSTER_TYPES.TANK;
+            else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
+            else monsterType = MONSTER_TYPES.GUNNER;
+        } else if (wave < 15) {
+            if (rand < 0.25) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.4) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.55) monsterType = MONSTER_TYPES.TANK;
+            else if (rand < 0.7) monsterType = MONSTER_TYPES.EXPLOSIVE;
+            else if (rand < 0.85) monsterType = MONSTER_TYPES.GUNNER;
+            else monsterType = MONSTER_TYPES.BOSS;
+        } else {
+            if (rand < 0.2) monsterType = MONSTER_TYPES.NORMAL;
+            else if (rand < 0.35) monsterType = MONSTER_TYPES.FAST;
+            else if (rand < 0.5) monsterType = MONSTER_TYPES.TANK;
+            else if (rand < 0.65) monsterType = MONSTER_TYPES.EXPLOSIVE;
+            else if (rand < 0.8) monsterType = MONSTER_TYPES.GUNNER;
+            else monsterType = MONSTER_TYPES.BOSS;
+        }
+    }
+    
+    let x, y;
+    
+    if (spawnX !== null && spawnY !== null) {
+        x = spawnX;
+        y = spawnY;
+    } else {
+        // Random edge spawn
+        const side = Math.floor(Math.random() * 4);
+        switch(side) {
+            case 0: x = 50; y = Math.random() * (canvas.height - 100) + 50; break;
+            case 1: x = canvas.width - 50; y = Math.random() * (canvas.height - 100) + 50; break;
+            case 2: x = Math.random() * (canvas.width - 100) + 50; y = 50; break;
+            case 3: x = Math.random() * (canvas.width - 100) + 50; y = canvas.height - 50; break;
+        }
+    }
+    
+    const health = waveConfig.isBoss ? 
+        waveConfig.monsterHealth * monsterType.healthMultiplier : 
+        Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
+    
+    const damage = waveConfig.isBoss ?
+        waveConfig.monsterDamage * monsterType.damageMultiplier :
+        Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
+    
+    const monster = {
+        x, y,
+        radius: waveConfig.isBoss ? 45 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
+        health: health,
+        maxHealth: health,
+        damage: damage,
+        speed: (waveConfig.isBoss ? 0.8 : (1 + wave * 0.1)) * monsterType.speed,
+        color: monsterType.color,
+        type: monsterType.name,
+        monsterType: monsterType,
+        lastAttack: 0,
+        attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
+        isBoss: waveConfig.isBoss || monsterType.isBoss || false,
+        
+        // Status effects
+        slowed: false,
+        slowUntil: 0,
+        frozen: false,
+        frozenUntil: 0,
+        stunned: false,
+        stunnedUntil: 0,
+        
+        // Explosive properties
+        explosive: monsterType.explosive || false,
+        
+        // Gunner properties
+        isGunner: monsterType === MONSTER_TYPES.GUNNER,
+        
+        originalSpeed: monsterType.speed
+    };
+    
+    monsters.push(monster);
+    
+    // Add spawn effect
+    addVisualEffect({
+        type: 'spawn',
+        x: x,
+        y: y,
+        color: monsterType.color,
+        startTime: Date.now(),
+        duration: 300
+    });
 }
 
 // ============================================
@@ -1586,7 +1556,6 @@ function gameLoop() {
     drawMeleeAttacks();
     drawVisualEffects();
     drawGroundEffects();
-    drawSlowField();
     drawPlayer();
     
     if (gameState === 'wave' || gameState === 'shop' || gameState === 'statSelect') {
@@ -1621,101 +1590,38 @@ function drawSpawnIndicators() {
     for (let i = spawnIndicators.length - 1; i >= 0; i--) {
         const indicator = spawnIndicators[i];
         const elapsed = currentTime - indicator.startTime;
-        const progress = elapsed / indicator.timer;
         
         if (elapsed > indicator.timer) {
             spawnIndicators.splice(i, 1);
             continue;
         }
         
-        // Animate the indicator
-        const pulseScale = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
-        const alpha = 1 - progress * 0.5;
-        
         ctx.save();
         ctx.translate(indicator.x, indicator.y);
         
         if (indicator.isBoss) {
-            // Boss indicator - more dramatic
-            ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+            ctx.strokeStyle = '#ffd700';
             ctx.lineWidth = 4;
             ctx.shadowColor = '#ffd700';
-            ctx.shadowBlur = 20 * alpha;
-            
-            // Rotating rings
-            ctx.rotate(elapsed * 0.002);
-            
-            // Outer ring
-            ctx.beginPath();
-            ctx.arc(0, 0, 40 * pulseScale, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Inner ring
-            ctx.beginPath();
-            ctx.arc(0, 0, 25, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Cross
-            ctx.rotate(-elapsed * 0.002);
-            ctx.beginPath();
-            ctx.moveTo(-30, -30);
-            ctx.lineTo(30, 30);
-            ctx.moveTo(30, -30);
-            ctx.lineTo(-30, 30);
-            ctx.stroke();
+            ctx.shadowBlur = 10;
         } else {
-            // Regular monster indicator
-            ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
+            ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 3;
-            ctx.shadowColor = '#ff0000';
-            ctx.shadowBlur = 10 * alpha;
-            
-            // Pulsing circle
-            ctx.beginPath();
-            ctx.arc(0, 0, 25 * pulseScale, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // X marker
-            ctx.beginPath();
-            ctx.moveTo(-15, -15);
-            ctx.lineTo(15, 15);
-            ctx.moveTo(15, -15);
-            ctx.lineTo(-15, 15);
-            ctx.stroke();
         }
         
-        ctx.restore();
-    }
-}
-
-function drawSlowField() {
-    if (bossSlowField) {
-        const timeAlive = Date.now() - bossSlowField.startTime;
-        if (timeAlive > 5000) {
-            bossSlowField = null;
-            return;
-        }
+        ctx.lineCap = 'round';
         
-        const alpha = 0.3 * (1 - timeAlive / 5000);
-        ctx.save();
-        ctx.translate(bossSlowField.x, bossSlowField.y);
-        
-        // Pulsing slow field
-        const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
-        
-        ctx.fillStyle = `rgba(100, 100, 255, ${alpha})`;
-        ctx.shadowColor = '#6464ff';
-        ctx.shadowBlur = 30;
         ctx.beginPath();
-        ctx.arc(0, 0, bossSlowField.radius * pulse, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(-15, -15);
+        ctx.lineTo(15, 15);
+        ctx.moveTo(15, -15);
+        ctx.lineTo(-15, 15);
+        ctx.stroke();
         
-        // Inner ring
-        ctx.strokeStyle = `rgba(200, 200, 255, ${alpha})`;
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = 20;
         ctx.beginPath();
-        ctx.arc(0, 0, bossSlowField.radius * 0.7, 0, Math.PI * 2);
+        ctx.arc(0, 0, indicator.isBoss ? 30 : 20, 0, Math.PI * 2);
+        ctx.strokeStyle = indicator.isBoss ? 'rgba(255, 215, 0, 0.5)' : 'rgba(255, 0, 0, 0.3)';
+        ctx.lineWidth = indicator.isBoss ? 3 : 2;
         ctx.stroke();
         
         ctx.restore();
@@ -1741,27 +1647,22 @@ function drawProjectiles() {
         } else if (projectile.weaponId === 'machinegun') {
             drawMachinegunProjectile(ctx, projectile, currentTime);
         } else {
-            // Default projectile with trail
-            const age = currentTime - projectile.startTime;
-            const alpha = Math.min(1, 1 - age / 500);
-            
+            // Default projectile
             ctx.shadowColor = projectile.color;
             ctx.shadowBlur = 15;
             ctx.fillStyle = projectile.color;
             ctx.beginPath();
-            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 3 : 5, 0, Math.PI * 2);
+            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
             ctx.fill();
             
-            // Trail
-            ctx.shadowBlur = 10;
-            ctx.globalAlpha = alpha * 0.5;
-            for (let i = 1; i <= 3; i++) {
-                ctx.beginPath();
-                ctx.arc(projectile.x - Math.cos(projectile.angle) * i * 8, 
-                        projectile.y - Math.sin(projectile.angle) * i * 8, 
-                        projectile.isPellet ? 2 : 3, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = projectile.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+                      projectile.y - Math.sin(projectile.angle) * 10);
+            ctx.lineTo(projectile.x, projectile.y);
+            ctx.stroke();
         }
         
         ctx.restore();
@@ -1769,18 +1670,13 @@ function drawProjectiles() {
 }
 
 function drawMonsterProjectiles() {
-    const currentTime = Date.now();
-    
     monsterProjectiles.forEach(proj => {
-        const age = currentTime - proj.startTime;
-        const alpha = Math.min(1, 1 - age / 3000);
-        
         ctx.save();
         ctx.translate(proj.x, proj.y);
         
-        // Draw gunner projectile with glow
+        // Draw gunner projectile
         ctx.shadowColor = proj.color;
-        ctx.shadowBlur = 15 * alpha;
+        ctx.shadowBlur = 15;
         ctx.fillStyle = proj.color;
         ctx.beginPath();
         ctx.arc(0, 0, 5, 0, Math.PI * 2);
@@ -1788,7 +1684,6 @@ function drawMonsterProjectiles() {
         
         // Inner core
         ctx.fillStyle = '#FFFFFF';
-        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.arc(0, 0, 2, 0, Math.PI * 2);
         ctx.fill();
@@ -1798,36 +1693,31 @@ function drawMonsterProjectiles() {
 }
 
 function drawBossProjectiles() {
-    const currentTime = Date.now();
-    
     bossProjectiles.forEach(proj => {
-        const age = currentTime - proj.startTime;
-        const alpha = Math.min(1, 1 - age / 3000);
-        
         ctx.save();
         ctx.translate(proj.x, proj.y);
         
-        // Draw boss projectile with dramatic effect
+        // Draw boss projectile
         ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 20 * alpha;
+        ctx.shadowBlur = 15;
         
         // Outer glow
-        ctx.fillStyle = `rgba(255, 136, 136, ${alpha})`;
+        ctx.fillStyle = '#ff8888';
         ctx.beginPath();
-        ctx.arc(0, 0, proj.radius + 3, 0, Math.PI * 2);
+        ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
         ctx.fill();
         
         // Inner projectile
         ctx.fillStyle = proj.color;
-        ctx.shadowBlur = 25;
+        ctx.shadowBlur = 20;
         ctx.beginPath();
         ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Skull icon
+        // Skull icon for boss projectiles
         ctx.fillStyle = '#000000';
         ctx.shadowBlur = 0;
-        ctx.font = '14px Arial';
+        ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('💀', 0, 0);
@@ -1837,10 +1727,12 @@ function drawBossProjectiles() {
 }
 
 function drawBoomerangProjectile(ctx, projectile, currentTime) {
-    const rotation = (projectile.rotation || 0) + 0.15;
+    // Boomerang with spinning animation using PNG
+    const rotation = (projectile.rotation || 0) + 0.1;
     projectile.rotation = rotation;
     
     if (boomerangImage.complete && boomerangImage.naturalHeight > 0) {
+        // Draw the PNG image
         ctx.save();
         ctx.translate(projectile.x, projectile.y);
         ctx.rotate(rotation);
@@ -1854,18 +1746,18 @@ function drawBoomerangProjectile(ctx, projectile, currentTime) {
             ctx.save();
             ctx.globalAlpha = 0.3;
             for (let i = 1; i <= 3; i++) {
-                const trailX = projectile.x - Math.cos(projectile.angle) * i * 8;
-                const trailY = projectile.y - Math.sin(projectile.angle) * i * 8;
+                const trailX = projectile.x - Math.cos(projectile.angle) * i * 5;
+                const trailY = projectile.y - Math.sin(projectile.angle) * i * 5;
                 ctx.save();
                 ctx.translate(trailX, trailY);
-                ctx.rotate(rotation - i * 0.15);
+                ctx.rotate(rotation - i * 0.1);
                 ctx.drawImage(boomerangImage, -15, -15, 30, 30);
                 ctx.restore();
             }
             ctx.restore();
         }
     } else {
-        // Fallback drawing
+        // Fallback drawing if image not loaded
         ctx.save();
         ctx.translate(projectile.x, projectile.y);
         ctx.rotate(rotation);
@@ -1873,25 +1765,22 @@ function drawBoomerangProjectile(ctx, projectile, currentTime) {
         ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
         ctx.shadowBlur = 15;
         
-        const gradient = ctx.createLinearGradient(-15, -5, 15, 5);
-        gradient.addColorStop(0, '#8B4513');
-        gradient.addColorStop(0.5, '#CD7F32');
-        gradient.addColorStop(1, '#8B4513');
-        
-        ctx.fillStyle = gradient;
+        // Boomerang shape
+        ctx.fillStyle = '#8B4513';
         ctx.strokeStyle = '#654321';
         ctx.lineWidth = 2;
         
         ctx.beginPath();
-        ctx.moveTo(-15, -5);
-        ctx.lineTo(0, -15);
-        ctx.lineTo(15, -5);
-        ctx.lineTo(5, 5);
-        ctx.lineTo(-5, 5);
+        ctx.moveTo(0, -5);
+        ctx.lineTo(20, -10);
+        ctx.lineTo(25, 0);
+        ctx.lineTo(20, 10);
+        ctx.lineTo(0, 5);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         
+        // Edge highlight when returning
         if (projectile.state === 'returning') {
             ctx.strokeStyle = '#FFD700';
             ctx.lineWidth = 2;
@@ -1905,38 +1794,33 @@ function drawBoomerangProjectile(ctx, projectile, currentTime) {
 }
 
 function drawShotgunPellet(ctx, projectile, currentTime) {
-    const age = currentTime - projectile.startTime;
-    const alpha = Math.min(1, 1 - age / 300);
-    
     ctx.shadowColor = projectile.color;
-    ctx.shadowBlur = 10 * alpha;
+    ctx.shadowBlur = 10;
     ctx.fillStyle = projectile.color;
     ctx.beginPath();
-    ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+    ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
     ctx.fill();
     
-    // Spark trail
+    // Tiny trail
     ctx.shadowBlur = 5;
-    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-    for (let i = 1; i <= 2; i++) {
-        ctx.beginPath();
-        ctx.arc(projectile.x - Math.cos(projectile.angle) * i * 6, 
-                projectile.y - Math.sin(projectile.angle) * i * 6, 
-                2, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.arc(projectile.x - Math.cos(projectile.angle) * 5, 
+            projectile.y - Math.sin(projectile.angle) * 5, 2, 0, Math.PI * 2);
+    ctx.fill();
 }
 
 function drawLaserProjectile(ctx, projectile, currentTime) {
-    const pulse = Math.sin(currentTime * 0.02) * 3 + 4;
+    // Laser beam with pulsing effect
+    const pulse = Math.sin(currentTime * 0.02) * 2;
     
     ctx.shadowColor = '#00FFFF';
     ctx.shadowBlur = 20;
     ctx.strokeStyle = '#00FFFF';
-    ctx.lineWidth = pulse;
+    ctx.lineWidth = 4 + pulse;
     ctx.beginPath();
-    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 15, 
-               projectile.y - Math.sin(projectile.angle) * 15);
+    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+               projectile.y - Math.sin(projectile.angle) * 10);
     ctx.lineTo(projectile.x, projectile.y);
     ctx.stroke();
     
@@ -1944,8 +1828,8 @@ function drawLaserProjectile(ctx, projectile, currentTime) {
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 15, 
-               projectile.y - Math.sin(projectile.angle) * 15);
+    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, 
+               projectile.y - Math.sin(projectile.angle) * 10);
     ctx.lineTo(projectile.x, projectile.y);
     ctx.stroke();
     
@@ -1953,35 +1837,33 @@ function drawLaserProjectile(ctx, projectile, currentTime) {
     ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
     ctx.shadowBlur = 30;
     ctx.beginPath();
-    ctx.arc(projectile.x, projectile.y, 8, 0, Math.PI * 2);
+    ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
     ctx.fill();
 }
 
 function drawMachinegunProjectile(ctx, projectile, currentTime) {
-    const age = currentTime - projectile.startTime;
-    const alpha = Math.min(1, 1 - age / 200);
-    
+    // Fast bullet with trail
     ctx.shadowColor = '#FFD700';
-    ctx.shadowBlur = 15 * alpha;
+    ctx.shadowBlur = 15;
     ctx.fillStyle = '#FFD700';
     ctx.beginPath();
-    ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+    ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
     ctx.fill();
     
-    // Speed trail
-    for (let i = 1; i <= 4; i++) {
-        const trailAlpha = alpha * (0.5 - i * 0.1);
-        ctx.fillStyle = `rgba(255, 215, 0, ${trailAlpha})`;
+    // Trail
+    for (let i = 1; i <= 3; i++) {
+        const alpha = 0.3 - i * 0.1;
+        ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
         ctx.beginPath();
-        ctx.arc(projectile.x - Math.cos(projectile.angle) * i * 10, 
-                projectile.y - Math.sin(projectile.angle) * i * 10, 
-                3 - i * 0.5, 0, Math.PI * 2);
+        ctx.arc(projectile.x - Math.cos(projectile.angle) * i * 8, 
+                projectile.y - Math.sin(projectile.angle) * i * 8, 
+                2, 0, Math.PI * 2);
         ctx.fill();
     }
 }
 
 // ============================================
-// MELEE WEAPON ANIMATIONS (Enhanced)
+// MELEE WEAPON ANIMATIONS
 // ============================================
 
 function drawMeleeAttacks() {
@@ -1997,10 +1879,6 @@ function drawMeleeAttacks() {
         const angle = attack.angle;
         const distance = attack.radius * (progress * 1.2);
         const alpha = 1 - progress * 0.7;
-        
-        // Add glow effect
-        ctx.shadowColor = attack.trailColor || '#FFFFFF';
-        ctx.shadowBlur = 15 * alpha;
         
         switch(attack.weaponId) {
             case 'sword':
@@ -2019,6 +1897,7 @@ function drawMeleeAttacks() {
                 drawTrident(ctx, attack, angle, progress, distance, alpha);
                 break;
             default:
+                // Default fallback
                 drawDefaultMelee(ctx, attack, angle, progress, distance, alpha);
                 break;
         }
@@ -2032,16 +1911,18 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     const currentAngle = angle - 0.5 + swingProgress * 1;
     
     ctx.rotate(currentAngle);
-    ctx.translate(10 + distance * 0.5, 0);
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+    ctx.shadowBlur = 10 * alpha;
     
-    // Blade with gradient
+    ctx.save();
+    ctx.translate(10, 0);
+    
     const gradient = ctx.createLinearGradient(0, -5, attack.radius * 0.9, -5);
     gradient.addColorStop(0, '#C0C0C0');
-    gradient.addColorStop(0.7, '#E8E8E8');
-    gradient.addColorStop(1, '#FFFFFF');
+    gradient.addColorStop(1, '#E8E8E8');
     
     ctx.fillStyle = gradient;
-    ctx.shadowColor = 'rgba(192, 192, 192, 0.7)';
+    ctx.shadowColor = 'rgba(192, 192, 192, 0.5)';
     ctx.shadowBlur = 15 * alpha;
     
     ctx.beginPath();
@@ -2052,7 +1933,6 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
-    // Edge highlight
     ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -2062,32 +1942,32 @@ function drawSword(ctx, attack, angle, progress, distance, alpha) {
     ctx.lineTo(attack.radius * 0.9, 2);
     ctx.stroke();
     
-    // Tip sparkle
     ctx.fillStyle = '#FFD700';
-    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
     ctx.beginPath();
-    ctx.arc(attack.radius * 0.9, 0, 4, 0, Math.PI * 2);
+    ctx.arc(attack.radius * 0.9, 0, 3, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
     
-    // Hilt
+    ctx.save();
     ctx.fillStyle = '#8B4513';
     ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
-    ctx.fillRect(-8, -4, 15, 8);
+    ctx.fillRect(-5, -4, 15, 8);
     
     ctx.fillStyle = '#B87333';
-    ctx.fillRect(-11, -6, 8, 12);
+    ctx.fillRect(-8, -8, 8, 16);
     
     ctx.fillStyle = '#CD7F32';
     ctx.beginPath();
-    ctx.arc(-13, 0, 6, 0, Math.PI * 2);
+    ctx.arc(-10, 0, 5, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
     
-    // Trail effect
-    if (progress < 0.3) {
+    if (progress < 0.5) {
         ctx.save();
         ctx.rotate(-0.2);
         ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(10, 0);
         ctx.lineTo(attack.radius * 0.7, 0);
@@ -2100,22 +1980,21 @@ function drawAxe(ctx, attack, angle, progress, distance, alpha) {
     const spinAngle = progress * Math.PI * 4;
     
     ctx.rotate(spinAngle);
-    ctx.shadowColor = 'rgba(139, 69, 19, 0.7)';
+    ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
     ctx.shadowBlur = 15 * alpha;
     
-    // Handle
+    ctx.save();
     ctx.fillStyle = '#654321';
     ctx.fillRect(-3, -attack.radius * 0.8, 6, attack.radius * 1.6);
+    ctx.restore();
     
-    // Axe head
     ctx.save();
     ctx.translate(0, -attack.radius * 0.4);
     ctx.rotate(-0.3);
     
-    const bladeGradient = ctx.createLinearGradient(0, -15, 35, -15);
+    const bladeGradient = ctx.createLinearGradient(0, -15, 30, -15);
     bladeGradient.addColorStop(0, '#8B4513');
-    bladeGradient.addColorStop(0.5, '#CD7F32');
-    bladeGradient.addColorStop(1, '#DEB887');
+    bladeGradient.addColorStop(1, '#CD7F32');
     
     ctx.fillStyle = bladeGradient;
     ctx.shadowColor = 'rgba(205, 127, 50, 0.7)';
@@ -2128,7 +2007,6 @@ function drawAxe(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
-    // Edge
     ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -2137,12 +2015,11 @@ function drawAxe(ctx, attack, angle, progress, distance, alpha) {
     ctx.stroke();
     ctx.restore();
     
-    // Shockwave for AOE
     if (attack.meleeType === 'aoe' && progress > 0.3 && progress < 0.7) {
         ctx.save();
         ctx.rotate(0);
         ctx.strokeStyle = `rgba(255, 165, 0, ${alpha * 0.5})`;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         const ringScale = 1 + (progress - 0.3) * 3;
         ctx.beginPath();
         ctx.arc(0, 0, attack.radius * ringScale, 0, Math.PI * 2);
@@ -2157,47 +2034,45 @@ function drawDagger(ctx, attack, angle, progress, distance, alpha) {
     
     ctx.rotate(angle);
     ctx.translate(stabDistance, 0);
-    ctx.shadowColor = 'rgba(70, 130, 180, 0.7)';
-    ctx.shadowBlur = 15 * alpha;
+    ctx.shadowColor = 'rgba(70, 130, 180, 0.5)';
+    ctx.shadowBlur = 10 * alpha;
     
-    // Blade
-    const bladeGradient = ctx.createLinearGradient(0, -3, 45, -3);
+    ctx.save();
+    const bladeGradient = ctx.createLinearGradient(0, -3, 40, -3);
     bladeGradient.addColorStop(0, '#4682B4');
-    bladeGradient.addColorStop(0.7, '#87CEEB');
-    bladeGradient.addColorStop(1, '#B0E0E6');
+    bladeGradient.addColorStop(1, '#87CEEB');
     
     ctx.fillStyle = bladeGradient;
     ctx.beginPath();
     ctx.moveTo(0, -3);
-    ctx.lineTo(45, -1);
-    ctx.lineTo(45, 1);
+    ctx.lineTo(40, -1);
+    ctx.lineTo(40, 1);
     ctx.lineTo(0, 3);
     ctx.closePath();
     ctx.fill();
     
-    // Edge
     ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, -3);
-    ctx.lineTo(45, -1);
+    ctx.lineTo(40, -1);
     ctx.moveTo(0, 3);
-    ctx.lineTo(45, 1);
+    ctx.lineTo(40, 1);
     ctx.stroke();
+    ctx.restore();
     
-    // Tip burst
     if (progress > 0.7) {
         ctx.save();
-        ctx.translate(45, 0);
+        ctx.translate(40, 0);
         ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
         ctx.shadowColor = 'rgba(0, 255, 255, 0.7)';
         ctx.beginPath();
-        ctx.arc(0, 0, 5 * (1 - progress), 0, Math.PI * 2);
+        ctx.arc(0, 0, 3 * (1 - progress), 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
     
-    // Hilt
+    ctx.save();
     ctx.fillStyle = '#2F4F4F';
     ctx.fillRect(-8, -4, 12, 8);
     
@@ -2206,50 +2081,50 @@ function drawDagger(ctx, attack, angle, progress, distance, alpha) {
     
     ctx.fillStyle = '#4682B4';
     ctx.beginPath();
-    ctx.arc(-12, 0, 5, 0, Math.PI * 2);
+    ctx.arc(-12, 0, 4, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 }
 
 function drawHammer(ctx, attack, angle, progress, distance, alpha) {
     ctx.rotate(angle);
     
-    const lift = Math.sin(progress * Math.PI) * 40;
-    const smashY = progress < 0.3 ? -lift : progress > 0.6 ? (progress - 0.6) * 50 : 0;
+    const lift = Math.sin(progress * Math.PI) * 30;
+    const smashY = progress < 0.3 ? -lift : progress > 0.6 ? (progress - 0.6) * 40 : 0;
     
-    ctx.translate(20, -40 + lift - smashY);
+    ctx.translate(20, -30 + lift - smashY);
     ctx.shadowColor = 'rgba(105, 105, 105, 0.7)';
     ctx.shadowBlur = 20 * alpha;
     
-    // Handle
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(-4, 0, 8, 60);
-    
-    // Hammer head
     ctx.save();
-    ctx.translate(0, -20);
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-3, 0, 6, 50);
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(0, -15);
     
     ctx.fillStyle = '#696969';
     ctx.shadowColor = 'rgba(105, 105, 105, 0.7)';
-    ctx.fillRect(-18, -18, 36, 25);
+    ctx.fillRect(-15, -15, 30, 20);
     
     ctx.fillStyle = '#808080';
-    ctx.fillRect(-22, -18, 8, 25);
-    ctx.fillRect(14, -18, 8, 25);
+    ctx.fillRect(-18, -15, 6, 20);
+    ctx.fillRect(12, -15, 6, 20);
     
     ctx.fillStyle = '#A9A9A9';
-    ctx.fillRect(-18, -23, 36, 5);
+    ctx.fillRect(-15, -20, 30, 5);
     ctx.restore();
     
-    // Impact shockwave
     if (progress > 0.5 && progress < 0.8) {
         ctx.save();
-        ctx.translate(0, 40);
+        ctx.translate(0, 0);
         ctx.rotate(0);
         const shockProgress = (progress - 0.5) * 3.33;
         ctx.strokeStyle = `rgba(255, 69, 0, ${alpha * (1 - shockProgress)})`;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(0, 0, attack.radius * shockProgress, 0, Math.PI * 2);
+        ctx.arc(0, 30, attack.radius * shockProgress, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
     }
@@ -2261,69 +2136,70 @@ function drawTrident(ctx, attack, angle, progress, distance, alpha) {
     
     ctx.rotate(angle);
     ctx.translate(thrustDistance, 0);
-    ctx.shadowColor = 'rgba(50, 205, 50, 0.7)';
+    ctx.shadowColor = 'rgba(50, 205, 50, 0.5)';
     ctx.shadowBlur = 15 * alpha;
     
-    // Shaft
+    ctx.save();
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(-3, -3, attack.radius + 30, 6);
+    ctx.fillRect(-3, -3, attack.radius + 20, 6);
     
-    // Prongs
     ctx.fillStyle = '#654321';
     for (let i = 0; i < 3; i++) {
-        ctx.fillRect(i * 20, -5, 3, 10);
+        ctx.fillRect(i * 20, -4, 2, 8);
     }
+    ctx.restore();
     
-    // Main prong
+    ctx.save();
+    ctx.translate(attack.radius + 10, 0);
+    
     ctx.fillStyle = '#CD7F32';
     ctx.beginPath();
-    ctx.moveTo(attack.radius + 15, -4);
-    ctx.lineTo(attack.radius + 30, -6);
-    ctx.lineTo(attack.radius + 30, 6);
-    ctx.lineTo(attack.radius + 15, 4);
+    ctx.moveTo(0, -2);
+    ctx.lineTo(20, -4);
+    ctx.lineTo(20, 4);
+    ctx.lineTo(0, 2);
     ctx.closePath();
     ctx.fill();
     
-    // Side prongs
     ctx.save();
-    ctx.translate(0, -10);
+    ctx.translate(0, -8);
     ctx.rotate(-0.1);
     ctx.beginPath();
-    ctx.moveTo(attack.radius + 10, -4);
-    ctx.lineTo(attack.radius + 25, -6);
-    ctx.lineTo(attack.radius + 25, 6);
-    ctx.lineTo(attack.radius + 10, 4);
+    ctx.moveTo(0, -2);
+    ctx.lineTo(18, -4);
+    ctx.lineTo(18, 4);
+    ctx.lineTo(0, 2);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
     
     ctx.save();
-    ctx.translate(0, 10);
+    ctx.translate(0, 8);
     ctx.rotate(0.1);
     ctx.beginPath();
-    ctx.moveTo(attack.radius + 10, -4);
-    ctx.lineTo(attack.radius + 25, -6);
-    ctx.lineTo(attack.radius + 25, 6);
-    ctx.lineTo(attack.radius + 10, 4);
+    ctx.moveTo(0, -2);
+    ctx.lineTo(18, -4);
+    ctx.lineTo(18, 4);
+    ctx.lineTo(0, 2);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
     
-    // Tips
     ctx.fillStyle = '#FFD700';
     ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
     
     ctx.beginPath();
-    ctx.arc(attack.radius + 30, 0, 4, 0, Math.PI * 2);
+    ctx.arc(20, 0, 3, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.beginPath();
-    ctx.arc(attack.radius + 25, -10, 4, 0, Math.PI * 2);
+    ctx.arc(18, -8, 3, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.beginPath();
-    ctx.arc(attack.radius + 25, 10, 4, 0, Math.PI * 2);
+    ctx.arc(18, 8, 3, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 }
 
 function drawDefaultMelee(ctx, attack, angle, progress, distance, alpha) {
@@ -2334,57 +2210,46 @@ function drawDefaultMelee(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = attack.color || '#FFFFFF';
     ctx.shadowBlur = 15 * alpha;
     ctx.beginPath();
-    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
     ctx.fill();
 }
 
 function drawGroundEffects() {
-    const currentTime = Date.now();
-    
     // Draw ground fire
     groundFire.forEach(fire => {
-        const progress = (currentTime - fire.startTime) / fire.duration;
+        const progress = (Date.now() - fire.startTime) / fire.duration;
         if (progress > 1) return;
         
         ctx.save();
-        ctx.globalAlpha = 0.7 * (1 - progress);
+        ctx.globalAlpha = 1 - progress * 0.5;
         ctx.fillStyle = '#FF4500';
         ctx.shadowColor = '#FF4500';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(fire.x, fire.y, fire.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner glow
+        ctx.fillStyle = '#FFD700';
         ctx.shadowBlur = 20;
-        
-        // Flickering fire effect
-        for (let i = 0; i < 5; i++) {
-            const offsetX = (Math.random() - 0.5) * 20;
-            const offsetY = (Math.random() - 0.5) * 20;
-            ctx.beginPath();
-            ctx.arc(fire.x + offsetX, fire.y + offsetY, fire.radius * 0.3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
+        ctx.beginPath();
+        ctx.arc(fire.x, fire.y, fire.radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
     });
     
     // Draw poison clouds
     poisonClouds.forEach(cloud => {
-        const progress = (currentTime - cloud.startTime) / cloud.duration;
+        const progress = (Date.now() - cloud.startTime) / cloud.duration;
         if (progress > 1) return;
         
         ctx.save();
         ctx.globalAlpha = 0.4 * (1 - progress);
         ctx.fillStyle = '#32CD32';
         ctx.shadowColor = '#32CD32';
-        ctx.shadowBlur = 25;
-        
-        // Swirling poison
+        ctx.shadowBlur = 20;
         ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2 + progress * 2;
-            const x = cloud.x + Math.cos(angle) * cloud.radius * 0.5;
-            const y = cloud.y + Math.sin(angle) * cloud.radius * 0.5;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
+        ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     });
@@ -2394,21 +2259,17 @@ function drawGroundEffects() {
         if (!trap.active) return;
         
         ctx.save();
-        // Pulsing trap
-        const pulse = Math.sin(Date.now() * 0.01) * 5 + 20;
-        
         ctx.fillStyle = '#FF0000';
         ctx.shadowColor = '#FF0000';
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.arc(trap.x, trap.y, pulse, 0, Math.PI * 2);
+        ctx.arc(trap.x, trap.y, 15, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = 10;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(trap.x, trap.y, 25, 0, Math.PI * 2);
+        ctx.arc(trap.x, trap.y, 20, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
     });
@@ -2418,20 +2279,12 @@ function drawPlayer() {
     ctx.save();
     ctx.translate(player.x, player.y);
     
-    // Player glow
-    ctx.shadowColor = 'rgba(255, 107, 107, 0.7)';
-    ctx.shadowBlur = 20;
+    ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
+    ctx.shadowBlur = 15;
     
-    // Player body
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Inner highlight
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.beginPath();
-    ctx.arc(-3, -3, player.radius * 0.3, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.shadowBlur = 0;
@@ -2441,16 +2294,15 @@ function drawPlayer() {
     ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
     ctx.stroke();
     
-    // Direction indicator
     const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-    const indicatorX = Math.cos(angle) * (player.radius + 8);
-    const indicatorY = Math.sin(angle) * (player.radius + 8);
+    const indicatorX = Math.cos(angle) * (player.radius + 5);
+    const indicatorY = Math.sin(angle) * (player.radius + 5);
     
     ctx.fillStyle = '#ffcc00';
-    ctx.shadowColor = 'rgba(255, 204, 0, 0.7)';
-    ctx.shadowBlur = 15;
+    ctx.shadowColor = 'rgba(255, 204, 0, 0.5)';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(indicatorX, indicatorY, 6, 0, Math.PI * 2);
+    ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.restore();
@@ -2479,17 +2331,6 @@ function updateGame(deltaTime) {
     if (player.bloodContract && currentTime - player.lastBloodDamage >= 5000) {
         player.health = Math.max(1, player.health - 1);
         player.lastBloodDamage = currentTime;
-    }
-    
-    // Apply slow field effect
-    if (bossSlowField && monsters.some(m => m.isBoss)) {
-        const dx = player.x - bossSlowField.x;
-        const dy = player.y - bossSlowField.y;
-        const distToField = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distToField < bossSlowField.radius) {
-            player.speed = Math.max(1, player.speed * 0.5);
-        }
     }
     
     updateWeapons();
@@ -2569,74 +2410,21 @@ function shootGunnerProjectile(gunner) {
     });
 }
 
-function shootBossProjectiles(boss) {
-    const waveConfig = getWaveConfig(wave);
-    const currentTime = Date.now();
-    
-    if (waveConfig.bossAbility === 'shotgun' && wave >= 20) {
-        // Shotgun blast - 8 projectiles in a cone
-        const baseAngle = Math.atan2(player.y - boss.y, player.x - boss.x);
-        for (let i = -3; i <= 4; i++) {
-            const angle = baseAngle + (i * 0.2);
-            bossProjectiles.push({
-                x: boss.x,
-                y: boss.y,
-                vx: Math.cos(angle) * 6,
-                vy: Math.sin(angle) * 6,
-                damage: 12,
-                radius: 6,
-                color: '#ff8888',
-                startTime: currentTime,
-                lifetime: 2500
-            });
-        }
-        
-        // Create slow field for wave 30+ bosses
-        if (waveConfig.slowField && wave >= 30) {
-            bossSlowField = {
-                x: boss.x,
-                y: boss.y,
-                radius: 150,
-                startTime: currentTime
-            };
-        }
-    } else {
-        // Default 4-way spread
-        const directions = [
-            { vx: 1, vy: 1 },
-            { vx: -1, vy: 1 },
-            { vx: -1, vy: -1 },
-            { vx: 1, vy: -1 }
-        ];
-        
-        directions.forEach(dir => {
-            bossProjectiles.push({
-                x: boss.x,
-                y: boss.y,
-                vx: dir.vx * MONSTER_TYPES.BOSS.projectileSpeed,
-                vy: dir.vy * MONSTER_TYPES.BOSS.projectileSpeed,
-                damage: MONSTER_TYPES.BOSS.projectileDamage,
-                radius: 8,
-                color: '#ff4444',
-                startTime: currentTime,
-                lifetime: 3000
-            });
-        });
-    }
-}
-
 function updateMonsterProjectiles(currentTime) {
     for (let i = monsterProjectiles.length - 1; i >= 0; i--) {
         const proj = monsterProjectiles[i];
         
+        // Move projectile
         proj.x += proj.vx;
         proj.y += proj.vy;
         
+        // Check lifetime
         if (currentTime - proj.startTime > proj.lifetime) {
             monsterProjectiles.splice(i, 1);
             continue;
         }
         
+        // Check collision with player
         const dx = player.x - proj.x;
         const dy = player.y - proj.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -2658,6 +2446,7 @@ function updateMonsterProjectiles(currentTime) {
             monsterProjectiles.splice(i, 1);
         }
         
+        // Remove if off screen
         if (proj.x < -50 || proj.x > canvas.width + 50 || 
             proj.y < -50 || proj.y > canvas.height + 50) {
             monsterProjectiles.splice(i, 1);
@@ -2669,14 +2458,17 @@ function updateBossProjectiles(currentTime) {
     for (let i = bossProjectiles.length - 1; i >= 0; i--) {
         const proj = bossProjectiles[i];
         
+        // Move projectile
         proj.x += proj.vx;
         proj.y += proj.vy;
         
+        // Check lifetime
         if (currentTime - proj.startTime > proj.lifetime) {
             bossProjectiles.splice(i, 1);
             continue;
         }
         
+        // Check collision with player
         const dx = player.x - proj.x;
         const dy = player.y - proj.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -2698,11 +2490,36 @@ function updateBossProjectiles(currentTime) {
             bossProjectiles.splice(i, 1);
         }
         
+        // Remove if off screen
         if (proj.x < -50 || proj.x > canvas.width + 50 || 
             proj.y < -50 || proj.y > canvas.height + 50) {
             bossProjectiles.splice(i, 1);
         }
     }
+}
+
+function shootBossProjectiles(boss) {
+    // Shoot projectiles in 4 diagonal directions
+    const directions = [
+        { angle: Math.PI / 4, vx: 1, vy: 1 },     // Down-right
+        { angle: 3 * Math.PI / 4, vx: -1, vy: 1 }, // Down-left
+        { angle: 5 * Math.PI / 4, vx: -1, vy: -1 }, // Up-left
+        { angle: 7 * Math.PI / 4, vx: 1, vy: -1 }   // Up-right
+    ];
+    
+    directions.forEach(dir => {
+        bossProjectiles.push({
+            x: boss.x,
+            y: boss.y,
+            vx: dir.vx * MONSTER_TYPES.BOSS.projectileSpeed,
+            vy: dir.vy * MONSTER_TYPES.BOSS.projectileSpeed,
+            damage: MONSTER_TYPES.BOSS.projectileDamage,
+            radius: 8,
+            color: '#ff4444',
+            startTime: Date.now(),
+            lifetime: 3000
+        });
+    });
 }
 
 // ============================================
@@ -2732,10 +2549,12 @@ function updateProjectiles() {
                 const dy = projectile.y - projectile.startY;
                 projectile.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
                 
+                // Switch to returning state after reaching max distance
                 if (projectile.distanceTraveled >= projectile.range / 2) {
                     projectile.state = 'returning';
                 }
             } else {
+                // Return to player
                 const dx = player.x - projectile.x;
                 const dy = player.y - projectile.y;
                 const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
@@ -2751,8 +2570,10 @@ function updateProjectiles() {
                 projectile.angle = angle;
             }
             
+            // Increment rotation for spinning effect
             projectile.rotation = (projectile.rotation || 0) + 0.2;
         } else {
+            // Regular projectile movement - NO HOMING, just straight line
             projectile.x += Math.cos(projectile.angle) * projectile.speed;
             projectile.y += Math.sin(projectile.angle) * projectile.speed;
             
@@ -2792,7 +2613,7 @@ function updateProjectiles() {
             }
         }
         
-        // Check collision with monsters
+        // Check collision with monsters - SAME FOR ALL PROJECTILES
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             
@@ -2800,7 +2621,7 @@ function updateProjectiles() {
             const dy = projectile.y - monster.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < (projectile.isPellet ? 4 : 6) + monster.radius) {
+            if (distance < (projectile.isPellet ? 3 : 5) + monster.radius) {
                 let damage = projectile.damage;
                 let isCritical = false;
                 
@@ -2821,40 +2642,36 @@ function updateProjectiles() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Boss life steal
-                if (monster.isBoss && monster.lifeSteal) {
-                    const bossHeal = damage * monster.lifeSteal;
-                    monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                    createHealthPopup(monster.x, monster.y, Math.floor(bossHeal));
-                }
-                
+                // Track hits for boomerang (but DON'T prevent death detection)
                 if (projectile.isBoomerang) {
                     if (!projectile.targetsHit.includes(monster)) {
                         projectile.targetsHit.push(monster);
                     }
-                    
-                    if (projectile.targetsHit.length >= projectile.maxTargets) {
+                }
+                
+                // Remove projectile if it's not a boomerang or if boomerang has hit max targets
+                if (!projectile.isBoomerang) {
+                    if (!projectile.bounceCount || !projectile.targetsHit) {
                         player.projectiles.splice(i, 1);
-                        break;
+                    } else {
+                        if (!projectile.targetsHit.includes(monster)) {
+                            projectile.targetsHit.push(monster);
+                        }
                     }
-                    
-                    continue;
-                }
-                
-                if (!projectile.bounceCount || !projectile.targetsHit) {
+                } else if (projectile.isBoomerang && projectile.targetsHit.length >= projectile.maxTargets) {
+                    // Remove boomerang if it's hit max targets
                     player.projectiles.splice(i, 1);
-                } else {
-                    if (!projectile.targetsHit.includes(monster)) {
-                        projectile.targetsHit.push(monster);
-                    }
+                    break;
                 }
                 
+                // Check if monster health is <= 0 and remove it
                 if (monster.health <= 0) {
-                    // Explosive monster death
-                    if (monster.explosive) {
-                        const explosionRadius = 100;
-                        const explosionDamage = monster.damage * 2;
+                    // Explosive monster death explosion
+                    if (monster.monsterType && monster.monsterType.explosive) {
+                        const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
+                        const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
                         
+                        // Damage player if within range
                         const dxToPlayer = player.x - monster.x;
                         const dyToPlayer = player.y - monster.y;
                         const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
@@ -2863,32 +2680,49 @@ function updateProjectiles() {
                             player.health -= explosionDamage;
                             createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
                             
+                            // Check if player died from explosion
                             if (player.health <= 0) {
                                 gameOver();
                             }
                         }
                         
-                        // Chain explosion damage
+                        // AOE: Damage OTHER monsters within explosion radius
                         for (let k = monsters.length - 1; k >= 0; k--) {
                             const otherMonster = monsters[k];
+                            
+                            // Skip the exploding monster itself
                             if (otherMonster === monster) continue;
                             
                             const dx = otherMonster.x - monster.x;
                             const dy = otherMonster.y - monster.y;
-                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const distance = Math.sqrt(dx * dx + dy * dy);
                             
-                            if (dist < explosionRadius + otherMonster.radius) {
+                            if (distance < explosionRadius + otherMonster.radius) {
+                                // Damage other monsters
                                 otherMonster.health -= explosionDamage;
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
+                                // Check if other monster died from explosion
                                 if (otherMonster.health <= 0) {
                                     monsters.splice(k, 1);
                                     kills++;
-                                    gold += Math.floor(5 * (1 + player.goldMultiplier));
+                                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
+                                    gold += goldEarned;
+                                    createGoldPopup(otherMonster.x, otherMonster.y, goldEarned);
+                                    
+                                    addVisualEffect({
+                                        type: 'death',
+                                        x: otherMonster.x,
+                                        y: otherMonster.y,
+                                        color: otherMonster.color,
+                                        startTime: Date.now(),
+                                        duration: 300
+                                    });
                                 }
                             }
                         }
                         
+                        // Visual explosion effects
                         addVisualEffect({
                             type: 'explosion',
                             x: monster.x,
@@ -2896,6 +2730,15 @@ function updateProjectiles() {
                             radius: explosionRadius,
                             startTime: Date.now(),
                             duration: 500
+                        });
+                        
+                        addVisualEffect({
+                            type: 'shockwave',
+                            x: monster.x,
+                            y: monster.y,
+                            radius: explosionRadius * 2,
+                            startTime: Date.now(),
+                            duration: 300
                         });
                     }
                     
@@ -2963,13 +2806,6 @@ function updateMeleeAttacks() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Boss life steal
-                if (monster.isBoss && monster.lifeSteal) {
-                    const bossHeal = damage * monster.lifeSteal;
-                    monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                    createHealthPopup(monster.x, monster.y, Math.floor(bossHeal));
-                }
-                
                 hits++;
                 
                 if (attack.meleeType === 'pierce' && hits >= attack.pierceCount) {
@@ -2977,11 +2813,12 @@ function updateMeleeAttacks() {
                 }
                 
                 if (monster.health <= 0) {
-                    // Explosive monster death
-                    if (monster.explosive) {
-                        const explosionRadius = 100;
-                        const explosionDamage = monster.damage * 2;
+                    // Explosive monster death explosion
+                    if (monster.monsterType && monster.monsterType.explosive) {
+                        const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
+                        const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
                         
+                        // Damage player if within range
                         const dxToPlayer = player.x - monster.x;
                         const dyToPlayer = player.y - monster.y;
                         const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
@@ -2990,31 +2827,49 @@ function updateMeleeAttacks() {
                             player.health -= explosionDamage;
                             createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
                             
+                            // Check if player died from explosion
                             if (player.health <= 0) {
                                 gameOver();
                             }
                         }
                         
+                        // AOE: Damage OTHER monsters within explosion radius
                         for (let k = monsters.length - 1; k >= 0; k--) {
                             const otherMonster = monsters[k];
+                            
+                            // Skip the exploding monster itself
                             if (otherMonster === monster) continue;
                             
                             const dx = otherMonster.x - monster.x;
                             const dy = otherMonster.y - monster.y;
-                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const distance = Math.sqrt(dx * dx + dy * dy);
                             
-                            if (dist < explosionRadius + otherMonster.radius) {
+                            if (distance < explosionRadius + otherMonster.radius) {
+                                // Damage other monsters
                                 otherMonster.health -= explosionDamage;
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
+                                // Check if other monster died from explosion
                                 if (otherMonster.health <= 0) {
                                     monsters.splice(k, 1);
                                     kills++;
-                                    gold += Math.floor(5 * (1 + player.goldMultiplier));
+                                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
+                                    gold += goldEarned;
+                                    createGoldPopup(otherMonster.x, otherMonster.y, goldEarned);
+                                    
+                                    addVisualEffect({
+                                        type: 'death',
+                                        x: otherMonster.x,
+                                        y: otherMonster.y,
+                                        color: otherMonster.color,
+                                        startTime: Date.now(),
+                                        duration: 300
+                                    });
                                 }
                             }
                         }
                         
+                        // Visual explosion effects
                         addVisualEffect({
                             type: 'explosion',
                             x: monster.x,
@@ -3022,6 +2877,15 @@ function updateMeleeAttacks() {
                             radius: explosionRadius,
                             startTime: Date.now(),
                             duration: 500
+                        });
+                        
+                        addVisualEffect({
+                            type: 'shockwave',
+                            x: monster.x,
+                            y: monster.y,
+                            radius: explosionRadius * 2,
+                            startTime: Date.now(),
+                            duration: 300
                         });
                     }
                     
@@ -3225,55 +3089,48 @@ function drawVisualEffects() {
         switch(effect.type) {
             case 'death':
                 ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
-                for (let i = 0; i < 8; i++) {
-                    const angle = (Math.PI * 2 * i) / 8 + progress * Math.PI;
-                    const distance = progress * 40;
+                const particles = 8;
+                for (let i = 0; i < particles; i++) {
+                    const angle = (Math.PI * 2 * i) / particles + progress * Math.PI;
+                    const distance = progress * 30;
                     ctx.beginPath();
                     ctx.arc(effect.x + Math.cos(angle) * distance, 
                            effect.y + Math.sin(angle) * distance, 
-                           4, 0, Math.PI * 2);
+                           3, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 break;
                 
             case 'spawn':
+                // Spawn effect - expanding ring
                 ctx.strokeStyle = effect.color || '#ffffff';
-                ctx.lineWidth = 4 * (1 - progress);
+                ctx.lineWidth = 3 * (1 - progress);
                 ctx.shadowColor = effect.color || '#ffffff';
-                ctx.shadowBlur = 20 * alpha;
+                ctx.shadowBlur = 15 * alpha;
                 
-                for (let i = 0; i < 3; i++) {
-                    ctx.beginPath();
-                    ctx.arc(effect.x, effect.y, 15 + i * 15 + progress * 40, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                break;
-                
-            case 'bossSpawn':
-                const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, effect.radius);
-                gradient.addColorStop(0, `rgba(255, 215, 0, ${alpha})`);
-                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
-                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                
-                ctx.fillStyle = gradient;
-                ctx.shadowColor = '#ffd700';
-                ctx.shadowBlur = 50;
+                // Expanding ring
                 ctx.beginPath();
-                ctx.arc(effect.x, effect.y, effect.radius * (1 - progress * 0.5), 0, Math.PI * 2);
+                ctx.arc(effect.x, effect.y, 20 + progress * 30, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner glow
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 10, 0, Math.PI * 2);
                 ctx.fill();
                 break;
                 
             case 'explosion':
-                const explosionSize = (effect.radius || 80) * (1 - progress * 0.5);
-                const expGradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
-                expGradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
-                expGradient.addColorStop(0.3, `rgba(255, 200, 0, ${alpha})`);
-                expGradient.addColorStop(0.6, `rgba(255, 100, 0, ${alpha * 0.7})`);
-                expGradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                const explosionSize = (effect.radius || 40) * (1 - progress * 0.5);
+                const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                gradient.addColorStop(0.3, `rgba(255, 200, 0, ${alpha})`);
+                gradient.addColorStop(0.6, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
                 
-                ctx.fillStyle = expGradient;
+                ctx.fillStyle = gradient;
                 ctx.shadowColor = '#FF4500';
-                ctx.shadowBlur = 40;
+                ctx.shadowBlur = 30;
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, explosionSize, 0, Math.PI * 2);
                 ctx.fill();
@@ -3281,11 +3138,11 @@ function drawVisualEffects() {
                 
             case 'shockwave':
                 ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 3;
                 ctx.shadowColor = '#FFFFFF';
-                ctx.shadowBlur = 30;
+                ctx.shadowBlur = 20;
                 ctx.beginPath();
-                ctx.arc(effect.x, effect.y, (effect.radius || 100) * progress, 0, Math.PI * 2);
+                ctx.arc(effect.x, effect.y, (effect.radius || 80) * progress, 0, Math.PI * 2);
                 ctx.stroke();
                 break;
         }
@@ -3301,31 +3158,22 @@ function drawMonsters() {
         ctx.save();
         ctx.translate(monster.x, monster.y);
         
-        // Body with glow
-        ctx.shadowColor = monster.color;
-        ctx.shadowBlur = monster.isBoss ? 30 : 15;
         ctx.fillStyle = monster.color;
+        ctx.shadowColor = monster.color;
+        ctx.shadowBlur = monster.isBoss ? 20 : 10;
         ctx.beginPath();
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Status effects
         if (monster.stunned && monster.stunnedUntil > currentTime) {
-            ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
             ctx.beginPath();
             ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
             ctx.fill();
         }
         
         if (monster.frozen && monster.frozenUntil > currentTime) {
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
-            ctx.beginPath();
-            ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        if (monster.slowed && monster.slowUntil > currentTime) {
-            ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
             ctx.beginPath();
             ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
             ctx.fill();
@@ -3338,7 +3186,6 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Icon
         if (monster.monsterType && monster.monsterType.icon) {
             ctx.fillStyle = 'white';
             ctx.font = `${monster.radius}px Arial`;
@@ -3347,45 +3194,44 @@ function drawMonsters() {
             ctx.fillText(monster.monsterType.icon, 0, 0);
         }
         
-        // Eyes
-        if (!monster.isMinion) {
-            const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
-            const eyeRadius = monster.radius * 0.2;
-            
-            ctx.fillStyle = '#FFFFFF';
-            ctx.shadowBlur = 5;
-            
-            ctx.beginPath();
-            ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, 
-                    Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, 
-                    eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, 
-                    Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, 
-                    eyeRadius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.fillStyle = '#000000';
-            ctx.shadowBlur = 0;
-            ctx.beginPath();
-            ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, 
-                    Math.sin(angleToPlayer) * monster.radius * 0.7, 
-                    eyeRadius * 0.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
+        const eyeRadius = monster.radius * 0.2;
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.shadowBlur = 5;
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, 
+                eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#000000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, 
+                Math.sin(angleToPlayer) * monster.radius * 0.7, 
+                eyeRadius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
         
         // Health bar
         const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
         const barWidth = monster.radius * 2;
         const barHeight = 4;
         const barX = -monster.radius;
-        const barY = -monster.radius - 12;
+        const barY = -monster.radius - 10;
         
+        // Background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(barX, barY, barWidth, barHeight);
         
+        // Health fill - only draw if health > 0
         if (healthPercent > 0) {
             ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
             ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
@@ -3403,11 +3249,10 @@ function createDamageIndicator(x, y, damage, isCritical) {
         indicator.textContent = 'CRIT! ' + damage;
         indicator.style.color = '#FFD700';
         indicator.style.fontSize = '1.5rem';
-        indicator.style.textShadow = '0 0 10px #FFD700';
     }
     
-    indicator.style.left = (x + Math.random() * 30 - 15) + 'px';
-    indicator.style.top = (y + Math.random() * 30 - 15) + 'px';
+    indicator.style.left = (x + Math.random() * 20 - 10) + 'px';
+    indicator.style.top = (y + Math.random() * 20 - 10) + 'px';
     
     document.querySelector('.canvas-container').appendChild(indicator);
     
