@@ -71,14 +71,14 @@ const MONSTER_TYPES = {
         name: 'BOSS',
         color: '#ffd700',
         speed: 0.8,
-        healthMultiplier: 15, // Reduced from 20
-        damageMultiplier: 2.0, // Reduced from 2.5
+        healthMultiplier: 15,
+        damageMultiplier: 2.0,
         sizeMultiplier: 2.2,
         icon: '👑',
         isBoss: true,
-        lifeSteal: 0.1, // Added life steal
+        lifeSteal: 0.1,
         projectileSpeed: 5,
-        projectileDamage: 15, // Reduced from 20
+        projectileDamage: 15,
         projectileCooldown: 1800
     }
 };
@@ -556,74 +556,13 @@ function getWeaponById(id) {
 }
 
 function getWaveConfig(waveNumber) {
-    if (waveNumber <= 40) {
-        // Extended to wave 40
-        const waves = [
-            // Waves 1-9
-            { number: 1, monsters: 5, monsterHealth: 20, monsterDamage: 2, goldReward: 50, isBoss: false },
-            { number: 2, monsters: 7, monsterHealth: 25, monsterDamage: 3, goldReward: 60, isBoss: false },
-            { number: 3, monsters: 9, monsterHealth: 30, monsterDamage: 4, goldReward: 70, isBoss: false },
-            { number: 4, monsters: 11, monsterHealth: 35, monsterDamage: 5, goldReward: 80, isBoss: false },
-            { number: 5, monsters: 13, monsterHealth: 40, monsterDamage: 6, goldReward: 90, isBoss: false },
-            { number: 6, monsters: 15, monsterHealth: 45, monsterDamage: 7, goldReward: 100, isBoss: false },
-            { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110, isBoss: false },
-            { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120, isBoss: false },
-            { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130, isBoss: false },
-            
-            // Wave 10: Boss + Minions
-            { number: 10, monsters: 1, monsterHealth: 2500, monsterDamage: 12, goldReward: 300, isBoss: true, 
-              minions: 6, minionType: 'MINION' },
-            
-            // Waves 11-19 (with minions)
-            { number: 11, monsters: 25, monsterHealth: 70, monsterDamage: 11, goldReward: 140, isBoss: false, minionChance: 0.2 },
-            { number: 12, monsters: 28, monsterHealth: 75, monsterDamage: 12, goldReward: 150, isBoss: false, minionChance: 0.2 },
-            { number: 13, monsters: 31, monsterHealth: 80, monsterDamage: 13, goldReward: 160, isBoss: false, minionChance: 0.25 },
-            { number: 14, monsters: 34, monsterHealth: 85, monsterDamage: 14, goldReward: 170, isBoss: false, minionChance: 0.25 },
-            { number: 15, monsters: 37, monsterHealth: 90, monsterDamage: 15, goldReward: 180, isBoss: false, minionChance: 0.3 },
-            { number: 16, monsters: 40, monsterHealth: 95, monsterDamage: 16, goldReward: 190, isBoss: false, minionChance: 0.3 },
-            { number: 17, monsters: 43, monsterHealth: 100, monsterDamage: 17, goldReward: 200, isBoss: false, minionChance: 0.35 },
-            { number: 18, monsters: 46, monsterHealth: 110, monsterDamage: 18, goldReward: 210, isBoss: false, minionChance: 0.35 },
-            { number: 19, monsters: 49, monsterHealth: 120, monsterDamage: 19, goldReward: 220, isBoss: false, minionChance: 0.4 },
-            
-            // Wave 20: Boss + Minions (Shotgun ability)
-            { number: 20, monsters: 1, monsterHealth: 4000, monsterDamage: 20, goldReward: 500, isBoss: true,
-              bossAbility: 'shotgun', minions: 8, minionType: 'MINION' },
-            
-            // Waves 21-29
-            { number: 21, monsters: 52, monsterHealth: 130, monsterDamage: 20, goldReward: 240, isBoss: false, minionChance: 0.4 },
-            { number: 22, monsters: 55, monsterHealth: 140, monsterDamage: 21, goldReward: 260, isBoss: false, minionChance: 0.4 },
-            { number: 23, monsters: 58, monsterHealth: 150, monsterDamage: 22, goldReward: 280, isBoss: false, minionChance: 0.45 },
-            { number: 24, monsters: 61, monsterHealth: 160, monsterDamage: 23, goldReward: 300, isBoss: false, minionChance: 0.45 },
-            { number: 25, monsters: 64, monsterHealth: 170, monsterDamage: 24, goldReward: 320, isBoss: false, minionChance: 0.5 },
-            { number: 26, monsters: 67, monsterHealth: 180, monsterDamage: 25, goldReward: 340, isBoss: false, minionChance: 0.5 },
-            { number: 27, monsters: 70, monsterHealth: 200, monsterDamage: 26, goldReward: 360, isBoss: false, minionChance: 0.55 },
-            { number: 28, monsters: 73, monsterHealth: 220, monsterDamage: 27, goldReward: 380, isBoss: false, minionChance: 0.55 },
-            { number: 29, monsters: 76, monsterHealth: 250, monsterDamage: 28, goldReward: 400, isBoss: false, minionChance: 0.6 },
-            
-            // Wave 30: Boss + Minions (Shotgun + Slow field)
-            { number: 30, monsters: 1, monsterHealth: 6000, monsterDamage: 30, goldReward: 800, isBoss: true,
-              bossAbility: 'shotgun', slowField: true, minions: 10, minionType: 'MINION' },
-            
-            // Waves 31-39
-            { number: 31, monsters: 80, monsterHealth: 280, monsterDamage: 30, goldReward: 450, isBoss: false, minionChance: 0.6 },
-            { number: 32, monsters: 85, monsterHealth: 310, monsterDamage: 32, goldReward: 500, isBoss: false, minionChance: 0.6 },
-            { number: 33, monsters: 90, monsterHealth: 340, monsterDamage: 34, goldReward: 550, isBoss: false, minionChance: 0.65 },
-            { number: 34, monsters: 95, monsterHealth: 370, monsterDamage: 36, goldReward: 600, isBoss: false, minionChance: 0.65 },
-            { number: 35, monsters: 100, monsterHealth: 400, monsterDamage: 38, goldReward: 650, isBoss: false, minionChance: 0.7 },
-            { number: 36, monsters: 105, monsterHealth: 430, monsterDamage: 40, goldReward: 700, isBoss: false, minionChance: 0.7 },
-            { number: 37, monsters: 110, monsterHealth: 460, monsterDamage: 42, goldReward: 750, isBoss: false, minionChance: 0.75 },
-            { number: 38, monsters: 115, monsterHealth: 490, monsterDamage: 44, goldReward: 800, isBoss: false, minionChance: 0.75 },
-            { number: 39, monsters: 120, monsterHealth: 520, monsterDamage: 46, goldReward: 850, isBoss: false, minionChance: 0.8 },
-            
-            // Wave 40: Final Boss
-            { number: 40, monsters: 1, monsterHealth: 10000, monsterDamage: 50, goldReward: 1500, isBoss: true,
-              bossAbility: 'shotgun', slowField: true, minions: 12, minionType: 'MINION' }
-        ];
-        return waves[waveNumber - 1];
+    // This now simply returns the wave config from GAME_DATA
+    if (waveNumber <= GAME_DATA.WAVES.length) {
+        return GAME_DATA.WAVES[waveNumber - 1];
     } else {
-        // For waves beyond 40, scale up progressively
-        const baseWave = { number: waveNumber, monsters: 150, monsterHealth: 600, monsterDamage: 60, goldReward: 1000, isBoss: (waveNumber % 10 === 0) };
-        const extraWaves = waveNumber - 40;
+        // For waves beyond the defined ones, scale up
+        const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
+        const extraWaves = waveNumber - GAME_DATA.WAVES.length;
         const scaleFactor = 1 + extraWaves * 0.1;
         return {
             number: waveNumber,
@@ -632,8 +571,8 @@ function getWaveConfig(waveNumber) {
             monsterDamage: Math.floor(baseWave.monsterDamage * scaleFactor),
             goldReward: Math.floor(baseWave.goldReward * scaleFactor),
             isBoss: (waveNumber % 10 === 0),
-            minionChance: 0.5,
-            spawnDelay: Math.max(50, 150 - extraWaves * 2)
+            minionChance: 0.3,
+            spawnDelay: Math.max(50, 200 - extraWaves * 5)
         };
     }
 }
@@ -799,7 +738,7 @@ function initGame() {
 }
 
 // ============================================
-// WAVE MANAGEMENT WITH MINIONS
+// WAVE MANAGEMENT
 // ============================================
 
 function showSpawnIndicators() {
@@ -812,7 +751,7 @@ function showSpawnIndicators() {
     }
     
     for (let i = 0; i < monsterCount; i++) {
-        // Spawn indicators around the edges of the screen with nicer animation
+        // Spawn indicators around the edges of the screen
         const side = Math.floor(Math.random() * 4);
         let x, y;
         
@@ -825,7 +764,7 @@ function showSpawnIndicators() {
         
         spawnIndicators.push({
             x, y,
-            timer: 3000, // Longer timer (3 seconds)
+            timer: 3000,
             startTime: Date.now(),
             isBoss: waveConfig.isBoss && i === 0,
             index: i,
@@ -939,7 +878,7 @@ function startWave() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     
-    // Show spawn indicators with longer duration
+    // Show spawn indicators
     showSpawnIndicators();
     
     // Spawn monsters after indicator delay
