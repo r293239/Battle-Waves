@@ -57,7 +57,8 @@ const GAME_DATA = {
         { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400, isBoss: false },
         
         // Wave 30: Third Boss Wave
-        { number: 30, monsters: 1, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true }
+        { number: 30, monsters: 1, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true },
+        { number: 31, monsters: 100, monsterHealth: 300, monsterDamage: 28, goldReward: 450, isBoss: false }
     ],
 
     // Stat buffs that appear after each wave
@@ -86,23 +87,23 @@ const GAME_DATA = {
         {
             id: 'life_steal',
             name: 'Life Steal',
-            description: 'Heal for 10% of damage dealt',
+            description: 'Heal for 1% of damage dealt',
             icon: '🦇',
-            effect: { lifeSteal: 0.1 }
+            effect: { lifeSteal: 0.01 }
         },
         {
             id: 'critical_chance',
             name: 'Critical Strike',
-            description: '10% chance for double damage',
+            description: '5% chance for double damage',
             icon: '🎯',
-            effect: { criticalChance: 0.1 }
+            effect: { criticalChance: 0.05 }
         },
         {
             id: 'gold_bonus',
             name: 'Gold Bonus',
-            description: 'Earn 20% more gold',
+            description: 'Earn 10% more gold',
             icon: '💰',
-            effect: { goldMultiplier: 0.2 }
+            effect: { goldMultiplier: 0.1 }
         },
         {
             id: 'regen',
@@ -114,9 +115,9 @@ const GAME_DATA = {
         {
             id: 'armor',
             name: 'Armor',
-            description: 'Reduce damage taken by 10%',
+            description: 'Reduce damage taken by 3%',
             icon: '🛡️',
-            effect: { damageReduction: 0.1 }
+            effect: { damageReduction: 0.03 }
         }
     ],
 
@@ -175,7 +176,7 @@ const GAME_DATA = {
             name: 'Machine Gun',
             icon: '🔫',
             type: 'ranged',
-            baseDamage: 3,
+            baseDamage: 1,
             attackSpeed: 5.0,
             range: 250,
             projectileSpeed: 15,
@@ -184,7 +185,7 @@ const GAME_DATA = {
             projectileColor: '#4ECDC4',
             animation: 'bullet',
             usesAmmo: true,
-            magazineSize: 30,
+            magazineSize: 50,
             reloadTime: 2500,
             tierMultipliers: {
                 damage: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -222,7 +223,7 @@ const GAME_DATA = {
             name: 'Boomerang',
             icon: '🪃',
             type: 'ranged',
-            baseDamage: 8,
+            baseDamage: 7,
             attackSpeed: 1.2,
             range: 450,
             projectileSpeed: 10,
