@@ -467,6 +467,7 @@ const player = {
     maxHealth: 20,
     baseDamage: 5,
     speed: 3,
+    baseSpeed: 3, // Store base speed for slow field effect
     color: '#ff6b6b',
     
     lifeSteal: 0,
@@ -502,7 +503,12 @@ const player = {
     guardianAngel: false,
     bloodContract: false,
     bloodContractInterval: null, // For tracking the drain interval
-    lastBloodDamage: 0
+    lastBloodDamage: 0,
+    
+    // Slow field effect
+    inSlowField: false,
+    slowFieldTicks: 0,
+    lastSlowFieldTick: 0
 };
 
 let monsters = [];
@@ -678,6 +684,7 @@ function initGame() {
         maxHealth: GAME_DATA.PLAYER_START.maxHealth,
         baseDamage: GAME_DATA.PLAYER_START.damage,
         speed: GAME_DATA.PLAYER_START.speed,
+        baseSpeed: GAME_DATA.PLAYER_START.speed,
         color: '#ff6b6b',
         lifeSteal: 0,
         criticalChance: 0,
@@ -708,7 +715,12 @@ function initGame() {
         guardianAngel: false,
         bloodContract: false,
         bloodContractInterval: null,
-        lastBloodDamage: 0
+        lastBloodDamage: 0,
+        
+        // Slow field effect
+        inSlowField: false,
+        slowFieldTicks: 0,
+        lastSlowFieldTick: 0
     });
     
     const handgun = getWeaponById('handgun');
@@ -832,6 +844,11 @@ function startWave() {
     waveActive = true;
     waveStartTime = Date.now();
     
+    // Reset player slow field effects
+    player.inSlowField = false;
+    player.slowFieldTicks = 0;
+    player.speed = player.baseSpeed;
+    
     // Reset boss abilities
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
@@ -918,7 +935,7 @@ function startWave() {
                     // Asteroid ability - 5 at a time
                     asteroidTimer = setInterval(() => {
                         if (waveActive && monsters.some(m => m.isBoss)) {
-                            // Spawn 5 asteroids at once
+                            // Spawn 5 asteroids at once around the boss
                             for (let i = 0; i < 5; i++) {
                                 setTimeout(() => {
                                     if (waveActive) spawnAsteroid();
@@ -927,7 +944,7 @@ function startWave() {
                         }
                     }, 4000); // Every 4 seconds
                 } else if (wave === 30) {
-                    // Slow field follows the boss
+                    // Slow field that follows the boss
                     bossAbilities.slowField = {
                         active: true,
                         radius: 200,
@@ -1132,7 +1149,7 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
         // Gunner properties
         isGunner: monsterType === MONSTER_TYPES.GUNNER,
         
-        originalSpeed: monsterType.speed
+        originalSpeed: (isBoss ? 0.7 : (1 + wave * 0.05)) * monsterType.speed
     };
     
     // Add spawn effect
@@ -1549,6 +1566,7 @@ function applyPermanentItemEffect(item) {
             player.baseDamage += 5;
             break;
         case 'speed_boots':
+            player.baseSpeed += 2;
             player.speed += 2;
             break;
         case 'health_upgrade':
@@ -1651,7 +1669,11 @@ function selectStatBuff(buff) {
     }
     
     if (buff.effect.speed) {
-        player.speed += buff.effect.speed;
+        player.baseSpeed += buff.effect.speed;
+        // Apply current slow field effect if active
+        if (!player.inSlowField) {
+            player.speed += buff.effect.speed;
+        }
     }
     
     if (buff.effect.lifeSteal) {
@@ -1694,6 +1716,11 @@ function endWave() {
     gameState = 'statSelect';
     waveActive = false;
     
+    // Reset player slow field effects
+    player.inSlowField = false;
+    player.slowFieldTicks = 0;
+    player.speed = player.baseSpeed;
+    
     // Clear boss abilities
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -1724,6 +1751,11 @@ function endWave() {
 function gameOver() {
     gameState = 'gameover';
     waveActive = false;
+    
+    // Reset player slow field effects
+    player.inSlowField = false;
+    player.slowFieldTicks = 0;
+    player.speed = player.baseSpeed;
     
     // Clear boss abilities
     if (asteroidTimer) {
@@ -1940,7 +1972,7 @@ function drawSpawnIndicators() {
 function drawSlowField() {
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
         // Find the boss to get its position
-        const boss = monsters.find(m => m.isBoss && m.monsterType.name === 'BOSS' && wave === 30);
+        const boss = monsters.find(m => m.isBoss && wave === 30);
         if (!boss) return;
         
         const alpha = 0.3;
@@ -1965,6 +1997,21 @@ function drawSlowField() {
         ctx.beginPath();
         ctx.arc(0, 0, bossAbilities.slowField.radius * 0.7, 0, Math.PI * 2);
         ctx.stroke();
+        
+        // Slow field text
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#6464ff';
+        ctx.shadowBlur = 15;
+        ctx.fillText('SLOW FIELD', 0, -bossAbilities.slowField.radius - 20);
+        
+        // Show permanent speed decrease ticks
+        if (player.inSlowField && player.slowFieldTicks > 0) {
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(`Speed Lost: ${player.slowFieldTicks}`, 0, bossAbilities.slowField.radius + 30);
+        }
         
         ctx.restore();
     }
@@ -2656,6 +2703,27 @@ function drawPlayer() {
         ctx.stroke();
     }
     
+    // Slow field effect indicator
+    if (player.inSlowField) {
+        ctx.shadowColor = '#6464ff';
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = '#6464ff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 8 + Math.sin(Date.now() * 0.01) * 3, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Show speed decrease
+        if (player.slowFieldTicks > 0) {
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 10;
+            ctx.fillText(`-${player.slowFieldTicks} SPD`, 0, -player.radius - 20);
+        }
+    }
+    
     ctx.restore();
 }
 
@@ -2678,29 +2746,35 @@ function updateGame(deltaTime) {
         player.lastRegen = currentTime;
     }
     
-    // Apply slow field effect
+    // Apply slow field effect (Wave 30 boss)
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
-        const boss = monsters.find(m => m.isBoss && m.monsterType.name === 'BOSS' && wave === 30);
+        const boss = monsters.find(m => m.isBoss && wave === 30);
         if (boss) {
             const dx = player.x - boss.x;
             const dy = player.y - boss.y;
             const distToField = Math.sqrt(dx * dx + dy * dy);
             
-            if (distToField < bossAbilities.slowField.radius) {
-                // Slow player
-                const originalSpeed = player.speed;
-                player.speed = Math.max(1, originalSpeed * 0.5);
+            const wasInSlowField = player.inSlowField;
+            player.inSlowField = distToField < bossAbilities.slowField.radius;
+            
+            if (player.inSlowField) {
+                // Apply 50% slow
+                player.speed = player.baseSpeed * 0.5;
                 
-                // Damage over time
-                if (currentTime - (bossAbilities.slowField.lastDamage || 0) > 1000) {
-                    player.health -= 2;
-                    bossAbilities.slowField.lastDamage = currentTime;
-                    createDamageIndicator(player.x, player.y, 2, false);
+                // Every second, permanently decrease speed by 1
+                if (currentTime - player.lastSlowFieldTick >= 1000) {
+                    player.baseSpeed = Math.max(1, player.baseSpeed - 1);
+                    player.speed = player.baseSpeed * 0.5; // Reapply 50% slow
+                    player.slowFieldTicks++;
+                    player.lastSlowFieldTick = currentTime;
                     
-                    if (player.health <= 0) {
-                        gameOver();
-                    }
+                    // Visual feedback
+                    createDamageIndicator(player.x, player.y, 1, false);
+                    showMessage("Speed decreased by 1!");
                 }
+            } else if (wasInSlowField) {
+                // Exited slow field - restore normal speed
+                player.speed = player.baseSpeed;
             }
         }
     }
@@ -2712,7 +2786,8 @@ function updateGame(deltaTime) {
             bossAbilities.enraged = true;
             boss.attackCooldown = 800; // Reduced cooldown
             boss.color = '#ff4444'; // Red enraged color
-            showMessage("BOSS ENRAGED - ATTACK SPEED INCREASED!");
+            boss.speed = boss.originalSpeed * 1.3; // Move faster when enraged
+            showMessage("BOSS ENRAGED - ATTACK SPEED AND MOVEMENT INCREASED!");
         }
     }
     
@@ -3382,12 +3457,13 @@ function updateMonsters(currentTime) {
             monster.lastAttack = currentTime;
         }
         
-        // Boss projectile attack
+        // Boss projectile attack (additional ability, doesn't replace physical attacks)
         if (monster.isBoss && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootBossProjectiles(monster);
             monster.lastAttack = currentTime;
         }
         
+        // Physical attack when touching player
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 let actualDamage = monster.damage;
