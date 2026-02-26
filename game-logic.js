@@ -453,7 +453,8 @@ let waveStartTime = 0;
 let bossAbilities = {
     shotgun: false,
     asteroids: [],
-    slowField: null
+    slowField: null,
+    enraged: false
 };
 let asteroidTimer = null;
 
@@ -585,7 +586,7 @@ function getWaveConfig(waveNumber) {
             monsterDamage: Math.floor(baseWave.monsterDamage * scaleFactor),
             goldReward: Math.floor(baseWave.goldReward * scaleFactor),
             isBoss: (waveNumber % 10 === 0),
-            minions: (waveNumber % 10 === 0) ? 6 : 0,
+            minions: (waveNumber % 10 === 0) ? 8 : 0,
             spawnDelay: Math.max(50, 200 - extraWaves * 5)
         };
     }
@@ -728,6 +729,7 @@ function initGame() {
     monsterProjectiles = [];
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
+    bossAbilities.enraged = false;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -764,21 +766,30 @@ function showSpawnIndicators() {
     const waveConfig = getWaveConfig(wave);
     spawnIndicators = [];
     
-    let monsterCount = waveConfig.monsters;
-    if (waveConfig.minions) {
-        monsterCount += waveConfig.minions;
+    let totalMonsters = waveConfig.monsters;
+    if (waveConfig.isBoss) {
+        totalMonsters = 1; // Boss only gets one indicator at center
+        if (waveConfig.minions) {
+            totalMonsters += waveConfig.minions; // Add minion indicators
+        }
     }
     
-    for (let i = 0; i < monsterCount; i++) {
-        // Spawn indicators around the edges of the screen
-        const side = Math.floor(Math.random() * 4);
+    for (let i = 0; i < totalMonsters; i++) {
         let x, y;
         
-        switch(side) {
-            case 0: x = 30 + Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break; // Left edge
-            case 1: x = canvas.width - 30 - Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break; // Right edge
-            case 2: x = Math.random() * (canvas.width - 60) + 30; y = 30 + Math.random() * 100; break; // Top edge
-            case 3: x = Math.random() * (canvas.width - 60) + 30; y = canvas.height - 30 - Math.random() * 100; break; // Bottom edge
+        if (waveConfig.isBoss && i === 0) {
+            // Boss indicator at center
+            x = canvas.width / 2;
+            y = canvas.height / 2;
+        } else {
+            // Minion or regular monster indicators around the edges
+            const side = Math.floor(Math.random() * 4);
+            switch(side) {
+                case 0: x = 30 + Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break; // Left edge
+                case 1: x = canvas.width - 30 - Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break; // Right edge
+                case 2: x = Math.random() * (canvas.width - 60) + 30; y = 30 + Math.random() * 100; break; // Top edge
+                case 3: x = Math.random() * (canvas.width - 60) + 30; y = canvas.height - 30 - Math.random() * 100; break; // Bottom edge
+            }
         }
         
         spawnIndicators.push({
@@ -786,6 +797,7 @@ function showSpawnIndicators() {
             timer: 2000,
             startTime: Date.now(),
             isBoss: waveConfig.isBoss && i === 0,
+            isMinion: waveConfig.isBoss && i > 0,
             index: i
         });
     }
@@ -795,7 +807,7 @@ function spawnMinions(count, centerX, centerY) {
     for (let i = 0; i < count; i++) {
         // Spawn minions in a circle around the boss
         const angle = (i / count) * Math.PI * 2;
-        const distance = 80 + Math.random() * 40;
+        const distance = 80 + Math.random() * 60;
         const x = centerX + Math.cos(angle) * distance;
         const y = centerY + Math.sin(angle) * distance;
         
@@ -815,6 +827,7 @@ function startWave() {
     // Reset boss abilities
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
+    bossAbilities.enraged = false;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -871,6 +884,8 @@ function startWave() {
             const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
             if (boss) {
                 boss.lifeSteal = 0.1; // Add life steal to boss
+                boss.maxHealth = waveConfig.monsterHealth * 15;
+                boss.health = boss.maxHealth;
                 monsters.push(boss);
                 
                 // Add dramatic spawn effect for boss
@@ -883,8 +898,8 @@ function startWave() {
                     duration: 800
                 });
                 
-                // Spawn minions if configured
-                if (waveConfig.minions) {
+                // Spawn minions
+                if (waveConfig.minions > 0) {
                     spawnMinions(waveConfig.minions, boss.x, boss.y);
                 }
                 
@@ -892,12 +907,17 @@ function startWave() {
                 if (wave === 10) {
                     bossAbilities.shotgun = true;
                 } else if (wave === 20) {
-                    // Asteroid ability
+                    // Asteroid ability - 5 at a time
                     asteroidTimer = setInterval(() => {
                         if (waveActive && monsters.some(m => m.isBoss)) {
-                            spawnAsteroid();
+                            // Spawn 5 asteroids at once
+                            for (let i = 0; i < 5; i++) {
+                                setTimeout(() => {
+                                    if (waveActive) spawnAsteroid();
+                                }, i * 200);
+                            }
                         }
-                    }, 3000);
+                    }, 4000); // Every 4 seconds
                 } else if (wave === 30) {
                     bossAbilities.slowField = {
                         x: boss.x,
@@ -977,7 +997,7 @@ function spawnAsteroid() {
     // Random position for asteroid impact
     const x = Math.random() * canvas.width;
     const y = Math.random() * canvas.height;
-    const radius = 40;
+    const radius = 50;
     
     // Add warning indicator
     addVisualEffect({
@@ -986,7 +1006,7 @@ function spawnAsteroid() {
         y: y,
         radius: radius,
         startTime: Date.now(),
-        duration: 1000
+        duration: 800
     });
     
     // Spawn asteroid after warning
@@ -999,7 +1019,7 @@ function spawnAsteroid() {
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance < radius + player.radius) {
-            const damage = 20;
+            const damage = 25;
             player.health -= damage;
             createDamageIndicator(player.x, player.y, damage, true);
             
@@ -1016,8 +1036,8 @@ function spawnAsteroid() {
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             if (distance < radius + monster.radius && !monster.isBoss) {
-                monster.health -= 50;
-                createDamageIndicator(monster.x, monster.y, 50, true);
+                monster.health -= 75;
+                createDamageIndicator(monster.x, monster.y, 75, true);
                 
                 if (monster.health <= 0) {
                     monsters.splice(i, 1);
@@ -1036,7 +1056,7 @@ function spawnAsteroid() {
             startTime: Date.now(),
             duration: 500
         });
-    }, 1000);
+    }, 800);
 }
 
 function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null) {
@@ -1636,6 +1656,7 @@ function endWave() {
     }
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
+    bossAbilities.enraged = false;
     
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
@@ -1666,6 +1687,7 @@ function gameOver() {
     }
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
+    bossAbilities.enraged = false;
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
@@ -1822,8 +1844,25 @@ function drawSpawnIndicators() {
             ctx.moveTo(30, -30);
             ctx.lineTo(-30, 30);
             ctx.stroke();
+        } else if (indicator.isMinion) {
+            ctx.strokeStyle = `rgba(147, 112, 219, ${alpha})`;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#9370db';
+            ctx.shadowBlur = 10 * alpha;
+            
+            // Pulsing circle
+            ctx.beginPath();
+            ctx.arc(0, 0, 20 * pulseScale, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Small x
+            ctx.beginPath();
+            ctx.moveTo(-10, -10);
+            ctx.lineTo(10, 10);
+            ctx.moveTo(10, -10);
+            ctx.lineTo(-10, 10);
+            ctx.stroke();
         } else {
-            // Regular monster indicator
             ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
             ctx.lineWidth = 3;
             ctx.shadowColor = '#ff0000';
@@ -2593,6 +2632,17 @@ function updateGame(deltaTime) {
                 bossAbilities.slowField.lastDamage = currentTime;
                 createDamageIndicator(player.x, player.y, 2, false);
             }
+        }
+    }
+    
+    // Check for boss enrage (wave 20 boss at half health)
+    if (wave === 20 && !bossAbilities.enraged) {
+        const boss = monsters.find(m => m.isBoss);
+        if (boss && boss.health <= boss.maxHealth / 2) {
+            bossAbilities.enraged = true;
+            boss.attackCooldown = 800; // Reduced cooldown
+            boss.color = '#ff4444'; // Red enraged color
+            showMessage("BOSS ENRAGED - ATTACK SPEED INCREASED!");
         }
     }
     
