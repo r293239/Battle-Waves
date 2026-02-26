@@ -57,10 +57,20 @@ const MONSTER_TYPES = {
         projectileColor: '#ff69b4',
         attackCooldown: 1500
     },
+    MINION: {
+        name: 'Minion',
+        color: '#9370db',
+        speed: 1.3,
+        healthMultiplier: 0.3,
+        damageMultiplier: 0.5,
+        sizeMultiplier: 0.6,
+        icon: '👾',
+        isMinion: true
+    },
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
-        speed: 0.8,
+        speed: 0.7,
         healthMultiplier: 15,
         damageMultiplier: 2.0,
         sizeMultiplier: 2.2,
@@ -69,7 +79,7 @@ const MONSTER_TYPES = {
         lifeSteal: 0.1,
         projectileSpeed: 5,
         projectileDamage: 15,
-        projectileCooldown: 1800
+        projectileCooldown: 2000
     }
 };
 
@@ -440,7 +450,12 @@ let refreshCount = 0;
 let refreshCost = 5;
 let waveActive = false;
 let waveStartTime = 0;
-let bossSlowField = null; // For wave 30+ bosses
+let bossAbilities = {
+    shotgun: false,
+    asteroids: [],
+    slowField: null
+};
+let asteroidTimer = null;
 
 // Game Objects
 const player = {
@@ -555,6 +570,7 @@ function getWaveConfig(waveNumber) {
             monsterDamage: waveData.monsterDamage,
             goldReward: waveData.goldReward,
             isBoss: waveData.isBoss || false,
+            minions: waveData.minions || 0,
             spawnDelay: waveData.spawnDelay || 150
         };
     } else {
@@ -569,6 +585,7 @@ function getWaveConfig(waveNumber) {
             monsterDamage: Math.floor(baseWave.monsterDamage * scaleFactor),
             goldReward: Math.floor(baseWave.goldReward * scaleFactor),
             isBoss: (waveNumber % 10 === 0),
+            minions: (waveNumber % 10 === 0) ? 6 : 0,
             spawnDelay: Math.max(50, 200 - extraWaves * 5)
         };
     }
@@ -709,7 +726,12 @@ function initGame() {
     activeTraps = [];
     bossProjectiles = [];
     monsterProjectiles = [];
-    bossSlowField = null;
+    bossAbilities.asteroids = [];
+    bossAbilities.slowField = null;
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
     
     monsters = [];
     player.projectiles = [];
@@ -743,6 +765,9 @@ function showSpawnIndicators() {
     spawnIndicators = [];
     
     let monsterCount = waveConfig.monsters;
+    if (waveConfig.minions) {
+        monsterCount += waveConfig.minions;
+    }
     
     for (let i = 0; i < monsterCount; i++) {
         // Spawn indicators around the edges of the screen
@@ -766,19 +791,50 @@ function showSpawnIndicators() {
     }
 }
 
+function spawnMinions(count, centerX, centerY) {
+    for (let i = 0; i < count; i++) {
+        // Spawn minions in a circle around the boss
+        const angle = (i / count) * Math.PI * 2;
+        const distance = 80 + Math.random() * 40;
+        const x = centerX + Math.cos(angle) * distance;
+        const y = centerY + Math.sin(angle) * distance;
+        
+        const minion = createMonster(MONSTER_TYPES.MINION, false, x, y);
+        if (minion) {
+            minion.isMinion = true;
+            monsters.push(minion);
+        }
+    }
+}
+
 function startWave() {
     gameState = 'wave';
     waveActive = true;
     waveStartTime = Date.now();
-    bossSlowField = null;
+    
+    // Reset boss abilities
+    bossAbilities.asteroids = [];
+    bossAbilities.slowField = null;
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
     
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.classList.remove('boss-wave');
     
-    // Simple boss text - no "tanky boss" message
+    // Simple boss text
     if (waveConfig.isBoss) {
-        waveDisplay.textContent = `BOSS WAVE ${wave}`;
+        if (wave === 10) {
+            waveDisplay.textContent = `BOSS WAVE 10 - SHOTGUN BOSS`;
+        } else if (wave === 20) {
+            waveDisplay.textContent = `BOSS WAVE 20 - ASTEROID BOSS`;
+        } else if (wave === 30) {
+            waveDisplay.textContent = `BOSS WAVE 30 - SLOW FIELD BOSS`;
+        } else {
+            waveDisplay.textContent = `BOSS WAVE ${wave}`;
+        }
         waveDisplay.classList.add('boss-wave');
     }
     
@@ -812,7 +868,7 @@ function startWave() {
         
         if (waveConfig.isBoss) {
             // Boss spawns at center
-            const boss = spawnMonster(true, canvas.width / 2, canvas.height / 2);
+            const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
             if (boss) {
                 boss.lifeSteal = 0.1; // Add life steal to boss
                 monsters.push(boss);
@@ -826,6 +882,30 @@ function startWave() {
                     startTime: Date.now(),
                     duration: 800
                 });
+                
+                // Spawn minions if configured
+                if (waveConfig.minions) {
+                    spawnMinions(waveConfig.minions, boss.x, boss.y);
+                }
+                
+                // Set up boss abilities based on wave
+                if (wave === 10) {
+                    bossAbilities.shotgun = true;
+                } else if (wave === 20) {
+                    // Asteroid ability
+                    asteroidTimer = setInterval(() => {
+                        if (waveActive && monsters.some(m => m.isBoss)) {
+                            spawnAsteroid();
+                        }
+                    }, 3000);
+                } else if (wave === 30) {
+                    bossAbilities.slowField = {
+                        x: boss.x,
+                        y: boss.y,
+                        radius: 150,
+                        active: true
+                    };
+                }
             }
             spawnIndicators = [];
         } else {
@@ -835,15 +915,41 @@ function startWave() {
             for (let i = 0; i < monsterCount; i++) {
                 setTimeout(() => {
                     if (gameState === 'wave') {
+                        let monsterType;
+                        const rand = Math.random();
+                        
+                        // Determine monster type based on wave
+                        if (wave < 3) {
+                            monsterType = MONSTER_TYPES.NORMAL;
+                        } else if (wave < 6) {
+                            if (rand < 0.5) monsterType = MONSTER_TYPES.NORMAL;
+                            else if (rand < 0.7) monsterType = MONSTER_TYPES.FAST;
+                            else if (rand < 0.9) monsterType = MONSTER_TYPES.TANK;
+                            else monsterType = MONSTER_TYPES.EXPLOSIVE;
+                        } else if (wave < 10) {
+                            if (rand < 0.3) monsterType = MONSTER_TYPES.NORMAL;
+                            else if (rand < 0.45) monsterType = MONSTER_TYPES.FAST;
+                            else if (rand < 0.6) monsterType = MONSTER_TYPES.TANK;
+                            else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
+                            else monsterType = MONSTER_TYPES.GUNNER;
+                        } else {
+                            if (rand < 0.2) monsterType = MONSTER_TYPES.NORMAL;
+                            else if (rand < 0.35) monsterType = MONSTER_TYPES.FAST;
+                            else if (rand < 0.5) monsterType = MONSTER_TYPES.TANK;
+                            else if (rand < 0.65) monsterType = MONSTER_TYPES.EXPLOSIVE;
+                            else if (rand < 0.8) monsterType = MONSTER_TYPES.GUNNER;
+                            else monsterType = MONSTER_TYPES.MINION;
+                        }
+                        
                         // Use indicator position if available
                         if (spawnIndicators.length > i) {
                             const indicator = spawnIndicators[i];
-                            const monster = spawnMonster(false, indicator.x, indicator.y);
+                            const monster = createMonster(monsterType, false, indicator.x, indicator.y);
                             if (monster) {
                                 monsters.push(monster);
                             }
                         } else {
-                            const monster = spawnMonster(false);
+                            const monster = createMonster(monsterType, false);
                             if (monster) {
                                 monsters.push(monster);
                             }
@@ -865,43 +971,85 @@ function startWave() {
     }, 2500);
 }
 
-function spawnMonster(isBoss = false, spawnX = null, spawnY = null) {
+function spawnAsteroid() {
+    if (!waveActive) return;
+    
+    // Random position for asteroid impact
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    const radius = 40;
+    
+    // Add warning indicator
+    addVisualEffect({
+        type: 'asteroidWarning',
+        x: x,
+        y: y,
+        radius: radius,
+        startTime: Date.now(),
+        duration: 1000
+    });
+    
+    // Spawn asteroid after warning
+    setTimeout(() => {
+        if (!waveActive) return;
+        
+        // Damage players within radius
+        const dx = player.x - x;
+        const dy = player.y - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < radius + player.radius) {
+            const damage = 20;
+            player.health -= damage;
+            createDamageIndicator(player.x, player.y, damage, true);
+            
+            if (player.health <= 0) {
+                gameOver();
+            }
+        }
+        
+        // Damage monsters within radius
+        for (let i = monsters.length - 1; i >= 0; i--) {
+            const monster = monsters[i];
+            const dx = monster.x - x;
+            const dy = monster.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < radius + monster.radius && !monster.isBoss) {
+                monster.health -= 50;
+                createDamageIndicator(monster.x, monster.y, 50, true);
+                
+                if (monster.health <= 0) {
+                    monsters.splice(i, 1);
+                    kills++;
+                    gold += 5;
+                }
+            }
+        }
+        
+        // Visual effect
+        addVisualEffect({
+            type: 'asteroid',
+            x: x,
+            y: y,
+            radius: radius,
+            startTime: Date.now(),
+            duration: 500
+        });
+    }, 1000);
+}
+
+function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null) {
     const waveConfig = getWaveConfig(wave);
     
-    let monsterType;
+    let health, damage;
     
-    if (isBoss || waveConfig.isBoss) {
-        monsterType = MONSTER_TYPES.BOSS;
+    if (isBoss) {
+        health = waveConfig.monsterHealth * monsterType.healthMultiplier;
+        damage = waveConfig.monsterDamage * monsterType.damageMultiplier;
     } else {
-        const rand = Math.random();
-        if (wave < 3) {
-            monsterType = MONSTER_TYPES.NORMAL;
-        } else if (wave < 6) {
-            if (rand < 0.5) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.7) monsterType = MONSTER_TYPES.FAST;
-            else if (rand < 0.9) monsterType = MONSTER_TYPES.TANK;
-            else monsterType = MONSTER_TYPES.EXPLOSIVE;
-        } else if (wave < 10) {
-            if (rand < 0.3) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.45) monsterType = MONSTER_TYPES.FAST;
-            else if (rand < 0.6) monsterType = MONSTER_TYPES.TANK;
-            else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
-            else monsterType = MONSTER_TYPES.GUNNER;
-        } else if (wave < 15) {
-            if (rand < 0.25) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.4) monsterType = MONSTER_TYPES.FAST;
-            else if (rand < 0.55) monsterType = MONSTER_TYPES.TANK;
-            else if (rand < 0.7) monsterType = MONSTER_TYPES.EXPLOSIVE;
-            else if (rand < 0.85) monsterType = MONSTER_TYPES.GUNNER;
-            else monsterType = MONSTER_TYPES.BOSS; // Mini-boss chance
-        } else {
-            if (rand < 0.2) monsterType = MONSTER_TYPES.NORMAL;
-            else if (rand < 0.35) monsterType = MONSTER_TYPES.FAST;
-            else if (rand < 0.5) monsterType = MONSTER_TYPES.TANK;
-            else if (rand < 0.65) monsterType = MONSTER_TYPES.EXPLOSIVE;
-            else if (rand < 0.8) monsterType = MONSTER_TYPES.GUNNER;
-            else monsterType = MONSTER_TYPES.BOSS; // Mini-boss chance
-        }
+        health = Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
+        damage = Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
     }
     
     let x, y;
@@ -920,27 +1068,21 @@ function spawnMonster(isBoss = false, spawnX = null, spawnY = null) {
         }
     }
     
-    const health = isBoss || waveConfig.isBoss ? 
-        waveConfig.monsterHealth * monsterType.healthMultiplier : 
-        Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier);
-    
-    const damage = isBoss || waveConfig.isBoss ?
-        waveConfig.monsterDamage * monsterType.damageMultiplier :
-        Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier);
-    
     const monster = {
         x, y,
-        radius: (isBoss || waveConfig.isBoss) ? 45 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
+        radius: isBoss ? 45 : (15 + Math.random() * 10) * monsterType.sizeMultiplier,
         health: health,
         maxHealth: health,
         damage: damage,
-        speed: ((isBoss || waveConfig.isBoss) ? 0.8 : (1 + wave * 0.1)) * monsterType.speed,
+        speed: (isBoss ? 0.7 : (1 + wave * 0.05)) * monsterType.speed,
         color: monsterType.color,
         type: monsterType.name,
         monsterType: monsterType,
         lastAttack: 0,
         attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
-        isBoss: isBoss || waveConfig.isBoss || false,
+        isBoss: isBoss || false,
+        isMinion: monsterType.isMinion || false,
+        lifeSteal: monsterType.lifeSteal || 0,
         
         // Status effects
         slowed: false,
@@ -956,8 +1098,7 @@ function spawnMonster(isBoss = false, spawnX = null, spawnY = null) {
         // Gunner properties
         isGunner: monsterType === MONSTER_TYPES.GUNNER,
         
-        originalSpeed: monsterType.speed,
-        lifeSteal: monsterType.lifeSteal || 0
+        originalSpeed: monsterType.speed
     };
     
     // Add spawn effect
@@ -1488,6 +1629,14 @@ function endWave() {
     gameState = 'statSelect';
     waveActive = false;
     
+    // Clear boss abilities
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
+    bossAbilities.asteroids = [];
+    bossAbilities.slowField = null;
+    
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
     
@@ -1509,6 +1658,14 @@ function endWave() {
 function gameOver() {
     gameState = 'gameover';
     waveActive = false;
+    
+    // Clear boss abilities
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
+    bossAbilities.asteroids = [];
+    bossAbilities.slowField = null;
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
@@ -1589,6 +1746,7 @@ function gameLoop() {
     drawMeleeAttacks();
     drawVisualEffects();
     drawGroundEffects();
+    drawSlowField();
     drawPlayer();
     
     if (gameState === 'wave' || gameState === 'shop' || gameState === 'statSelect') {
@@ -1623,38 +1781,95 @@ function drawSpawnIndicators() {
     for (let i = spawnIndicators.length - 1; i >= 0; i--) {
         const indicator = spawnIndicators[i];
         const elapsed = currentTime - indicator.startTime;
+        const progress = elapsed / indicator.timer;
         
         if (elapsed > indicator.timer) {
             spawnIndicators.splice(i, 1);
             continue;
         }
         
+        // Animate the indicator
+        const pulseScale = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
+        const alpha = 1 - progress * 0.5;
+        
         ctx.save();
         ctx.translate(indicator.x, indicator.y);
         
         if (indicator.isBoss) {
-            ctx.strokeStyle = '#ffd700';
+            ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
             ctx.lineWidth = 4;
             ctx.shadowColor = '#ffd700';
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 20 * alpha;
+            
+            // Rotating rings
+            ctx.rotate(elapsed * 0.002);
+            
+            // Outer ring
+            ctx.beginPath();
+            ctx.arc(0, 0, 40 * pulseScale, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner ring
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Cross
+            ctx.rotate(-elapsed * 0.002);
+            ctx.beginPath();
+            ctx.moveTo(-30, -30);
+            ctx.lineTo(30, 30);
+            ctx.moveTo(30, -30);
+            ctx.lineTo(-30, 30);
+            ctx.stroke();
         } else {
-            ctx.strokeStyle = '#ff0000';
+            // Regular monster indicator
+            ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
             ctx.lineWidth = 3;
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 10 * alpha;
+            
+            // Pulsing circle
+            ctx.beginPath();
+            ctx.arc(0, 0, 25 * pulseScale, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // X marker
+            ctx.beginPath();
+            ctx.moveTo(-15, -15);
+            ctx.lineTo(15, 15);
+            ctx.moveTo(15, -15);
+            ctx.lineTo(-15, 15);
+            ctx.stroke();
         }
         
-        ctx.lineCap = 'round';
+        ctx.restore();
+    }
+}
+
+function drawSlowField() {
+    if (bossAbilities.slowField && bossAbilities.slowField.active) {
+        const alpha = 0.3;
         
-        ctx.beginPath();
-        ctx.moveTo(-15, -15);
-        ctx.lineTo(15, 15);
-        ctx.moveTo(15, -15);
-        ctx.lineTo(-15, 15);
-        ctx.stroke();
+        ctx.save();
+        ctx.translate(bossAbilities.slowField.x, bossAbilities.slowField.y);
         
+        // Pulsing slow field
+        const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
+        
+        ctx.fillStyle = `rgba(100, 100, 255, ${alpha})`;
+        ctx.shadowColor = '#6464ff';
+        ctx.shadowBlur = 30;
         ctx.beginPath();
-        ctx.arc(0, 0, indicator.isBoss ? 30 : 20, 0, Math.PI * 2);
-        ctx.strokeStyle = indicator.isBoss ? 'rgba(255, 215, 0, 0.5)' : 'rgba(255, 0, 0, 0.3)';
-        ctx.lineWidth = indicator.isBoss ? 3 : 2;
+        ctx.arc(0, 0, bossAbilities.slowField.radius * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner ring
+        ctx.strokeStyle = `rgba(200, 200, 255, ${alpha})`;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(0, 0, bossAbilities.slowField.radius * 0.7, 0, Math.PI * 2);
         ctx.stroke();
         
         ctx.restore();
@@ -1726,34 +1941,32 @@ function drawMonsterProjectiles() {
 }
 
 function drawBossProjectiles() {
+    const currentTime = Date.now();
+    
     bossProjectiles.forEach(proj => {
+        const age = currentTime - proj.startTime;
+        const alpha = Math.min(1, 1 - age / proj.lifetime);
+        
         ctx.save();
         ctx.translate(proj.x, proj.y);
         
         // Draw boss projectile
-        ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 15;
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur = 15 * alpha;
         
         // Outer glow
-        ctx.fillStyle = '#ff8888';
+        ctx.fillStyle = proj.color;
+        ctx.globalAlpha = alpha * 0.7;
         ctx.beginPath();
         ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
         ctx.fill();
         
         // Inner projectile
-        ctx.fillStyle = proj.color;
-        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.globalAlpha = alpha;
         ctx.beginPath();
         ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
         ctx.fill();
-        
-        // Skull icon for boss projectiles
-        ctx.fillStyle = '#000000';
-        ctx.shadowBlur = 0;
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('💀', 0, 0);
         
         ctx.restore();
     });
@@ -2366,6 +2579,23 @@ function updateGame(deltaTime) {
         player.lastBloodDamage = currentTime;
     }
     
+    // Apply slow field effect
+    if (bossAbilities.slowField && bossAbilities.slowField.active) {
+        const dx = player.x - bossAbilities.slowField.x;
+        const dy = player.y - bossAbilities.slowField.y;
+        const distToField = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distToField < bossAbilities.slowField.radius) {
+            player.speed = Math.max(1, player.speed * 0.5);
+            // Damage over time
+            if (currentTime - (bossAbilities.slowField.lastDamage || 0) > 1000) {
+                player.health -= 2;
+                bossAbilities.slowField.lastDamage = currentTime;
+                createDamageIndicator(player.x, player.y, 2, false);
+            }
+        }
+    }
+    
     updateWeapons();
     updateProjectiles();
     updateMonsterProjectiles(currentTime);
@@ -2532,27 +2762,65 @@ function updateBossProjectiles(currentTime) {
 }
 
 function shootBossProjectiles(boss) {
-    // Shoot projectiles in 4 diagonal directions
-    const directions = [
-        { angle: Math.PI / 4, vx: 1, vy: 1 },     // Down-right
-        { angle: 3 * Math.PI / 4, vx: -1, vy: 1 }, // Down-left
-        { angle: 5 * Math.PI / 4, vx: -1, vy: -1 }, // Up-left
-        { angle: 7 * Math.PI / 4, vx: 1, vy: -1 }   // Up-right
-    ];
+    const currentTime = Date.now();
     
-    directions.forEach(dir => {
-        bossProjectiles.push({
-            x: boss.x,
-            y: boss.y,
-            vx: dir.vx * MONSTER_TYPES.BOSS.projectileSpeed,
-            vy: dir.vy * MONSTER_TYPES.BOSS.projectileSpeed,
-            damage: MONSTER_TYPES.BOSS.projectileDamage,
-            radius: 8,
-            color: '#ff4444',
-            startTime: Date.now(),
-            lifetime: 3000
+    if (wave === 10) {
+        // Shotgun blast for wave 10 boss
+        const baseAngle = Math.atan2(player.y - boss.y, player.x - boss.x);
+        for (let i = -3; i <= 4; i++) {
+            const angle = baseAngle + (i * 0.2);
+            bossProjectiles.push({
+                x: boss.x,
+                y: boss.y,
+                vx: Math.cos(angle) * 6,
+                vy: Math.sin(angle) * 6,
+                damage: 10,
+                radius: 5,
+                color: '#ff8888',
+                startTime: currentTime,
+                lifetime: 2500
+            });
+        }
+    } else if (wave === 20 || wave === 30) {
+        // Spread shot for later bosses
+        const baseAngle = Math.atan2(player.y - boss.y, player.x - boss.x);
+        for (let i = -2; i <= 2; i++) {
+            const angle = baseAngle + (i * 0.15);
+            bossProjectiles.push({
+                x: boss.x,
+                y: boss.y,
+                vx: Math.cos(angle) * 5,
+                vy: Math.sin(angle) * 5,
+                damage: 12,
+                radius: 6,
+                color: '#ff4444',
+                startTime: currentTime,
+                lifetime: 3000
+            });
+        }
+    } else {
+        // Default 4-way spread for other bosses
+        const directions = [
+            { vx: 1, vy: 1 },
+            { vx: -1, vy: 1 },
+            { vx: -1, vy: -1 },
+            { vx: 1, vy: -1 }
+        ];
+        
+        directions.forEach(dir => {
+            bossProjectiles.push({
+                x: boss.x,
+                y: boss.y,
+                vx: dir.vx * 5,
+                vy: dir.vy * 5,
+                damage: 15,
+                radius: 8,
+                color: '#ff4444',
+                startTime: currentTime,
+                lifetime: 3000
+            });
         });
-    });
+    }
 }
 
 // ============================================
@@ -3149,22 +3417,16 @@ function drawVisualEffects() {
                 break;
                 
             case 'spawn':
-                // Spawn effect - expanding ring
                 ctx.strokeStyle = effect.color || '#ffffff';
                 ctx.lineWidth = 3 * (1 - progress);
                 ctx.shadowColor = effect.color || '#ffffff';
                 ctx.shadowBlur = 15 * alpha;
                 
-                // Expanding ring
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 20 + progress * 30, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                // Inner glow
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 10, 0, Math.PI * 2);
-                ctx.fill();
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(effect.x, effect.y, 15 + i * 10 + progress * 30, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
                 break;
                 
             case 'bossSpawn':
@@ -3183,18 +3445,48 @@ function drawVisualEffects() {
                 
             case 'explosion':
                 const explosionSize = (effect.radius || 40) * (1 - progress * 0.5);
-                const gradient2 = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
-                gradient2.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
-                gradient2.addColorStop(0.3, `rgba(255, 200, 0, ${alpha})`);
-                gradient2.addColorStop(0.6, `rgba(255, 100, 0, ${alpha * 0.7})`);
-                gradient2.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                const expGradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
+                expGradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                expGradient.addColorStop(0.3, `rgba(255, 200, 0, ${alpha})`);
+                expGradient.addColorStop(0.6, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                expGradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
                 
-                ctx.fillStyle = gradient2;
+                ctx.fillStyle = expGradient;
                 ctx.shadowColor = '#FF4500';
                 ctx.shadowBlur = 30;
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, explosionSize, 0, Math.PI * 2);
                 ctx.fill();
+                break;
+                
+            case 'asteroidWarning':
+                ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 20;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'asteroid':
+                ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
+                ctx.shadowColor = '#8B4513';
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
+                
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2 + progress * 2;
+                    const distance = effect.radius * progress * 2;
+                    ctx.fillStyle = `rgba(255, 140, 0, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 break;
                 
             case 'shockwave':
