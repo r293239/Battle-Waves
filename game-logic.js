@@ -501,6 +501,7 @@ const player = {
     enchantersInk: false,
     guardianAngel: false,
     bloodContract: false,
+    bloodContractInterval: null, // For tracking the drain interval
     lastBloodDamage: 0
 };
 
@@ -663,6 +664,12 @@ function generateStatBuffs() {
 // ============================================
 
 function initGame() {
+    // Clear any existing blood contract interval
+    if (player.bloodContractInterval) {
+        clearInterval(player.bloodContractInterval);
+        player.bloodContractInterval = null;
+    }
+    
     Object.assign(player, {
         x: 400,
         y: 300,
@@ -700,6 +707,7 @@ function initGame() {
         enchantersInk: false,
         guardianAngel: false,
         bloodContract: false,
+        bloodContractInterval: null,
         lastBloodDamage: 0
     });
     
@@ -919,11 +927,11 @@ function startWave() {
                         }
                     }, 4000); // Every 4 seconds
                 } else if (wave === 30) {
+                    // Slow field follows the boss
                     bossAbilities.slowField = {
-                        x: boss.x,
-                        y: boss.y,
-                        radius: 150,
-                        active: true
+                        active: true,
+                        radius: 200,
+                        lastDamage: 0
                     };
                 }
             }
@@ -994,10 +1002,16 @@ function startWave() {
 function spawnAsteroid() {
     if (!waveActive) return;
     
-    // Random position for asteroid impact
-    const x = Math.random() * canvas.width;
-    const y = Math.random() * canvas.height;
-    const radius = 50;
+    // Find boss position to spawn asteroids around it
+    const boss = monsters.find(m => m.isBoss);
+    if (!boss) return;
+    
+    // Random position around the boss
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 150 + Math.random() * 100;
+    const x = boss.x + Math.cos(angle) * distance;
+    const y = boss.y + Math.sin(angle) * distance;
+    const radius = 40;
     
     // Add warning indicator
     addVisualEffect({
@@ -1028,7 +1042,7 @@ function spawnAsteroid() {
             }
         }
         
-        // Damage monsters within radius
+        // Damage monsters within radius (but not the boss)
         for (let i = monsters.length - 1; i >= 0; i--) {
             const monster = monsters[i];
             const dx = monster.x - x;
@@ -1568,6 +1582,37 @@ function applyPermanentItemEffect(item) {
         case 'guardian_angel':
             player.guardianAngel = true;
             break;
+        case 'blood_contract':
+            // Blood Contract logic
+            player.bloodContract = true;
+            player.lifeSteal += 0.03; // +3% lifesteal
+            player.healthRegen = 0; // Reset health regen
+            
+            // Clear any existing interval
+            if (player.bloodContractInterval) {
+                clearInterval(player.bloodContractInterval);
+            }
+            
+            // Start health drain (every second)
+            player.bloodContractInterval = setInterval(() => {
+                if (gameState === 'wave' || gameState === 'shop' || gameState === 'statSelect') {
+                    if (player.health > 1) {
+                        player.health -= 1;
+                    } else {
+                        // Keep at 1 HP to prevent death from item
+                        player.health = 1;
+                    }
+                    
+                    // Update UI
+                    updateUI();
+                    
+                    // Visual feedback
+                    createDamageIndicator(player.x, player.y, 1, false);
+                }
+            }, 1000);
+            
+            showMessage("Blood Contract activated! +3% lifesteal, but -1 HP per second");
+            break;
     }
 }
 
@@ -1688,6 +1733,12 @@ function gameOver() {
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
+    
+    // Clear blood contract interval
+    if (player.bloodContractInterval) {
+        clearInterval(player.bloodContractInterval);
+        player.bloodContractInterval = null;
+    }
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
@@ -1888,10 +1939,14 @@ function drawSpawnIndicators() {
 
 function drawSlowField() {
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
+        // Find the boss to get its position
+        const boss = monsters.find(m => m.isBoss && m.monsterType.name === 'BOSS' && wave === 30);
+        if (!boss) return;
+        
         const alpha = 0.3;
         
         ctx.save();
-        ctx.translate(bossAbilities.slowField.x, bossAbilities.slowField.y);
+        ctx.translate(boss.x, boss.y);
         
         // Pulsing slow field
         const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
@@ -2590,6 +2645,17 @@ function drawPlayer() {
     ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
     ctx.fill();
     
+    // Blood contract visual effect
+    if (player.bloodContract) {
+        ctx.shadowColor = '#8B0000';
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = '#8B0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 5 + Math.sin(Date.now() * 0.005) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
     ctx.restore();
 }
 
@@ -2612,25 +2678,29 @@ function updateGame(deltaTime) {
         player.lastRegen = currentTime;
     }
     
-    // Blood contract damage
-    if (player.bloodContract && currentTime - player.lastBloodDamage >= 5000) {
-        player.health = Math.max(1, player.health - 1);
-        player.lastBloodDamage = currentTime;
-    }
-    
     // Apply slow field effect
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
-        const dx = player.x - bossAbilities.slowField.x;
-        const dy = player.y - bossAbilities.slowField.y;
-        const distToField = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distToField < bossAbilities.slowField.radius) {
-            player.speed = Math.max(1, player.speed * 0.5);
-            // Damage over time
-            if (currentTime - (bossAbilities.slowField.lastDamage || 0) > 1000) {
-                player.health -= 2;
-                bossAbilities.slowField.lastDamage = currentTime;
-                createDamageIndicator(player.x, player.y, 2, false);
+        const boss = monsters.find(m => m.isBoss && m.monsterType.name === 'BOSS' && wave === 30);
+        if (boss) {
+            const dx = player.x - boss.x;
+            const dy = player.y - boss.y;
+            const distToField = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distToField < bossAbilities.slowField.radius) {
+                // Slow player
+                const originalSpeed = player.speed;
+                player.speed = Math.max(1, originalSpeed * 0.5);
+                
+                // Damage over time
+                if (currentTime - (bossAbilities.slowField.lastDamage || 0) > 1000) {
+                    player.health -= 2;
+                    bossAbilities.slowField.lastDamage = currentTime;
+                    createDamageIndicator(player.x, player.y, 2, false);
+                    
+                    if (player.health <= 0) {
+                        gameOver();
+                    }
+                }
             }
         }
     }
