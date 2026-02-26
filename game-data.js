@@ -421,6 +421,55 @@ const GAME_DATA = {
             type: 'consumable',
             cost: 30,
             description: 'Fully reload all ranged weapons'
+        },
+        {
+            id: 'blood_contract',
+            name: 'Blood Contract',
+            icon: '📜🩸',
+            type: 'permanent',
+            cost: 150,
+            description: '+3% lifesteal, but lose 1 HP per second and reset health regen',
+            effect: { 
+                lifeSteal: 0.03,
+                healthRegen: 0
+            },
+            onPurchase: function(player) {
+                // Reset health regen to 0 when purchased
+                player.healthRegen = 0;
+                
+                // Store reference to drain interval on player
+                if (!player.bloodContractActive) {
+                    player.bloodContractActive = true;
+                    
+                    // Clear any existing interval
+                    if (player.bloodDrainInterval) {
+                        clearInterval(player.bloodDrainInterval);
+                    }
+                    
+                    // Start health drain (every second)
+                    player.bloodDrainInterval = setInterval(() => {
+                        if (player.health > 1) {
+                            player.health -= 1;
+                        } else {
+                            // Keep at 1 HP to prevent death from item
+                            player.health = 1;
+                        }
+                        
+                        // Update UI if function exists
+                        if (typeof player.updateHealthDisplay === 'function') {
+                            player.updateHealthDisplay();
+                        }
+                    }, 1000);
+                }
+            },
+            onRemove: function(player) {
+                // Clean up interval when item is removed
+                if (player.bloodDrainInterval) {
+                    clearInterval(player.bloodDrainInterval);
+                    player.bloodDrainInterval = null;
+                }
+                player.bloodContractActive = false;
+            }
         }
     ]
 };
