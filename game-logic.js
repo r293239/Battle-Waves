@@ -532,62 +532,173 @@ let keys = {
     right: false
 };
 
-// High score system
-let highScore = {
-    wave: 1,
-    kills: 0,
-    date: new Date().toLocaleDateString()
-};
+// Save game state to localStorage
+function saveGame() {
+    if (gameState === 'start' || gameState === 'gameover') return;
+    
+    const gameData = {
+        wave: wave,
+        gold: gold,
+        kills: kills,
+        gameState: gameState,
+        waveActive: waveActive,
+        refreshCount: refreshCount,
+        refreshCost: refreshCost,
+        player: {
+            x: player.x,
+            y: player.y,
+            health: player.health,
+            maxHealth: player.maxHealth,
+            baseDamage: player.baseDamage,
+            speed: player.speed,
+            baseSpeed: player.baseSpeed,
+            lifeSteal: player.lifeSteal,
+            criticalChance: player.criticalChance,
+            goldMultiplier: player.goldMultiplier,
+            healthRegen: player.healthRegen,
+            damageReduction: player.damageReduction,
+            dodgeChance: player.dodgeChance,
+            thornsDamage: player.thornsDamage,
+            attackSpeedMultiplier: player.attackSpeedMultiplier,
+            firstHitReduction: player.firstHitReduction,
+            guardianAngel: player.guardianAngel,
+            guardianAngelUsed: player.guardianAngelUsed,
+            bloodContract: player.bloodContract,
+            berserkerRing: player.berserkerRing,
+            sharpeningStone: player.sharpeningStone,
+            sharpeningStoneWave: player.sharpeningStoneWave,
+            enchantersInk: player.enchantersInk,
+            consumables: player.consumables
+        },
+        weapons: player.weapons.map(w => ({
+            id: w.id,
+            tier: w.tier,
+            currentAmmo: w.currentAmmo,
+            isReloading: w.isReloading
+        })),
+        shopItems: shopItems,
+        timestamp: Date.now()
+    };
+    
+    localStorage.setItem('gameSave', JSON.stringify(gameData));
+    showMessage('Game saved!');
+}
 
-// Load high score from localStorage
-function loadHighScore() {
-    const saved = localStorage.getItem('gameHighScore');
+// Load game state from localStorage
+function loadGame() {
+    const saved = localStorage.getItem('gameSave');
+    if (!saved) {
+        showMessage('No saved game found!');
+        return false;
+    }
+    
+    try {
+        const gameData = JSON.parse(saved);
+        
+        // Restore game state
+        wave = gameData.wave;
+        gold = gameData.gold;
+        kills = gameData.kills;
+        gameState = gameData.gameState;
+        waveActive = gameData.waveActive;
+        refreshCount = gameData.refreshCount || 0;
+        refreshCost = gameData.refreshCost || 5;
+        
+        // Restore player
+        Object.assign(player, gameData.player);
+        
+        // Restore weapons
+        player.weapons = [];
+        gameData.weapons.forEach(w => {
+            const weaponData = GAME_DATA.WEAPONS.find(weap => weap.id === w.id);
+            if (weaponData) {
+                const weapon = new WeaponInstance(weaponData, w.tier);
+                if (weapon.usesAmmo) {
+                    weapon.currentAmmo = w.currentAmmo;
+                    weapon.isReloading = w.isReloading;
+                }
+                player.weapons.push(weapon);
+            }
+        });
+        
+        // Restore shop items
+        shopItems = gameData.shopItems || [];
+        
+        // Clear any existing blood contract interval
+        if (player.bloodContract) {
+            if (player.bloodContractInterval) {
+                clearInterval(player.bloodContractInterval);
+            }
+            
+            // Restart blood contract drain
+            player.bloodContractInterval = setInterval(() => {
+                if (gameState === 'wave') {
+                    if (player.health > 1) {
+                        player.health -= 1;
+                    } else {
+                        player.health = 1;
+                    }
+                    updateUI();
+                    createDamageIndicator(player.x, player.y, 1, false);
+                }
+            }, 1000);
+        }
+        
+        // Update UI
+        startScreen.style.display = 'none';
+        waveCompleteOverlay.style.display = 'none';
+        gameOverOverlay.style.display = 'none';
+        
+        if (gameState === 'wave') {
+            startWave();
+        } else if (gameState === 'shop') {
+            nextWaveBtn.style.display = 'block';
+            updateShopDisplay();
+        } else if (gameState === 'statSelect') {
+            showStatBuffs();
+        }
+        
+        updateUI();
+        updateWeaponDisplay();
+        updateShopDisplay();
+        updateConsumablesDisplay();
+        
+        showMessage('Game loaded!');
+        return true;
+    } catch (e) {
+        console.error('Failed to load game:', e);
+        showMessage('Failed to load save file!');
+        return false;
+    }
+}
+
+// Clear saved game
+function clearSave() {
+    localStorage.removeItem('gameSave');
+    showMessage('Save file cleared!');
+}
+
+// Check for existing save on startup
+function checkForSave() {
+    const saved = localStorage.getItem('gameSave');
     if (saved) {
-        try {
-            highScore = JSON.parse(saved);
-            updateHighScoreDisplay();
-        } catch (e) {
-            console.error('Failed to load high score');
+        // Add continue button to start screen
+        const continueBtn = document.createElement('button');
+        continueBtn.id = 'continueGameBtn';
+        continueBtn.textContent = 'Continue Game';
+        continueBtn.style.marginTop = '10px';
+        continueBtn.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+        
+        continueBtn.addEventListener('click', () => {
+            loadGame();
+            startScreen.style.display = 'none';
+        });
+        
+        // Check if button already exists
+        if (!document.getElementById('continueGameBtn')) {
+            startScreen.appendChild(continueBtn);
         }
     }
-}
-
-// Save high score to localStorage
-function saveHighScore() {
-    localStorage.setItem('gameHighScore', JSON.stringify(highScore));
-    updateHighScoreDisplay();
-}
-
-// Update high score display
-function updateHighScoreDisplay() {
-    const highScoreElement = document.getElementById('highScore');
-    if (highScoreElement) {
-        highScoreElement.textContent = `Best: Wave ${highScore.wave} (${highScore.kills} kills) - ${highScore.date}`;
-    }
-}
-
-// Check and update high score
-function checkHighScore() {
-    if (wave > highScore.wave || (wave === highScore.wave && kills > highScore.kills)) {
-        highScore = {
-            wave: wave,
-            kills: kills,
-            date: new Date().toLocaleDateString()
-        };
-        saveHighScore();
-        showMessage('NEW HIGH SCORE!');
-    }
-}
-
-// Reset high score on death
-function resetHighScore() {
-    highScore = {
-        wave: 1,
-        kills: 0,
-        date: new Date().toLocaleDateString()
-    };
-    saveHighScore();
-    showMessage('High score reset!');
 }
 
 // Game Objects
@@ -687,20 +798,6 @@ const goldValue = document.getElementById('goldValue');
 const waveValue = document.getElementById('waveValue');
 const killsValue = document.getElementById('killsValue');
 const healthFill = document.getElementById('healthFill');
-
-// Create high score element if it doesn't exist
-function createHighScoreElement() {
-    const statsPanel = document.querySelector('.stats-panel');
-    if (statsPanel && !document.getElementById('highScore')) {
-        const highScoreDiv = document.createElement('div');
-        highScoreDiv.id = 'highScore';
-        highScoreDiv.className = 'stat-item';
-        highScoreDiv.style.gridColumn = 'span 2';
-        highScoreDiv.style.background = 'rgba(255, 215, 0, 0.2)';
-        highScoreDiv.style.border = '1px solid #ffd700';
-        statsPanel.appendChild(highScoreDiv);
-    }
-}
 
 // Load boomerang image
 const boomerangImage = new Image();
@@ -927,7 +1024,6 @@ function initGame() {
     updateUI();
     updateWeaponDisplay();
     updateShopDisplay();
-    updateHighScoreDisplay();
 }
 
 // ============================================
@@ -1954,8 +2050,8 @@ function gameOver() {
         player.bloodContractInterval = null;
     }
     
-    // Check high score before guardian angel
-    checkHighScore();
+    // Clear save file on death
+    clearSave();
     
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
@@ -4381,6 +4477,18 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
     }
+    
+    // S key for save
+    if (key === 's' && e.ctrlKey) {
+        e.preventDefault();
+        saveGame();
+    }
+    
+    // L key for load
+    if (key === 'l' && e.ctrlKey) {
+        e.preventDefault();
+        loadGame();
+    }
 });
 
 document.addEventListener('keyup', (e) => {
@@ -4435,7 +4543,7 @@ refreshShopBtn.addEventListener('click', refreshShop);
 
 restartBtn.addEventListener('click', () => {
     gameOverOverlay.style.display = 'none';
-    resetHighScore(); // Reset high score on death
+    clearSave(); // Clear save file on restart
     initGame();
 });
 
@@ -4533,18 +4641,35 @@ style.textContent = `
         border-radius: 5px;
         pointer-events: none;
     }
+
+    #continueGameBtn {
+        margin-top: 10px;
+        padding: 10px 30px;
+        background: linear-gradient(45deg, #4CAF50, #45a049);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        font-weight: bold;
+        transition: transform 0.2s;
+    }
+
+    #continueGameBtn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+    }
 `;
 document.head.appendChild(style);
 
 // Add control hint
 const controlHint = document.createElement('div');
 controlHint.className = 'control-hint';
-controlHint.innerHTML = 'WASD / Arrow Keys | Space: Next Wave | R: Reload';
+controlHint.innerHTML = 'WASD / Arrow Keys | Space: Next Wave | R: Reload | Ctrl+S: Save | Ctrl+L: Load';
 document.body.appendChild(controlHint);
 
-// Initialize high score on load
-createHighScoreElement();
-loadHighScore();
+// Check for existing save on startup
+checkForSave();
 
 // Start game loop
 gameLoop();
