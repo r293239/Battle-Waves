@@ -83,6 +83,63 @@ const MONSTER_TYPES = {
     }
 };
 
+// Boss melee weapons
+const BOSS_WEAPONS = {
+    DAGGER: {
+        name: 'Shadow Dagger',
+        type: 'melee',
+        meleeType: 'pierce',
+        baseDamage: 25,
+        attackSpeed: 2.0,
+        range: 120,
+        description: 'Quick stabbing attacks',
+        swingColor: '#8B0000',
+        swingAngle: 45,
+        animation: 'daggerStab',
+        trailColor: '#FF0000',
+        bladeColor: '#8B0000',
+        hiltColor: '#4A0404',
+        sparkleColor: '#FF4444',
+        pierceCount: 2
+    },
+    WAR_HAMMER: {
+        name: 'Crusher',
+        type: 'melee',
+        meleeType: 'aoe',
+        baseDamage: 40,
+        attackSpeed: 0.8,
+        range: 150,
+        description: 'Massive AOE slam',
+        swingColor: '#8B4513',
+        swingAngle: 360,
+        animation: 'hammerSmash',
+        trailColor: '#FF4500',
+        headColor: '#696969',
+        handleColor: '#8B4513',
+        shockwaveColor: '#FF4500',
+        shockwaveIntensity: 2.5
+    },
+    SCYTHE: {
+        name: 'Soul Reaper',
+        type: 'melee',
+        meleeType: 'aoe',
+        baseDamage: 35,
+        attackSpeed: 1.5,
+        range: 200,
+        description: 'Dashing scythe slash with lifesteal',
+        swingColor: '#4B0082',
+        swingAngle: 270,
+        animation: 'scytheSwing',
+        trailColor: '#9400D3',
+        bladeColor: '#4B0082',
+        handleColor: '#2F4F4F',
+        edgeColor: '#FF00FF',
+        sparkleColor: '#FF69B4',
+        dashRange: 300,
+        lifeSteal: 0.15
+    }
+};
+
 // ============================================
 // WEAPON INSTANCE CLASS
 // ============================================
@@ -454,7 +511,12 @@ let bossAbilities = {
     shotgun: false,
     asteroids: [],
     slowField: null,
-    enraged: false
+    enraged: false,
+    bossWeapon: null,
+    bossWeaponAttack: 0,
+    bossDash: false,
+    bossDashTarget: null,
+    bossDashStart: 0
 };
 let asteroidTimer = null;
 
@@ -750,6 +812,11 @@ function initGame() {
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
+    bossAbilities.bossWeapon = null;
+    bossAbilities.bossWeaponAttack = 0;
+    bossAbilities.bossDash = false;
+    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashStart = 0;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -853,6 +920,11 @@ function startWave() {
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
+    bossAbilities.bossWeapon = null;
+    bossAbilities.bossWeaponAttack = 0;
+    bossAbilities.bossDash = false;
+    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashStart = 0;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -865,11 +937,11 @@ function startWave() {
     // Simple boss text
     if (waveConfig.isBoss) {
         if (wave === 10) {
-            waveDisplay.textContent = `BOSS WAVE 10 - SHOTGUN BOSS`;
+            waveDisplay.textContent = `BOSS WAVE 10 - SHADOW DAGGER`;
         } else if (wave === 20) {
-            waveDisplay.textContent = `BOSS WAVE 20 - ASTEROID BOSS`;
+            waveDisplay.textContent = `BOSS WAVE 20 - WAR HAMMER`;
         } else if (wave === 30) {
-            waveDisplay.textContent = `BOSS WAVE 30 - SLOW FIELD BOSS`;
+            waveDisplay.textContent = `BOSS WAVE 30 - SOUL REAPER`;
         } else {
             waveDisplay.textContent = `BOSS WAVE ${wave}`;
         }
@@ -911,6 +983,19 @@ function startWave() {
                 boss.lifeSteal = 0.1; // Add life steal to boss
                 boss.maxHealth = waveConfig.monsterHealth * 15;
                 boss.health = boss.maxHealth;
+                
+                // Assign boss weapon based on wave
+                if (wave === 10) {
+                    bossAbilities.bossWeapon = BOSS_WEAPONS.DAGGER;
+                    boss.color = '#8B0000';
+                } else if (wave === 20) {
+                    bossAbilities.bossWeapon = BOSS_WEAPONS.WAR_HAMMER;
+                    boss.color = '#8B4513';
+                } else if (wave === 30) {
+                    bossAbilities.bossWeapon = BOSS_WEAPONS.SCYTHE;
+                    boss.color = '#4B0082';
+                }
+                
                 monsters.push(boss);
                 
                 // Add dramatic spawn effect for boss
@@ -920,7 +1005,8 @@ function startWave() {
                     y: boss.y,
                     radius: 100,
                     startTime: Date.now(),
-                    duration: 800
+                    duration: 800,
+                    color: boss.color
                 });
                 
                 // Spawn minions
@@ -1611,9 +1697,10 @@ function applyPermanentItemEffect(item) {
                 clearInterval(player.bloodContractInterval);
             }
             
-            // Start health drain (every second)
+            // Start health drain (every second) - ONLY DURING WAVES
             player.bloodContractInterval = setInterval(() => {
-                if (gameState === 'wave' || gameState === 'shop' || gameState === 'statSelect') {
+                // Only take damage during wave state
+                if (gameState === 'wave') {
                     if (player.health > 1) {
                         player.health -= 1;
                     } else {
@@ -1629,7 +1716,7 @@ function applyPermanentItemEffect(item) {
                 }
             }, 1000);
             
-            showMessage("Blood Contract activated! +3% lifesteal, but -1 HP per second");
+            showMessage("Blood Contract activated! +3% lifesteal, but -1 HP per second during waves");
             break;
     }
 }
@@ -1729,6 +1816,11 @@ function endWave() {
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
+    bossAbilities.bossWeapon = null;
+    bossAbilities.bossWeaponAttack = 0;
+    bossAbilities.bossDash = false;
+    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashStart = 0;
     
     const waveConfig = getWaveConfig(wave);
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
@@ -1765,6 +1857,11 @@ function gameOver() {
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
+    bossAbilities.bossWeapon = null;
+    bossAbilities.bossWeaponAttack = 0;
+    bossAbilities.bossDash = false;
+    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashStart = 0;
     
     // Clear blood contract interval
     if (player.bloodContractInterval) {
@@ -1849,6 +1946,7 @@ function gameLoop() {
     drawBossProjectiles();
     drawMonsterProjectiles();
     drawMeleeAttacks();
+    drawBossMeleeAttacks();
     drawVisualEffects();
     drawGroundEffects();
     drawSlowField();
@@ -2291,6 +2389,203 @@ function drawMeleeAttacks() {
         
         ctx.restore();
     });
+}
+
+function drawBossMeleeAttacks() {
+    if (!bossAbilities.bossWeapon || !bossAbilities.bossWeaponAttack) return;
+    
+    const currentTime = Date.now();
+    const attack = bossAbilities.bossWeaponAttack;
+    const progress = (currentTime - attack.startTime) / attack.duration;
+    
+    if (progress < 0 || progress > 1) {
+        bossAbilities.bossWeaponAttack = null;
+        return;
+    }
+    
+    ctx.save();
+    ctx.translate(attack.x, attack.y);
+    
+    const angle = attack.angle;
+    const distance = attack.radius * (progress * 1.2);
+    const alpha = 1 - progress * 0.7;
+    
+    // Draw boss weapon based on wave
+    if (wave === 10) {
+        drawBossDagger(ctx, attack, angle, progress, distance, alpha);
+    } else if (wave === 20) {
+        drawBossHammer(ctx, attack, angle, progress, distance, alpha);
+    } else if (wave === 30) {
+        drawBossScythe(ctx, attack, angle, progress, distance, alpha);
+    }
+    
+    ctx.restore();
+}
+
+function drawBossDagger(ctx, attack, angle, progress, distance, alpha) {
+    const stabProgress = Math.min(progress * 2, 1);
+    const stabDistance = distance * 1.5;
+    
+    ctx.rotate(angle);
+    ctx.translate(stabDistance, 0);
+    ctx.shadowColor = 'rgba(139, 0, 0, 0.7)';
+    ctx.shadowBlur = 20 * alpha;
+    
+    ctx.save();
+    const bladeGradient = ctx.createLinearGradient(0, -5, 60, -5);
+    bladeGradient.addColorStop(0, '#8B0000');
+    bladeGradient.addColorStop(1, '#FF4444');
+    
+    ctx.fillStyle = bladeGradient;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(60, -3);
+    ctx.lineTo(60, 3);
+    ctx.lineTo(0, 5);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(60, -3);
+    ctx.moveTo(0, 5);
+    ctx.lineTo(60, 3);
+    ctx.stroke();
+    ctx.restore();
+    
+    if (progress > 0.7) {
+        ctx.save();
+        ctx.translate(60, 0);
+        ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
+        ctx.shadowColor = 'rgba(255, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 8 * (1 - progress), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    
+    ctx.save();
+    ctx.fillStyle = '#4A0404';
+    ctx.fillRect(-12, -6, 20, 12);
+    
+    ctx.fillStyle = '#8B0000';
+    ctx.beginPath();
+    ctx.arc(-18, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawBossHammer(ctx, attack, angle, progress, distance, alpha) {
+    ctx.rotate(angle);
+    
+    const lift = Math.sin(progress * Math.PI) * 50;
+    const smashY = progress < 0.3 ? -lift : progress > 0.6 ? (progress - 0.6) * 60 : 0;
+    
+    ctx.translate(30, -50 + lift - smashY);
+    ctx.shadowColor = 'rgba(105, 105, 105, 0.7)';
+    ctx.shadowBlur = 30 * alpha;
+    
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-5, 0, 10, 80);
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(0, -25);
+    
+    ctx.fillStyle = '#696969';
+    ctx.fillRect(-25, -25, 50, 35);
+    
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(-30, -25, 10, 35);
+    ctx.fillRect(20, -25, 10, 35);
+    
+    ctx.fillStyle = '#A9A9A9';
+    ctx.fillRect(-25, -35, 50, 10);
+    ctx.restore();
+    
+    if (progress > 0.5 && progress < 0.8) {
+        ctx.save();
+        ctx.translate(0, 0);
+        ctx.rotate(0);
+        const shockProgress = (progress - 0.5) * 3.33;
+        ctx.strokeStyle = `rgba(255, 69, 0, ${alpha * (1 - shockProgress)})`;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 50, attack.radius * shockProgress, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawBossScythe(ctx, attack, angle, progress, distance, alpha) {
+    const swingProgress = Math.sin(progress * Math.PI);
+    const currentAngle = angle - 1 + swingProgress * 2;
+    
+    ctx.rotate(currentAngle);
+    ctx.shadowColor = 'rgba(75, 0, 130, 0.7)';
+    ctx.shadowBlur = 20 * alpha;
+    
+    // Handle
+    ctx.save();
+    ctx.fillStyle = '#2F4F4F';
+    ctx.fillRect(-5, -attack.radius * 0.8, 10, attack.radius * 1.6);
+    ctx.restore();
+    
+    // Blade
+    ctx.save();
+    ctx.translate(0, -attack.radius * 0.6);
+    ctx.rotate(-0.5);
+    
+    const bladeGradient = ctx.createLinearGradient(0, -20, 80, -20);
+    bladeGradient.addColorStop(0, '#4B0082');
+    bladeGradient.addColorStop(1, '#9400D3');
+    
+    ctx.fillStyle = bladeGradient;
+    ctx.shadowColor = 'rgba(148, 0, 211, 0.7)';
+    
+    ctx.beginPath();
+    ctx.moveTo(0, -15);
+    ctx.lineTo(80, -25);
+    ctx.lineTo(80, -5);
+    ctx.lineTo(0, 15);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Edge
+    ctx.strokeStyle = `rgba(255, 105, 180, ${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(80, -25);
+    ctx.lineTo(80, -5);
+    ctx.stroke();
+    ctx.restore();
+    
+    // Trail
+    if (progress > 0.2 && progress < 0.8) {
+        ctx.save();
+        ctx.rotate(0);
+        ctx.strokeStyle = `rgba(148, 0, 211, ${alpha * 0.3})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(20, -20);
+        ctx.lineTo(100, -40);
+        ctx.stroke();
+        ctx.restore();
+    }
+    
+    // Dash effect
+    if (bossAbilities.bossDash) {
+        ctx.save();
+        ctx.translate(-50, 0);
+        ctx.fillStyle = `rgba(255, 105, 180, ${alpha * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 }
 
 function drawSword(ctx, attack, angle, progress, distance, alpha) {
@@ -2791,7 +3086,58 @@ function updateGame(deltaTime) {
         }
     }
     
+    // Boss dash for wave 30 scythe boss
+    if (wave === 30 && bossAbilities.bossWeapon) {
+        const boss = monsters.find(m => m.isBoss);
+        if (boss && !bossAbilities.bossDash && Math.random() < 0.01) { // 1% chance per frame
+            // Start dash
+            bossAbilities.bossDash = true;
+            bossAbilities.bossDashTarget = { x: player.x, y: player.y };
+            bossAbilities.bossDashStart = currentTime;
+            
+            // Dash duration
+            setTimeout(() => {
+                bossAbilities.bossDash = false;
+                bossAbilities.bossDashTarget = null;
+            }, 500);
+        }
+        
+        if (bossAbilities.bossDash && bossAbilities.bossDashTarget) {
+            // Move boss towards dash target
+            const dx = bossAbilities.bossDashTarget.x - boss.x;
+            const dy = bossAbilities.bossDashTarget.y - boss.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 5) {
+                boss.x += (dx / dist) * boss.speed * 3; // 3x speed during dash
+                boss.y += (dy / dist) * boss.speed * 3;
+            }
+            
+            // Perform scythe attack at dash end
+            if (dist < 10 || currentTime - bossAbilities.bossDashStart > 450) {
+                if (!bossAbilities.bossWeaponAttack) {
+                    const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+                    bossAbilities.bossWeaponAttack = {
+                        type: 'melee',
+                        x: boss.x,
+                        y: boss.y,
+                        radius: BOSS_WEAPONS.SCYTHE.range,
+                        damage: BOSS_WEAPONS.SCYTHE.baseDamage,
+                        color: BOSS_WEAPONS.SCYTHE.swingColor,
+                        startTime: currentTime,
+                        duration: 300,
+                        swingAngle: BOSS_WEAPONS.SCYTHE.swingAngle,
+                        meleeType: BOSS_WEAPONS.SCYTHE.meleeType,
+                        angle: angle,
+                        lifeSteal: BOSS_WEAPONS.SCYTHE.lifeSteal
+                    };
+                }
+            }
+        }
+    }
+    
     updateWeapons();
+    updateBossWeapon(currentTime);
     updateProjectiles();
     updateMonsterProjectiles(currentTime);
     updateBossProjectiles(currentTime);
@@ -2807,6 +3153,44 @@ function updateGame(deltaTime) {
     }
     
     updateUI();
+}
+
+function updateBossWeapon(currentTime) {
+    if (!bossAbilities.bossWeapon || bossAbilities.bossWeaponAttack) return;
+    
+    const boss = monsters.find(m => m.isBoss);
+    if (!boss) return;
+    
+    // Boss weapon attack cooldown
+    const attackCooldown = 2000; // 2 seconds between attacks
+    if (currentTime - bossAbilities.bossWeapon.lastAttack < attackCooldown) return;
+    
+    const distanceToPlayer = Math.sqrt(
+        Math.pow(player.x - boss.x, 2) + Math.pow(player.y - boss.y, 2)
+    );
+    
+    // Only attack if player is in range
+    if (distanceToPlayer <= bossAbilities.bossWeapon.range) {
+        const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+        
+        bossAbilities.bossWeaponAttack = {
+            type: 'melee',
+            x: boss.x,
+            y: boss.y,
+            radius: bossAbilities.bossWeapon.range,
+            damage: bossAbilities.bossWeapon.baseDamage,
+            color: bossAbilities.bossWeapon.swingColor,
+            startTime: currentTime,
+            duration: 300,
+            swingAngle: bossAbilities.bossWeapon.swingAngle,
+            meleeType: bossAbilities.bossWeapon.meleeType,
+            angle: angle,
+            pierceCount: bossAbilities.bossWeapon.pierceCount || 1,
+            lifeSteal: bossAbilities.bossWeapon.lifeSteal || 0
+        };
+        
+        bossAbilities.bossWeapon.lastAttack = currentTime;
+    }
 }
 
 function updateWeapons() {
@@ -3627,7 +4011,7 @@ function drawVisualEffects() {
                 
             case 'bossSpawn':
                 const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, effect.radius);
-                gradient.addColorStop(0, `rgba(255, 215, 0, ${alpha})`);
+                gradient.addColorStop(0, `rgba(${effect.color ? parseInt(effect.color.slice(1,3),16) : 255}, ${effect.color ? parseInt(effect.color.slice(3,5),16) : 215}, 0, ${alpha})`);
                 gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
                 gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
                 
