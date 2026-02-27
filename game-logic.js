@@ -520,6 +520,76 @@ let bossAbilities = {
 };
 let asteroidTimer = null;
 
+// Player movement keys
+let keys = {
+    w: false,
+    a: false,
+    s: false,
+    d: false,
+    up: false,
+    down: false,
+    left: false,
+    right: false
+};
+
+// High score system
+let highScore = {
+    wave: 1,
+    kills: 0,
+    date: new Date().toLocaleDateString()
+};
+
+// Load high score from localStorage
+function loadHighScore() {
+    const saved = localStorage.getItem('gameHighScore');
+    if (saved) {
+        try {
+            highScore = JSON.parse(saved);
+            updateHighScoreDisplay();
+        } catch (e) {
+            console.error('Failed to load high score');
+        }
+    }
+}
+
+// Save high score to localStorage
+function saveHighScore() {
+    localStorage.setItem('gameHighScore', JSON.stringify(highScore));
+    updateHighScoreDisplay();
+}
+
+// Update high score display
+function updateHighScoreDisplay() {
+    const highScoreElement = document.getElementById('highScore');
+    if (highScoreElement) {
+        highScoreElement.textContent = `Best: Wave ${highScore.wave} (${highScore.kills} kills) - ${highScore.date}`;
+    }
+}
+
+// Check and update high score
+function checkHighScore() {
+    if (wave > highScore.wave || (wave === highScore.wave && kills > highScore.kills)) {
+        highScore = {
+            wave: wave,
+            kills: kills,
+            date: new Date().toLocaleDateString()
+        };
+        saveHighScore();
+        showMessage('NEW HIGH SCORE!');
+    }
+}
+
+// Reset high score on death
+function resetHighScore() {
+    highScore = {
+        wave: 1,
+        kills: 0,
+        date: new Date().toLocaleDateString()
+    };
+    saveHighScore();
+    showMessage('High score reset!');
+}
+
 // Game Objects
 const player = {
     x: 400,
@@ -617,6 +687,20 @@ const goldValue = document.getElementById('goldValue');
 const waveValue = document.getElementById('waveValue');
 const killsValue = document.getElementById('killsValue');
 const healthFill = document.getElementById('healthFill');
+
+// Create high score element if it doesn't exist
+function createHighScoreElement() {
+    const statsPanel = document.querySelector('.stats-panel');
+    if (statsPanel && !document.getElementById('highScore')) {
+        const highScoreDiv = document.createElement('div');
+        highScoreDiv.id = 'highScore';
+        highScoreDiv.className = 'stat-item';
+        highScoreDiv.style.gridColumn = 'span 2';
+        highScoreDiv.style.background = 'rgba(255, 215, 0, 0.2)';
+        highScoreDiv.style.border = '1px solid #ffd700';
+        statsPanel.appendChild(highScoreDiv);
+    }
+}
 
 // Load boomerang image
 const boomerangImage = new Image();
@@ -843,6 +927,7 @@ function initGame() {
     updateUI();
     updateWeaponDisplay();
     updateShopDisplay();
+    updateHighScoreDisplay();
 }
 
 // ============================================
@@ -1869,6 +1954,9 @@ function gameOver() {
         player.bloodContractInterval = null;
     }
     
+    // Check high score before guardian angel
+    checkHighScore();
+    
     // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
         player.guardianAngelUsed = true;
@@ -1931,6 +2019,30 @@ function gameLoop() {
     const currentTime = Date.now();
     const deltaTime = currentTime - lastFrameTime;
     lastFrameTime = currentTime;
+    
+    // Handle keyboard movement
+    if (gameState === 'wave') {
+        let moveX = 0;
+        let moveY = 0;
+        
+        if (keys.w || keys.up) moveY -= 1;
+        if (keys.s || keys.down) moveY += 1;
+        if (keys.a || keys.left) moveX -= 1;
+        if (keys.d || keys.right) moveX += 1;
+        
+        if (moveX !== 0 || moveY !== 0) {
+            const length = Math.sqrt(moveX * moveX + moveY * moveY);
+            moveX = moveX / length * player.speed;
+            moveY = moveY / length * player.speed;
+            
+            player.x += moveX;
+            player.y += moveY;
+            
+            // Keep player in bounds
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+        }
+    }
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -3023,23 +3135,7 @@ function drawPlayer() {
 }
 
 function updateGame(deltaTime) {
-    const dx = mouseX - player.x;
-    const dy = mouseY - player.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distance > player.speed) {
-        player.x += (dx / distance) * player.speed;
-        player.y += (dy / distance) * player.speed;
-    }
-    
-    player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
-    player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
-    
     const currentTime = Date.now();
-    if (player.healthRegen > 0 && currentTime - player.lastRegen >= 1000) {
-        player.health = Math.min(player.maxHealth, player.health + player.healthRegen);
-        player.lastRegen = currentTime;
-    }
     
     // Apply slow field effect (Wave 30 boss)
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
@@ -3136,6 +3232,12 @@ function updateGame(deltaTime) {
         }
     }
     
+    // Health regen
+    if (player.healthRegen > 0 && currentTime - player.lastRegen >= 1000) {
+        player.health = Math.min(player.maxHealth, player.health + player.healthRegen);
+        player.lastRegen = currentTime;
+    }
+    
     updateWeapons();
     updateBossWeapon(currentTime);
     updateProjectiles();
@@ -3163,7 +3265,7 @@ function updateBossWeapon(currentTime) {
     
     // Boss weapon attack cooldown
     const attackCooldown = 2000; // 2 seconds between attacks
-    if (currentTime - bossAbilities.bossWeapon.lastAttack < attackCooldown) return;
+    if (currentTime - (bossAbilities.bossWeapon.lastAttack || 0) < attackCooldown) return;
     
     const distanceToPlayer = Math.sqrt(
         Math.pow(player.x - boss.x, 2) + Math.pow(player.y - boss.y, 2)
@@ -4234,6 +4336,79 @@ function createHealthPopup(x, y, amount) {
 // EVENT LISTENERS
 // ============================================
 
+// Keyboard controls
+document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    
+    // Movement keys
+    if (key === 'w' || key === 'arrowup') {
+        keys.w = true;
+        keys.up = true;
+        e.preventDefault();
+    }
+    if (key === 's' || key === 'arrowdown') {
+        keys.s = true;
+        keys.down = true;
+        e.preventDefault();
+    }
+    if (key === 'a' || key === 'arrowleft') {
+        keys.a = true;
+        keys.left = true;
+        e.preventDefault();
+    }
+    if (key === 'd' || key === 'arrowright') {
+        keys.d = true;
+        keys.right = true;
+        e.preventDefault();
+    }
+    
+    // Space bar for next wave
+    if (key === ' ') {
+        if (gameState === 'shop' && nextWaveBtn.style.display !== 'none') {
+            nextWaveBtn.click();
+        }
+        e.preventDefault();
+    }
+    
+    // R key for reload
+    if (key === 'r') {
+        if (gameState === 'shop') {
+            player.weapons.forEach(weapon => {
+                if (weapon.usesAmmo && !weapon.isReloading) {
+                    weapon.startReload();
+                }
+            });
+        }
+        e.preventDefault();
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    
+    if (key === 'w' || key === 'arrowup') {
+        keys.w = false;
+        keys.up = false;
+        e.preventDefault();
+    }
+    if (key === 's' || key === 'arrowdown') {
+        keys.s = false;
+        keys.down = false;
+        e.preventDefault();
+    }
+    if (key === 'a' || key === 'arrowleft') {
+        keys.a = false;
+        keys.left = false;
+        e.preventDefault();
+    }
+    if (key === 'd' || key === 'arrowright') {
+        keys.d = false;
+        keys.right = false;
+        e.preventDefault();
+    }
+});
+
+// Mouse movement
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
@@ -4260,23 +4435,8 @@ refreshShopBtn.addEventListener('click', refreshShop);
 
 restartBtn.addEventListener('click', () => {
     gameOverOverlay.style.display = 'none';
+    resetHighScore(); // Reset high score on death
     initGame();
-});
-
-document.addEventListener('keydown', (e) => {
-    if (e.key === ' ') {
-        if (gameState === 'shop' && nextWaveBtn.style.display !== 'none') {
-            nextWaveBtn.click();
-        }
-    } else if (e.key === 'r') {
-        if (gameState === 'shop') {
-            player.weapons.forEach(weapon => {
-                if (weapon.usesAmmo && !weapon.isReloading) {
-                    weapon.startReload();
-                }
-            });
-        }
-    }
 });
 
 const style = document.createElement('style');
@@ -4361,8 +4521,30 @@ style.textContent = `
         padding: 10px;
         font-size: 0.9rem;
     }
+
+    .control-hint {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.8rem;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 5px 10px;
+        border-radius: 5px;
+        pointer-events: none;
+    }
 `;
 document.head.appendChild(style);
+
+// Add control hint
+const controlHint = document.createElement('div');
+controlHint.className = 'control-hint';
+controlHint.innerHTML = 'WASD / Arrow Keys | Space: Next Wave | R: Reload';
+document.body.appendChild(controlHint);
+
+// Initialize high score on load
+createHighScoreElement();
+loadHighScore();
 
 // Start game loop
 gameLoop();
