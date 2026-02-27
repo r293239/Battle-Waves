@@ -58,6 +58,7 @@ const GAME_DATA = {
         
         // Wave 30: Third Boss Wave
         { number: 30, monsters: 1, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true },
+        
         { number: 31, monsters: 100, monsterHealth: 300, monsterDamage: 28, goldReward: 450, isBoss: false }
     ],
 
@@ -155,7 +156,7 @@ const GAME_DATA = {
             attackSpeed: 0.8,
             range: 200,
             projectileSpeed: 8,
-            cost: 80,
+            cost: 95,
             description: '10 pellets in wide arc, 3 damage each',
             projectileColor: '#FF6B6B',
             animation: 'shotgun',
@@ -223,7 +224,7 @@ const GAME_DATA = {
             name: 'Boomerang',
             icon: '🪃',
             type: 'ranged',
-            baseDamage: 7,
+            baseDamage: 5,
             attackSpeed: 1.2,
             range: 450,
             projectileSpeed: 10,
@@ -251,7 +252,7 @@ const GAME_DATA = {
             icon: '⚔️',
             type: 'melee',
             meleeType: 'single',
-            baseDamage: 12,
+            baseDamage: 10,
             attackSpeed: 1.2,
             range: 100,
             cost: 60,
@@ -276,7 +277,7 @@ const GAME_DATA = {
             icon: '🪓',
             type: 'melee',
             meleeType: 'aoe',
-            baseDamage: 8,
+            baseDamage: 12,
             attackSpeed: 0.8,
             range: 70,
             cost: 100,
@@ -304,7 +305,7 @@ const GAME_DATA = {
             icon: '🗡️',
             type: 'melee',
             meleeType: 'single',
-            baseDamage: 8,
+            baseDamage: 6,
             attackSpeed: 2.0,
             range: 50,
             cost: 70,
@@ -369,7 +370,7 @@ const GAME_DATA = {
             shaftColor: '#8B4513',
             prongColor: '#CD7F32',
             tipColor: '#FFD700',
-            pierceCount: 2,
+            pierceCount: 3,
             usesAmmo: false,
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
@@ -387,7 +388,7 @@ const GAME_DATA = {
             name: 'Health Potion',
             icon: '❤️',
             type: 'consumable',
-            cost: 40,
+            cost: 50,
             description: 'Restore 20 health'
         },
         {
@@ -411,7 +412,7 @@ const GAME_DATA = {
             name: 'Health Upgrade',
             icon: '🛡️',
             type: 'permanent',
-            cost: 120,
+            cost: 140,
             description: 'Permanently +30 max health'
         },
         {
@@ -419,7 +420,7 @@ const GAME_DATA = {
             name: 'Ammo Pack',
             icon: '📦',
             type: 'consumable',
-            cost: 30,
+            cost: 40,
             description: 'Fully reload all ranged weapons'
         },
         {
