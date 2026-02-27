@@ -60,10 +60,10 @@ const MONSTER_TYPES = {
     MINION: {
         name: 'Minion',
         color: '#9370db',
-        speed: 1.3,
-        healthMultiplier: 0.3,
-        damageMultiplier: 0.5,
-        sizeMultiplier: 0.6,
+        speed: 1.5,
+        healthMultiplier: 0.2,
+        damageMultiplier: 0.4,
+        sizeMultiplier: 0.5,
         icon: '👾',
         isMinion: true
     },
@@ -91,7 +91,7 @@ const BOSS_WEAPONS = {
         meleeType: 'pierce',
         baseDamage: 25,
         attackSpeed: 2.0,
-        range: 120,
+        range: 150,
         description: 'Quick stabbing attacks',
         swingColor: '#8B0000',
         swingAngle: 45,
@@ -100,7 +100,7 @@ const BOSS_WEAPONS = {
         bladeColor: '#8B0000',
         hiltColor: '#4A0404',
         sparkleColor: '#FF4444',
-        pierceCount: 2
+        pierceCount: 3
     },
     WAR_HAMMER: {
         name: 'Crusher',
@@ -108,7 +108,7 @@ const BOSS_WEAPONS = {
         meleeType: 'aoe',
         baseDamage: 40,
         attackSpeed: 0.8,
-        range: 150,
+        range: 180,
         description: 'Massive AOE slam',
         swingColor: '#8B4513',
         swingAngle: 360,
@@ -124,7 +124,7 @@ const BOSS_WEAPONS = {
         type: 'melee',
         meleeType: 'aoe',
         baseDamage: 35,
-        attackSpeed: 1.5,
+        attackSpeed: 1.2,
         range: 200,
         description: 'Dashing scythe slash with lifesteal',
         swingColor: '#4B0082',
@@ -516,9 +516,12 @@ let bossAbilities = {
     bossWeaponAttack: 0,
     bossDash: false,
     bossDashTarget: null,
-    bossDashStart: 0
+    bossDashStart: 0,
+    bossDashCooldown: 0,
+    minionSpawnTimer: 0
 };
 let asteroidTimer = null;
+let minionSpawnInterval = null;
 
 // Player movement keys
 let keys = {
@@ -526,6 +529,14 @@ let keys = {
     a: false,
     s: false,
     d: false,
+    up: false,
+    down: false,
+    left: false,
+    right: false
+};
+
+// UI Movement Buttons
+let movementButtons = {
     up: false,
     down: false,
     left: false,
@@ -804,6 +815,57 @@ const boomerangImage = new Image();
 boomerangImage.src = 'assets/boomerang.png';
 
 // ============================================
+// UI MOVEMENT BUTTONS
+// ============================================
+
+function createMovementButtons() {
+    const container = document.createElement('div');
+    container.className = 'movement-buttons';
+    container.innerHTML = `
+        <div class="movement-row">
+            <button class="move-btn" id="move-up">⬆️</button>
+        </div>
+        <div class="movement-row">
+            <button class="move-btn" id="move-left">⬅️</button>
+            <button class="move-btn" id="move-down">⬇️</button>
+            <button class="move-btn" id="move-right">➡️</button>
+        </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Add event listeners
+    document.getElementById('move-up').addEventListener('mousedown', () => { movementButtons.up = true; });
+    document.getElementById('move-up').addEventListener('mouseup', () => { movementButtons.up = false; });
+    document.getElementById('move-up').addEventListener('mouseleave', () => { movementButtons.up = false; });
+    
+    document.getElementById('move-down').addEventListener('mousedown', () => { movementButtons.down = true; });
+    document.getElementById('move-down').addEventListener('mouseup', () => { movementButtons.down = false; });
+    document.getElementById('move-down').addEventListener('mouseleave', () => { movementButtons.down = false; });
+    
+    document.getElementById('move-left').addEventListener('mousedown', () => { movementButtons.left = true; });
+    document.getElementById('move-left').addEventListener('mouseup', () => { movementButtons.left = false; });
+    document.getElementById('move-left').addEventListener('mouseleave', () => { movementButtons.left = false; });
+    
+    document.getElementById('move-right').addEventListener('mousedown', () => { movementButtons.right = true; });
+    document.getElementById('move-right').addEventListener('mouseup', () => { movementButtons.right = false; });
+    document.getElementById('move-right').addEventListener('mouseleave', () => { movementButtons.right = false; });
+    
+    // Touch support for mobile
+    document.getElementById('move-up').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.up = true; });
+    document.getElementById('move-up').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.up = false; });
+    
+    document.getElementById('move-down').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.down = true; });
+    document.getElementById('move-down').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.down = false; });
+    
+    document.getElementById('move-left').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.left = true; });
+    document.getElementById('move-left').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.left = false; });
+    
+    document.getElementById('move-right').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.right = true; });
+    document.getElementById('move-right').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.right = false; });
+}
+
+// ============================================
 // HELPER FUNCTIONS
 // ============================================
 
@@ -919,6 +981,12 @@ function initGame() {
         player.bloodContractInterval = null;
     }
     
+    // Clear any existing minion spawn interval
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
+    }
+    
     Object.assign(player, {
         x: 400,
         y: 300,
@@ -998,9 +1066,15 @@ function initGame() {
     bossAbilities.bossDash = false;
     bossAbilities.bossDashTarget = null;
     bossAbilities.bossDashStart = 0;
+    bossAbilities.bossDashCooldown = 0;
+    bossAbilities.minionSpawnTimer = 0;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
+    }
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
     }
     
     monsters = [];
@@ -1082,9 +1156,29 @@ function spawnMinions(count, centerX, centerY) {
         const minion = createMonster(MONSTER_TYPES.MINION, false, x, y);
         if (minion) {
             minion.isMinion = true;
+            minion.health = minion.maxHealth * 0.5; // Make minions weaker
             monsters.push(minion);
         }
     }
+}
+
+// Continuous minion spawning for boss waves
+function startMinionSpawning(boss) {
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+    }
+    
+    // Spawn minions every 5 seconds during boss fights
+    minionSpawnInterval = setInterval(() => {
+        if (waveActive && boss && boss.health > 0) {
+            const minionCount = 3 + Math.floor(Math.random() * 3); // 3-5 minions
+            spawnMinions(minionCount, boss.x, boss.y);
+            showMessage("Minions spawned!");
+        } else {
+            clearInterval(minionSpawnInterval);
+            minionSpawnInterval = null;
+        }
+    }, 5000);
 }
 
 function startWave() {
@@ -1106,9 +1200,15 @@ function startWave() {
     bossAbilities.bossDash = false;
     bossAbilities.bossDashTarget = null;
     bossAbilities.bossDashStart = 0;
+    bossAbilities.bossDashCooldown = 0;
+    bossAbilities.minionSpawnTimer = 0;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
+    }
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
     }
     
     const waveConfig = getWaveConfig(wave);
@@ -1167,17 +1267,23 @@ function startWave() {
                 
                 // Assign boss weapon based on wave
                 if (wave === 10) {
-                    bossAbilities.bossWeapon = BOSS_WEAPONS.DAGGER;
+                    bossAbilities.bossWeapon = {...BOSS_WEAPONS.DAGGER};
+                    bossAbilities.bossWeapon.lastAttack = 0;
                     boss.color = '#8B0000';
                 } else if (wave === 20) {
-                    bossAbilities.bossWeapon = BOSS_WEAPONS.WAR_HAMMER;
+                    bossAbilities.bossWeapon = {...BOSS_WEAPONS.WAR_HAMMER};
+                    bossAbilities.bossWeapon.lastAttack = 0;
                     boss.color = '#8B4513';
                 } else if (wave === 30) {
-                    bossAbilities.bossWeapon = BOSS_WEAPONS.SCYTHE;
+                    bossAbilities.bossWeapon = {...BOSS_WEAPONS.SCYTHE};
+                    bossAbilities.bossWeapon.lastAttack = 0;
                     boss.color = '#4B0082';
                 }
                 
                 monsters.push(boss);
+                
+                // Start continuous minion spawning for boss
+                startMinionSpawning(boss);
                 
                 // Add dramatic spawn effect for boss
                 addVisualEffect({
@@ -1190,7 +1296,7 @@ function startWave() {
                     color: boss.color
                 });
                 
-                // Spawn minions
+                // Spawn initial minions
                 if (waveConfig.minions > 0) {
                     spawnMinions(waveConfig.minions, boss.x, boss.y);
                 }
@@ -1994,6 +2100,10 @@ function endWave() {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
     }
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
+    }
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
@@ -2034,6 +2144,10 @@ function gameOver() {
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
+    }
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
     }
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
@@ -2121,10 +2235,17 @@ function gameLoop() {
         let moveX = 0;
         let moveY = 0;
         
+        // Keyboard input
         if (keys.w || keys.up) moveY -= 1;
         if (keys.s || keys.down) moveY += 1;
         if (keys.a || keys.left) moveX -= 1;
         if (keys.d || keys.right) moveX += 1;
+        
+        // UI button input
+        if (movementButtons.up) moveY -= 1;
+        if (movementButtons.down) moveY += 1;
+        if (movementButtons.left) moveX -= 1;
+        if (movementButtons.right) moveX += 1;
         
         if (moveX !== 0 || moveY !== 0) {
             const length = Math.sqrt(moveX * moveX + moveY * moveY);
@@ -3281,8 +3402,8 @@ function updateGame(deltaTime) {
     // Boss dash for wave 30 scythe boss
     if (wave === 30 && bossAbilities.bossWeapon) {
         const boss = monsters.find(m => m.isBoss);
-        if (boss && !bossAbilities.bossDash && Math.random() < 0.01) { // 1% chance per frame
-            // Start dash
+        if (boss && !bossAbilities.bossDash && currentTime - bossAbilities.bossDashCooldown > 3000) {
+            // Start dash every 3 seconds
             bossAbilities.bossDash = true;
             bossAbilities.bossDashTarget = { x: player.x, y: player.y };
             bossAbilities.bossDashStart = currentTime;
@@ -3291,6 +3412,7 @@ function updateGame(deltaTime) {
             setTimeout(() => {
                 bossAbilities.bossDash = false;
                 bossAbilities.bossDashTarget = null;
+                bossAbilities.bossDashCooldown = currentTime;
             }, 500);
         }
         
@@ -3305,25 +3427,64 @@ function updateGame(deltaTime) {
                 boss.y += (dy / dist) * boss.speed * 3;
             }
             
-            // Perform scythe attack at dash end
-            if (dist < 10 || currentTime - bossAbilities.bossDashStart > 450) {
-                if (!bossAbilities.bossWeaponAttack) {
-                    const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
-                    bossAbilities.bossWeaponAttack = {
-                        type: 'melee',
-                        x: boss.x,
-                        y: boss.y,
-                        radius: BOSS_WEAPONS.SCYTHE.range,
-                        damage: BOSS_WEAPONS.SCYTHE.baseDamage,
-                        color: BOSS_WEAPONS.SCYTHE.swingColor,
-                        startTime: currentTime,
-                        duration: 300,
-                        swingAngle: BOSS_WEAPONS.SCYTHE.swingAngle,
-                        meleeType: BOSS_WEAPONS.SCYTHE.meleeType,
-                        angle: angle,
-                        lifeSteal: BOSS_WEAPONS.SCYTHE.lifeSteal
-                    };
+            // Perform scythe attack during dash
+            if (!bossAbilities.bossWeaponAttack) {
+                const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+                bossAbilities.bossWeaponAttack = {
+                    type: 'melee',
+                    x: boss.x,
+                    y: boss.y,
+                    radius: BOSS_WEAPONS.SCYTHE.range,
+                    damage: BOSS_WEAPONS.SCYTHE.baseDamage,
+                    color: BOSS_WEAPONS.SCYTHE.swingColor,
+                    startTime: currentTime,
+                    duration: 300,
+                    swingAngle: BOSS_WEAPONS.SCYTHE.swingAngle,
+                    meleeType: BOSS_WEAPONS.SCYTHE.meleeType,
+                    angle: angle,
+                    lifeSteal: BOSS_WEAPONS.SCYTHE.lifeSteal
+                };
+                
+                // Apply life steal if attack hits
+                if (dist < BOSS_WEAPONS.SCYTHE.range) {
+                    const healAmount = BOSS_WEAPONS.SCYTHE.baseDamage * BOSS_WEAPONS.SCYTHE.lifeSteal;
+                    boss.health = Math.min(boss.maxHealth, boss.health + healAmount);
+                    createHealthPopup(boss.x, boss.y, Math.floor(healAmount));
                 }
+            }
+        }
+    }
+    
+    // Boss melee attacks for wave 10 and 20
+    if (bossAbilities.bossWeapon && wave !== 30) {
+        const boss = monsters.find(m => m.isBoss);
+        if (boss) {
+            const distanceToPlayer = Math.sqrt(
+                Math.pow(player.x - boss.x, 2) + Math.pow(player.y - boss.y, 2)
+            );
+            
+            // Attack when in range
+            if (distanceToPlayer <= bossAbilities.bossWeapon.range && 
+                currentTime - (bossAbilities.bossWeapon.lastAttack || 0) > 2000) {
+                
+                const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+                
+                bossAbilities.bossWeaponAttack = {
+                    type: 'melee',
+                    x: boss.x,
+                    y: boss.y,
+                    radius: bossAbilities.bossWeapon.range,
+                    damage: bossAbilities.bossWeapon.baseDamage,
+                    color: bossAbilities.bossWeapon.swingColor,
+                    startTime: currentTime,
+                    duration: 300,
+                    swingAngle: bossAbilities.bossWeapon.swingAngle,
+                    meleeType: bossAbilities.bossWeapon.meleeType,
+                    angle: angle,
+                    pierceCount: bossAbilities.bossWeapon.pierceCount || 1
+                };
+                
+                bossAbilities.bossWeapon.lastAttack = currentTime;
             }
         }
     }
@@ -3335,7 +3496,6 @@ function updateGame(deltaTime) {
     }
     
     updateWeapons();
-    updateBossWeapon(currentTime);
     updateProjectiles();
     updateMonsterProjectiles(currentTime);
     updateBossProjectiles(currentTime);
@@ -3351,44 +3511,6 @@ function updateGame(deltaTime) {
     }
     
     updateUI();
-}
-
-function updateBossWeapon(currentTime) {
-    if (!bossAbilities.bossWeapon || bossAbilities.bossWeaponAttack) return;
-    
-    const boss = monsters.find(m => m.isBoss);
-    if (!boss) return;
-    
-    // Boss weapon attack cooldown
-    const attackCooldown = 2000; // 2 seconds between attacks
-    if (currentTime - (bossAbilities.bossWeapon.lastAttack || 0) < attackCooldown) return;
-    
-    const distanceToPlayer = Math.sqrt(
-        Math.pow(player.x - boss.x, 2) + Math.pow(player.y - boss.y, 2)
-    );
-    
-    // Only attack if player is in range
-    if (distanceToPlayer <= bossAbilities.bossWeapon.range) {
-        const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
-        
-        bossAbilities.bossWeaponAttack = {
-            type: 'melee',
-            x: boss.x,
-            y: boss.y,
-            radius: bossAbilities.bossWeapon.range,
-            damage: bossAbilities.bossWeapon.baseDamage,
-            color: bossAbilities.bossWeapon.swingColor,
-            startTime: currentTime,
-            duration: 300,
-            swingAngle: bossAbilities.bossWeapon.swingAngle,
-            meleeType: bossAbilities.bossWeapon.meleeType,
-            angle: angle,
-            pierceCount: bossAbilities.bossWeapon.pierceCount || 1,
-            lifeSteal: bossAbilities.bossWeapon.lifeSteal || 0
-        };
-        
-        bossAbilities.bossWeapon.lastAttack = currentTime;
-    }
 }
 
 function updateWeapons() {
@@ -4630,6 +4752,59 @@ style.textContent = `
         font-size: 0.9rem;
     }
 
+    .movement-buttons {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        z-index: 100;
+    }
+
+    .movement-row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .move-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        backdrop-filter: blur(5px);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .move-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+        border-color: #ffd700;
+    }
+
+    .move-btn:active {
+        transform: scale(0.95);
+        background: rgba(255, 215, 0, 0.3);
+    }
+
+    @media (max-width: 768px) {
+        .move-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+        }
+    }
+
     .control-hint {
         position: fixed;
         bottom: 10px;
@@ -4665,8 +4840,11 @@ document.head.appendChild(style);
 // Add control hint
 const controlHint = document.createElement('div');
 controlHint.className = 'control-hint';
-controlHint.innerHTML = 'WASD / Arrow Keys | Space: Next Wave | R: Reload | Ctrl+S: Save | Ctrl+L: Load';
+controlHint.innerHTML = 'WASD / Arrow Keys | Click buttons to move | Space: Next Wave | R: Reload | Ctrl+S: Save | Ctrl+L: Load';
 document.body.appendChild(controlHint);
+
+// Create movement buttons
+createMovementButtons();
 
 // Check for existing save on startup
 checkForSave();
