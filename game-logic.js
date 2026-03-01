@@ -10,7 +10,8 @@ const MONSTER_TYPES = {
         healthMultiplier: 1,
         damageMultiplier: 1,
         sizeMultiplier: 1,
-        icon: '👾'
+        icon: '👾',
+        goldDrop: { min: 5, max: 15 } // Gold range
     },
     FAST: {
         name: 'Fast',
@@ -19,7 +20,8 @@ const MONSTER_TYPES = {
         healthMultiplier: 0.7,
         damageMultiplier: 0.8,
         sizeMultiplier: 0.8,
-        icon: '⚡'
+        icon: '⚡',
+        goldDrop: { min: 3, max: 10 }
     },
     TANK: {
         name: 'Tank',
@@ -28,7 +30,8 @@ const MONSTER_TYPES = {
         healthMultiplier: 2.5,
         damageMultiplier: 1.2,
         sizeMultiplier: 1.4,
-        icon: '🛡️'
+        icon: '🛡️',
+        goldDrop: { min: 8, max: 20 }
     },
     EXPLOSIVE: {
         name: 'Explosive',
@@ -40,7 +43,8 @@ const MONSTER_TYPES = {
         icon: '💥',
         explosive: true,
         explosionRadius: 100,
-        explosionDamage: 3.0
+        explosionDamage: 3.0,
+        goldDrop: { min: 10, max: 25 }
     },
     GUNNER: {
         name: 'Gunner',
@@ -55,7 +59,8 @@ const MONSTER_TYPES = {
         projectileSpeed: 6,
         attackRange: 250,
         projectileColor: '#ff69b4',
-        attackCooldown: 1500
+        attackCooldown: 1500,
+        goldDrop: { min: 12, max: 30 }
     },
     MINION: {
         name: 'Minion',
@@ -65,7 +70,8 @@ const MONSTER_TYPES = {
         damageMultiplier: 0.4,
         sizeMultiplier: 0.5,
         icon: '👾',
-        isMinion: true
+        isMinion: true,
+        goldDrop: { min: 1, max: 5 }
     },
     BOSS: {
         name: 'BOSS',
@@ -79,7 +85,8 @@ const MONSTER_TYPES = {
         lifeSteal: 0.1,
         projectileSpeed: 5,
         projectileDamage: 15,
-        projectileCooldown: 2000
+        projectileCooldown: 2000,
+        goldDrop: { min: 100, max: 300 }
     }
 };
 
@@ -157,6 +164,7 @@ class WeaponInstance {
         this.range = weaponData.range;
         this.description = weaponData.description;
         this.cost = weaponData.cost || 0;
+        this.baseCost = weaponData.cost || 0; // Store base cost for tier pricing
         this.lastAttack = 0;
         this.animation = weaponData.animation || 'default';
         
@@ -435,7 +443,7 @@ class WeaponInstance {
     }
     
     getScrapValue() {
-        const baseValue = Math.floor(this.cost * 0.5);
+        const baseValue = Math.floor(this.baseCost * 0.5);
         const tierMultiplier = 1 + (this.tier - 1) * 0.5;
         return Math.floor(baseValue * tierMultiplier);
     }
@@ -460,6 +468,17 @@ class WeaponInstance {
         return `${this.name} ${tierNames[this.tier]}`;
     }
     
+    getShopCost() {
+        // Tier 2 weapons cost 1.5x the price of buying two tier 1 and merging
+        if (this.tier === 2) {
+            return Math.floor(this.baseCost * 2 * 0.75); // 75% of buying two tier 1
+        } else if (this.tier > 2) {
+            // Higher tiers scale exponentially
+            return Math.floor(this.baseCost * Math.pow(1.8, this.tier - 1));
+        }
+        return this.baseCost;
+    }
+    
     getMergeCost(otherWeapon) {
         if (this.id !== otherWeapon.id || this.tier !== otherWeapon.tier) {
             return 0;
@@ -469,7 +488,7 @@ class WeaponInstance {
             return 0;
         }
         
-        return Math.floor(this.cost * 0.3 * this.tier);
+        return Math.floor(this.baseCost * 0.3 * this.tier);
     }
     
     merge(otherWeapon) {
@@ -522,6 +541,12 @@ let bossAbilities = {
 };
 let asteroidTimer = null;
 let minionSpawnInterval = null;
+
+// Touch handling
+let touchStartTime = 0;
+let touchMoved = false;
+let lastTouchX = 0;
+let lastTouchY = 0;
 
 // Player movement keys
 let keys = {
@@ -700,7 +725,14 @@ function checkForSave() {
         continueBtn.style.marginTop = '10px';
         continueBtn.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
         
-        continueBtn.addEventListener('click', () => {
+        continueBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadGame();
+            startScreen.style.display = 'none';
+        });
+        
+        continueBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
             loadGame();
             startScreen.style.display = 'none';
         });
@@ -834,35 +866,39 @@ function createMovementButtons() {
     
     document.body.appendChild(container);
     
-    // Add event listeners
-    document.getElementById('move-up').addEventListener('mousedown', () => { movementButtons.up = true; });
-    document.getElementById('move-up').addEventListener('mouseup', () => { movementButtons.up = false; });
-    document.getElementById('move-up').addEventListener('mouseleave', () => { movementButtons.up = false; });
+    // Mouse events
+    document.getElementById('move-up').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.up = true; });
+    document.getElementById('move-up').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.up = false; });
+    document.getElementById('move-up').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.up = false; });
     
-    document.getElementById('move-down').addEventListener('mousedown', () => { movementButtons.down = true; });
-    document.getElementById('move-down').addEventListener('mouseup', () => { movementButtons.down = false; });
-    document.getElementById('move-down').addEventListener('mouseleave', () => { movementButtons.down = false; });
+    document.getElementById('move-down').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.down = true; });
+    document.getElementById('move-down').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.down = false; });
+    document.getElementById('move-down').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.down = false; });
     
-    document.getElementById('move-left').addEventListener('mousedown', () => { movementButtons.left = true; });
-    document.getElementById('move-left').addEventListener('mouseup', () => { movementButtons.left = false; });
-    document.getElementById('move-left').addEventListener('mouseleave', () => { movementButtons.left = false; });
+    document.getElementById('move-left').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.left = true; });
+    document.getElementById('move-left').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.left = false; });
+    document.getElementById('move-left').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.left = false; });
     
-    document.getElementById('move-right').addEventListener('mousedown', () => { movementButtons.right = true; });
-    document.getElementById('move-right').addEventListener('mouseup', () => { movementButtons.right = false; });
-    document.getElementById('move-right').addEventListener('mouseleave', () => { movementButtons.right = false; });
+    document.getElementById('move-right').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.right = true; });
+    document.getElementById('move-right').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.right = false; });
+    document.getElementById('move-right').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.right = false; });
     
-    // Touch support for mobile
+    // Touch events
     document.getElementById('move-up').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.up = true; });
     document.getElementById('move-up').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.up = false; });
+    document.getElementById('move-up').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.up = false; });
     
     document.getElementById('move-down').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.down = true; });
     document.getElementById('move-down').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.down = false; });
+    document.getElementById('move-down').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.down = false; });
     
     document.getElementById('move-left').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.left = true; });
     document.getElementById('move-left').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.left = false; });
+    document.getElementById('move-left').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.left = false; });
     
     document.getElementById('move-right').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.right = true; });
     document.getElementById('move-right').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.right = false; });
+    document.getElementById('move-right').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.right = false; });
 }
 
 // ============================================
@@ -907,21 +943,33 @@ function getWaveConfig(waveNumber) {
 function generateShopItems() {
     const shopItems = [];
     
+    // Get all weapons except handgun
     const availableWeapons = GAME_DATA.WEAPONS.filter(w => w.id !== 'handgun');
-    const availableItems = [...GAME_DATA.ITEMS];
     
+    // Add tier 1 and tier 2 weapons
     for (let i = 0; i < 2; i++) {
         if (availableWeapons.length > 0) {
             const randomIndex = Math.floor(Math.random() * availableWeapons.length);
             const weapon = {...availableWeapons[randomIndex]};
+            
+            // 30% chance for tier 2 weapon
+            const tier = Math.random() < 0.3 ? 2 : 1;
+            
+            // Create weapon instance to get proper cost
+            const weaponInstance = new WeaponInstance(weapon, tier);
+            
             shopItems.push({
                 type: 'weapon',
-                data: weapon
+                data: weapon,
+                tier: tier,
+                instance: weaponInstance
             });
             availableWeapons.splice(randomIndex, 1);
         }
     }
     
+    // Add items
+    const availableItems = [...GAME_DATA.ITEMS];
     for (let i = 0; i < 2; i++) {
         if (availableItems.length > 0) {
             const randomIndex = Math.floor(Math.random() * availableItems.length);
@@ -1446,7 +1494,13 @@ function spawnAsteroid() {
                 if (monster.health <= 0) {
                     monsters.splice(i, 1);
                     kills++;
-                    gold += 5;
+                    
+                    // Random gold drop based on monster type
+                    const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
+                    const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
+                    const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
+                    gold += goldEarned;
+                    createGoldPopup(monster.x, monster.y, goldEarned);
                 }
             }
         }
@@ -1611,7 +1665,17 @@ function updateWeaponDisplay() {
                 </div>
             `;
             
-            slot.addEventListener('click', () => selectWeapon(i));
+            // Mouse events
+            slot.addEventListener('click', (e) => {
+                e.preventDefault();
+                selectWeapon(i);
+            });
+            
+            // Touch events
+            slot.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                selectWeapon(i);
+            });
         } else {
             slot.innerHTML = '<div class="empty-slot">+</div>';
         }
@@ -1639,7 +1703,18 @@ function updateConsumablesDisplay() {
             <div class="consumable-count">${consumable.count || 1}</div>
         `;
         
-        slot.addEventListener('click', () => useConsumable(index));
+        // Mouse events
+        slot.addEventListener('click', (e) => {
+            e.preventDefault();
+            useConsumable(index);
+        });
+        
+        // Touch events
+        slot.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            useConsumable(index);
+        });
+        
         consumablesGrid.appendChild(slot);
     });
 }
@@ -1826,7 +1901,21 @@ function updateShopDisplay() {
         if (shopItem) {
             itemElement.className = 'shop-item';
             const data = shopItem.data;
-            const cost = data.cost;
+            
+            let cost = data.cost;
+            let tierText = '';
+            let tierClass = '';
+            
+            if (shopItem.type === 'weapon') {
+                const tier = shopItem.tier || 1;
+                const weaponInstance = shopItem.instance || new WeaponInstance(data, tier);
+                cost = weaponInstance.getShopCost();
+                
+                if (tier > 1) {
+                    tierText = ` Tier ${tier}`;
+                    tierClass = ` tier-${tier}`;
+                }
+            }
             
             let tagClass = '';
             if (shopItem.type === 'weapon') {
@@ -1856,15 +1945,25 @@ function updateShopDisplay() {
             itemElement.innerHTML = `
                 <div class="item-info">
                     <div class="item-name">
-                        ${data.icon} ${data.name}
-                        ${tagClass ? `<span class="item-tag ${tagClass}">${typeText}</span>` : ''}
+                        ${data.icon} ${data.name}${tierText}
+                        ${tagClass ? `<span class="item-tag ${tagClass}${tierClass}">${typeText}</span>` : ''}
                     </div>
                     <div class="item-effect">${data.description}</div>
                 </div>
                 <div class="item-cost">${cost}g</div>
             `;
             
-            itemElement.addEventListener('click', () => purchaseItem(i));
+            // Mouse events
+            itemElement.addEventListener('click', (e) => {
+                e.preventDefault();
+                purchaseItem(i);
+            });
+            
+            // Touch events
+            itemElement.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                purchaseItem(i);
+            });
         } else {
             itemElement.className = 'shop-item empty';
             itemElement.innerHTML = `
@@ -1886,22 +1985,30 @@ function purchaseItem(index) {
     const shopItem = shopItems[index];
     const data = shopItem.data;
     
-    if (gold < data.cost) {
-        showMessage(`Not enough gold! Need ${data.cost}, have ${gold}`);
+    let cost = data.cost;
+    if (shopItem.type === 'weapon') {
+        const tier = shopItem.tier || 1;
+        const weaponInstance = shopItem.instance || new WeaponInstance(data, tier);
+        cost = weaponInstance.getShopCost();
+    }
+    
+    if (gold < cost) {
+        showMessage(`Not enough gold! Need ${cost}, have ${gold}`);
         return;
     }
     
-    gold -= data.cost;
+    gold -= cost;
     
     if (shopItem.type === 'weapon') {
         if (player.weapons.length >= 6) {
             showMessage('No empty weapon slots!');
-            gold += data.cost;
+            gold += cost;
             return;
         }
         
-        player.weapons.push(new WeaponInstance(data));
-        showMessage(`Purchased ${data.name}!`);
+        const tier = shopItem.tier || 1;
+        player.weapons.push(new WeaponInstance(data, tier));
+        showMessage(`Purchased ${data.name} Tier ${tier}!`);
         
     } else {
         if (data.type === 'consumable') {
@@ -2021,7 +2128,18 @@ function showStatBuffs() {
             <div class="buff-description">${buff.description}</div>
         `;
         
-        buffElement.addEventListener('click', () => selectStatBuff(buff));
+        // Mouse events
+        buffElement.addEventListener('click', (e) => {
+            e.preventDefault();
+            selectStatBuff(buff);
+        });
+        
+        // Touch events
+        buffElement.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            selectStatBuff(buff);
+        });
+        
         statBuffs.appendChild(buffElement);
     });
     
@@ -2230,7 +2348,7 @@ function gameLoop() {
     const deltaTime = currentTime - lastFrameTime;
     lastFrameTime = currentTime;
     
-    // Handle keyboard movement
+    // Handle movement
     if (gameState === 'wave') {
         let moveX = 0;
         let moveY = 0;
@@ -3873,6 +3991,13 @@ function updateProjectiles() {
                 
                 // Check if monster health is <= 0 and remove it
                 if (monster.health <= 0) {
+                    // Random gold drop based on monster type
+                    const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
+                    const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
+                    const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
+                    gold += goldEarned;
+                    createGoldPopup(monster.x, monster.y, goldEarned);
+                    
                     // Explosive monster death explosion
                     if (monster.monsterType && monster.monsterType.explosive) {
                         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
@@ -3913,9 +4038,13 @@ function updateProjectiles() {
                                 if (otherMonster.health <= 0) {
                                     monsters.splice(k, 1);
                                     kills++;
-                                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
-                                    gold += goldEarned;
-                                    createGoldPopup(otherMonster.x, otherMonster.y, goldEarned);
+                                    
+                                    // Random gold drop for exploded monster
+                                    const otherGoldRange = otherMonster.monsterType.goldDrop || { min: 5, max: 15 };
+                                    const otherGoldDrop = Math.floor(Math.random() * (otherGoldRange.max - otherGoldRange.min + 1)) + otherGoldRange.min;
+                                    const otherGoldEarned = Math.floor(otherGoldDrop * (1 + player.goldMultiplier));
+                                    gold += otherGoldEarned;
+                                    createGoldPopup(otherMonster.x, otherMonster.y, otherGoldEarned);
                                     
                                     addVisualEffect({
                                         type: 'death',
@@ -3960,10 +4089,6 @@ function updateProjectiles() {
                     
                     monsters.splice(j, 1);
                     kills++;
-                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
-                    gold += goldEarned;
-                    
-                    createGoldPopup(monster.x, monster.y, goldEarned);
                 }
                 
                 break;
@@ -4027,6 +4152,13 @@ function updateMeleeAttacks() {
                 }
                 
                 if (monster.health <= 0) {
+                    // Random gold drop based on monster type
+                    const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
+                    const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
+                    const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
+                    gold += goldEarned;
+                    createGoldPopup(monster.x, monster.y, goldEarned);
+                    
                     // Explosive monster death explosion
                     if (monster.monsterType && monster.monsterType.explosive) {
                         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
@@ -4067,9 +4199,13 @@ function updateMeleeAttacks() {
                                 if (otherMonster.health <= 0) {
                                     monsters.splice(k, 1);
                                     kills++;
-                                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
-                                    gold += goldEarned;
-                                    createGoldPopup(otherMonster.x, otherMonster.y, goldEarned);
+                                    
+                                    // Random gold drop for exploded monster
+                                    const otherGoldRange = otherMonster.monsterType.goldDrop || { min: 5, max: 15 };
+                                    const otherGoldDrop = Math.floor(Math.random() * (otherGoldRange.max - otherGoldRange.min + 1)) + otherGoldRange.min;
+                                    const otherGoldEarned = Math.floor(otherGoldDrop * (1 + player.goldMultiplier));
+                                    gold += otherGoldEarned;
+                                    createGoldPopup(otherMonster.x, otherMonster.y, otherGoldEarned);
                                     
                                     addVisualEffect({
                                         type: 'death',
@@ -4114,10 +4250,6 @@ function updateMeleeAttacks() {
                     
                     monsters.splice(j, 1);
                     kills++;
-                    const goldEarned = Math.floor(10 * (1 + player.goldMultiplier));
-                    gold += goldEarned;
-                    
-                    createGoldPopup(monster.x, monster.y, goldEarned);
                     
                     j--;
                 }
@@ -4551,103 +4683,59 @@ function createHealthPopup(x, y, amount) {
 }
 
 // ============================================
-// EVENT LISTENERS
+// TOUCH EVENT HANDLERS
 // ============================================
 
-// Keyboard controls
-document.addEventListener('keydown', (e) => {
-    const key = e.key.toLowerCase();
-    
-    // Movement keys
-    if (key === 'w' || key === 'arrowup') {
-        keys.w = true;
-        keys.up = true;
-        e.preventDefault();
-    }
-    if (key === 's' || key === 'arrowdown') {
-        keys.s = true;
-        keys.down = true;
-        e.preventDefault();
-    }
-    if (key === 'a' || key === 'arrowleft') {
-        keys.a = true;
-        keys.left = true;
-        e.preventDefault();
-    }
-    if (key === 'd' || key === 'arrowright') {
-        keys.d = true;
-        keys.right = true;
-        e.preventDefault();
-    }
-    
-    // Space bar for next wave
-    if (key === ' ') {
-        if (gameState === 'shop' && nextWaveBtn.style.display !== 'none') {
-            nextWaveBtn.click();
-        }
-        e.preventDefault();
-    }
-    
-    // R key for reload
-    if (key === 'r') {
-        if (gameState === 'shop') {
-            player.weapons.forEach(weapon => {
-                if (weapon.usesAmmo && !weapon.isReloading) {
-                    weapon.startReload();
-                }
-            });
-        }
-        e.preventDefault();
-    }
-    
-    // S key for save
-    if (key === 's' && e.ctrlKey) {
-        e.preventDefault();
-        saveGame();
-    }
-    
-    // L key for load
-    if (key === 'l' && e.ctrlKey) {
-        e.preventDefault();
-        loadGame();
-    }
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    mouseX = touch.clientX - rect.left;
+    mouseY = touch.clientY - rect.top;
+    touchStartTime = Date.now();
+    touchMoved = false;
+    lastTouchX = mouseX;
+    lastTouchY = mouseY;
 });
 
-document.addEventListener('keyup', (e) => {
-    const key = e.key.toLowerCase();
-    
-    if (key === 'w' || key === 'arrowup') {
-        keys.w = false;
-        keys.up = false;
-        e.preventDefault();
-    }
-    if (key === 's' || key === 'arrowdown') {
-        keys.s = false;
-        keys.down = false;
-        e.preventDefault();
-    }
-    if (key === 'a' || key === 'arrowleft') {
-        keys.a = false;
-        keys.left = false;
-        e.preventDefault();
-    }
-    if (key === 'd' || key === 'arrowright') {
-        keys.d = false;
-        keys.right = false;
-        e.preventDefault();
-    }
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    mouseX = touch.clientX - rect.left;
+    mouseY = touch.clientY - rect.top;
+    touchMoved = true;
 });
 
-// Mouse movement
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    // Optional: Add tap handling for future features
+});
+
+canvas.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+});
+
+// Mouse movement (keep for desktop)
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
 });
 
-startGameBtn.addEventListener('click', initGame);
+// Button event listeners
+startGameBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    initGame();
+});
 
-nextWaveBtn.addEventListener('click', () => {
+startGameBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    initGame();
+});
+
+nextWaveBtn.addEventListener('click', (e) => {
+    e.preventDefault();
     if (gameState === 'shop') {
         gameState = 'wave';
         startWave();
@@ -4659,13 +4747,60 @@ nextWaveBtn.addEventListener('click', () => {
     }
 });
 
-scrapWeaponBtn.addEventListener('click', scrapWeapon);
-mergeWeaponBtn.addEventListener('click', mergeWeapons);
-refreshShopBtn.addEventListener('click', refreshShop);
+nextWaveBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (gameState === 'shop') {
+        gameState = 'wave';
+        startWave();
+        nextWaveBtn.style.display = 'none';
+        scrapWeaponBtn.style.display = 'none';
+        mergeWeaponBtn.style.display = 'none';
+        selectedWeaponIndex = -1;
+        mergeTargetIndex = -1;
+    }
+});
 
-restartBtn.addEventListener('click', () => {
+scrapWeaponBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    scrapWeapon();
+});
+
+scrapWeaponBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    scrapWeapon();
+});
+
+mergeWeaponBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    mergeWeapons();
+});
+
+mergeWeaponBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    mergeWeapons();
+});
+
+refreshShopBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    refreshShop();
+});
+
+refreshShopBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    refreshShop();
+});
+
+restartBtn.addEventListener('click', (e) => {
+    e.preventDefault();
     gameOverOverlay.style.display = 'none';
-    clearSave(); // Clear save file on restart
+    clearSave();
+    initGame();
+});
+
+restartBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    gameOverOverlay.style.display = 'none';
+    clearSave();
     initGame();
 });
 
@@ -4710,12 +4845,19 @@ style.textContent = `
         cursor: pointer;
         transition: all 0.2s;
         padding: 5px;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
     }
     
     .consumable-slot:hover {
         transform: translateY(-2px);
         border-color: #ffd700;
         box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+    }
+    
+    .consumable-slot:active {
+        transform: scale(0.95);
     }
     
     .consumable-icon {
@@ -4761,6 +4903,10 @@ style.textContent = `
         align-items: center;
         gap: 5px;
         z-index: 100;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
     }
 
     .movement-row {
@@ -4784,6 +4930,10 @@ style.textContent = `
         align-items: center;
         justify-content: center;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
     }
 
     .move-btn:hover {
@@ -4815,6 +4965,7 @@ style.textContent = `
         padding: 5px 10px;
         border-radius: 5px;
         pointer-events: none;
+        z-index: 100;
     }
 
     #continueGameBtn {
@@ -4828,11 +4979,40 @@ style.textContent = `
         font-size: 1.2rem;
         font-weight: bold;
         transition: transform 0.2s;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
     }
 
     #continueGameBtn:hover {
         transform: scale(1.05);
         box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+    }
+
+    #continueGameBtn:active {
+        transform: scale(0.98);
+    }
+
+    .shop-item {
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+    }
+
+    .weapon-slot {
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+    }
+
+    .stat-buff {
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
     }
 `;
 document.head.appendChild(style);
@@ -4840,7 +5020,7 @@ document.head.appendChild(style);
 // Add control hint
 const controlHint = document.createElement('div');
 controlHint.className = 'control-hint';
-controlHint.innerHTML = 'WASD / Arrow Keys | Click buttons to move | Space: Next Wave | R: Reload | Ctrl+S: Save | Ctrl+L: Load';
+controlHint.innerHTML = '⬆️⬇️⬅️➡️ or WASD | Click/Tap buttons | Space: Next Wave | R: Reload';
 document.body.appendChild(controlHint);
 
 // Create movement buttons
