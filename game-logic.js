@@ -73,6 +73,33 @@ const MONSTER_TYPES = {
         isMinion: true,
         goldDrop: { min: 1, max: 5 }
     },
+    SPLITTER: {
+        name: 'Splitter',
+        color: '#00ff00',
+        speed: 1.2,
+        healthMultiplier: 0.6,
+        damageMultiplier: 0.7,
+        sizeMultiplier: 0.9,
+        icon: '🔀',
+        isSplitter: true,
+        splitCount: 2,
+        splitHealthPercent: 0.5,
+        goldDrop: { min: 15, max: 25 }
+    },
+    DASHER: {
+        name: 'Dasher',
+        color: '#00ffff',
+        speed: 1.5,
+        dashSpeed: 4.0,
+        healthMultiplier: 0.5,
+        damageMultiplier: 1.3,
+        sizeMultiplier: 0.8,
+        icon: '⚡',
+        isDasher: true,
+        dashCooldown: 3000,
+        dashRange: 300,
+        goldDrop: { min: 20, max: 35 }
+    },
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
@@ -527,6 +554,10 @@ let bossAbilities = {
 let asteroidTimer = null;
 let minionSpawnInterval = null;
 
+// Dasher tracking
+let dashers = [];
+let splitterTracking = [];
+
 // Stats panel
 let statsPanelVisible = false;
 
@@ -592,6 +623,7 @@ function saveGame() {
             guardianAngel: player.guardianAngel,
             guardianAngelUsed: player.guardianAngelUsed,
             bloodContract: player.bloodContract,
+            bloodContractStacks: player.bloodContractStacks,
             berserkerRing: player.berserkerRing,
             sharpeningStone: player.sharpeningStone,
             sharpeningStoneWave: player.sharpeningStoneWave,
@@ -652,15 +684,21 @@ function loadGame() {
                 clearInterval(player.bloodContractInterval);
             }
             
+            // Restart blood contract drain with percentage-based damage
             player.bloodContractInterval = setInterval(() => {
                 if (gameState === 'wave') {
-                    if (player.health > 1) {
-                        player.health -= 1;
+                    // Calculate 1% of max health per stack
+                    const damagePercent = 0.01 * player.bloodContractStacks;
+                    const damageAmount = Math.max(1, Math.floor(player.maxHealth * damagePercent));
+                    
+                    if (player.health > damageAmount) {
+                        player.health -= damageAmount;
                     } else {
                         player.health = 1;
                     }
+                    
                     updateUI();
-                    createDamageIndicator(player.x, player.y, 1, false);
+                    createDamageIndicator(player.x, player.y, damageAmount, false);
                 }
             }, 1000);
         }
@@ -764,6 +802,7 @@ const player = {
     enchantersInk: false,
     guardianAngel: false,
     bloodContract: false,
+    bloodContractStacks: 0,
     bloodContractInterval: null,
     lastBloodDamage: 0,
     
@@ -1023,7 +1062,7 @@ function createStatsPanel() {
             <div class="stat-divider"></div>
             <div class="stat-row">
                 <span class="stat-label">📜 Blood Contract:</span>
-                <span class="stat-value" id="stat-bloodcontract">No</span>
+                <span class="stat-value" id="stat-bloodcontract">No (0)</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">😇 Guardian Angel:</span>
@@ -1074,7 +1113,7 @@ function updateStatsPanel() {
     document.getElementById('stat-thorns').textContent = Math.floor(player.thornsDamage * 100) + '%';
     document.getElementById('stat-attackspeed').textContent = player.attackSpeedMultiplier.toFixed(1) + 'x';
     
-    document.getElementById('stat-bloodcontract').textContent = player.bloodContract ? 'Yes' : 'No';
+    document.getElementById('stat-bloodcontract').textContent = player.bloodContract ? `Yes (${player.bloodContractStacks})` : 'No (0)';
     document.getElementById('stat-guardian').textContent = player.guardianAngel ? 'Yes' : 'No';
     document.getElementById('stat-berserker').textContent = player.berserkerRing ? 'Yes' : 'No';
 }
@@ -1241,6 +1280,7 @@ function initGame() {
         enchantersInk: false,
         guardianAngel: false,
         bloodContract: false,
+        bloodContractStacks: 0,
         bloodContractInterval: null,
         lastBloodDamage: 0,
         
@@ -1272,6 +1312,8 @@ function initGame() {
     activeTraps = [];
     bossProjectiles = [];
     monsterProjectiles = [];
+    dashers = [];
+    splitterTracking = [];
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
@@ -1447,6 +1489,8 @@ function startWave() {
     visualEffects = [];
     bossProjectiles = [];
     monsterProjectiles = [];
+    dashers = [];
+    splitterTracking = [];
     
     if (player.firstHitReduction) {
         player.firstHitReduction = false;
@@ -1546,12 +1590,14 @@ function startWave() {
                             else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
                             else monsterType = MONSTER_TYPES.GUNNER;
                         } else {
-                            if (rand < 0.2) monsterType = MONSTER_TYPES.NORMAL;
-                            else if (rand < 0.35) monsterType = MONSTER_TYPES.FAST;
-                            else if (rand < 0.5) monsterType = MONSTER_TYPES.TANK;
-                            else if (rand < 0.65) monsterType = MONSTER_TYPES.EXPLOSIVE;
-                            else if (rand < 0.8) monsterType = MONSTER_TYPES.GUNNER;
-                            else monsterType = MONSTER_TYPES.MINION;
+                            // After wave 10, include Splitter and Dasher
+                            if (rand < 0.15) monsterType = MONSTER_TYPES.NORMAL;
+                            else if (rand < 0.3) monsterType = MONSTER_TYPES.FAST;
+                            else if (rand < 0.45) monsterType = MONSTER_TYPES.TANK;
+                            else if (rand < 0.6) monsterType = MONSTER_TYPES.EXPLOSIVE;
+                            else if (rand < 0.75) monsterType = MONSTER_TYPES.GUNNER;
+                            else if (rand < 0.85) monsterType = MONSTER_TYPES.SPLITTER;
+                            else monsterType = MONSTER_TYPES.DASHER;
                         }
                         
                         if (spawnIndicators.length > i) {
@@ -1559,11 +1605,17 @@ function startWave() {
                             const monster = createMonster(monsterType, false, indicator.x, indicator.y);
                             if (monster) {
                                 monsters.push(monster);
+                                if (monsterType === MONSTER_TYPES.DASHER) {
+                                    dashers.push(monster);
+                                }
                             }
                         } else {
                             const monster = createMonster(monsterType, false);
                             if (monster) {
                                 monsters.push(monster);
+                                if (monsterType === MONSTER_TYPES.DASHER) {
+                                    dashers.push(monster);
+                                }
                             }
                         }
                         spawnedCount++;
@@ -1696,7 +1748,20 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
         attackCooldown: monsterType.attackCooldown || GAME_DATA.MONSTER_ATTACK_COOLDOWN,
         isBoss: isBoss || false,
         isMinion: monsterType.isMinion || false,
+        isSplitter: monsterType.isSplitter || false,
+        isDasher: monsterType.isDasher || false,
         lifeSteal: monsterType.lifeSteal || 0,
+        
+        // Splitter properties
+        splitCount: monsterType.splitCount || 0,
+        splitHealthPercent: monsterType.splitHealthPercent || 0.5,
+        
+        // Dasher properties
+        dashSpeed: monsterType.dashSpeed || 1.5,
+        dashCooldown: monsterType.dashCooldown || 3000,
+        lastDash: 0,
+        isDashing: false,
+        dashTarget: null,
         
         slowed: false,
         slowUntil: 0,
@@ -1722,6 +1787,87 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
     });
     
     return monster;
+}
+
+// Splitter death handler
+function handleSplitterDeath(monster) {
+    if (!monster.isSplitter) return;
+    
+    const splitCount = monster.splitCount || 2;
+    const splitHealth = Math.floor(monster.maxHealth * (monster.splitHealthPercent || 0.5));
+    
+    for (let i = 0; i < splitCount; i++) {
+        const angle = (i / splitCount) * Math.PI * 2;
+        const distance = 30;
+        const x = monster.x + Math.cos(angle) * distance;
+        const y = monster.y + Math.sin(angle) * distance;
+        
+        const splitMonster = {
+            ...monster,
+            x, y,
+            health: splitHealth,
+            maxHealth: splitHealth,
+            radius: monster.radius * 0.7,
+            isSplitter: false, // Don't split again
+            color: '#aaffaa',
+            originalSpeed: monster.originalSpeed * 1.2
+        };
+        
+        monsters.push(splitMonster);
+    }
+    
+    addVisualEffect({
+        type: 'explosion',
+        x: monster.x,
+        y: monster.y,
+        radius: 50,
+        color: '#00ff00',
+        startTime: Date.now(),
+        duration: 300
+    });
+}
+
+// Dasher AI update
+function updateDasher(dasher, currentTime) {
+    if (!dasher.isDasher) return;
+    
+    if (dasher.isDashing) {
+        // Continue dash
+        const dx = dasher.dashTarget.x - dasher.x;
+        const dy = dasher.dashTarget.y - dasher.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 5) {
+            dasher.isDashing = false;
+            dasher.speed = dasher.originalSpeed;
+        } else {
+            const moveX = (dx / dist) * dasher.dashSpeed;
+            const moveY = (dy / dist) * dasher.dashSpeed;
+            dasher.x += moveX;
+            dasher.y += moveY;
+        }
+    } else if (currentTime - dasher.lastDash >= dasher.dashCooldown) {
+        // Start new dash
+        const dx = player.x - dasher.x;
+        const dy = player.y - dasher.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 300) { // Only dash if within range
+            dasher.isDashing = true;
+            dasher.dashTarget = { x: player.x, y: player.y };
+            dasher.lastDash = currentTime;
+            
+            addVisualEffect({
+                type: 'shockwave',
+                x: dasher.x,
+                y: dasher.y,
+                radius: 30,
+                color: '#00ffff',
+                startTime: currentTime,
+                duration: 200
+            });
+        }
+    }
 }
 
 // ============================================
@@ -2208,28 +2354,45 @@ function applyPermanentItemEffect(item) {
             player.guardianAngel = true;
             break;
         case 'blood_contract':
-            player.bloodContract = true;
-            player.lifeSteal += 0.03;
-            player.healthRegen = 0;
-            
-            if (player.bloodContractInterval) {
-                clearInterval(player.bloodContractInterval);
+            // Blood Contract logic - stacking
+            if (!player.bloodContract) {
+                player.bloodContract = true;
+                player.bloodContractStacks = 1;
+                player.lifeSteal += 0.03; // +3% lifesteal per stack
+                player.healthRegen = 0; // Reset health regen
+                
+                // Clear any existing interval
+                if (player.bloodContractInterval) {
+                    clearInterval(player.bloodContractInterval);
+                }
+                
+                // Start health drain (every second) - percentage based
+                player.bloodContractInterval = setInterval(() => {
+                    if (gameState === 'wave') {
+                        // Calculate 1% of max health per stack
+                        const damagePercent = 0.01 * player.bloodContractStacks;
+                        const damageAmount = Math.max(1, Math.floor(player.maxHealth * damagePercent));
+                        
+                        if (player.health > damageAmount) {
+                            player.health -= damageAmount;
+                        } else {
+                            player.health = 1;
+                        }
+                        
+                        updateUI();
+                        createDamageIndicator(player.x, player.y, damageAmount, false);
+                    }
+                }, 1000);
+            } else {
+                // Stacking additional contracts
+                player.bloodContractStacks++;
+                player.lifeSteal += 0.03; // Additional 3% lifesteal per stack
+                
+                // No extra damage - damage is already per stack in the interval
+                queueMessage(`Blood Contract stacked! Now ${player.bloodContractStacks} stacks (${Math.floor(player.lifeSteal * 100)}% lifesteal)`);
             }
             
-            player.bloodContractInterval = setInterval(() => {
-                if (gameState === 'wave') {
-                    if (player.health > 1) {
-                        player.health -= 1;
-                    } else {
-                        player.health = 1;
-                    }
-                    
-                    updateUI();
-                    createDamageIndicator(player.x, player.y, 1, false);
-                }
-            }, 1000);
-            
-            queueMessage("Blood Contract activated! +3% lifesteal, but -1 HP per second during waves");
+            queueMessage(`Blood Contract activated! +3% lifesteal per stack, but lose ${player.bloodContractStacks}% HP per second`);
             break;
     }
 }
@@ -3493,6 +3656,12 @@ function drawPlayer() {
         ctx.beginPath();
         ctx.arc(0, 0, player.radius + 5 + Math.sin(Date.now() * 0.005) * 2, 0, Math.PI * 2);
         ctx.stroke();
+        
+        // Show blood contract stacks
+        ctx.fillStyle = '#8B0000';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${player.bloodContractStacks}`, 0, -player.radius - 10);
     }
     
     if (player.inSlowField) {
@@ -4024,6 +4193,11 @@ function updateProjectiles() {
                 }
                 
                 if (monster.health <= 0) {
+                    // Handle splitter death before removing monster
+                    if (monster.isSplitter) {
+                        handleSplitterDeath(monster);
+                    }
+                    
                     const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
                     const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
                     const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
@@ -4061,6 +4235,11 @@ function updateProjectiles() {
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
                                 if (otherMonster.health <= 0) {
+                                    // Handle splitter death for exploded monsters
+                                    if (otherMonster.isSplitter) {
+                                        handleSplitterDeath(otherMonster);
+                                    }
+                                    
                                     monsters.splice(k, 1);
                                     kills++;
                                     
@@ -4174,6 +4353,11 @@ function updateMeleeAttacks() {
                 }
                 
                 if (monster.health <= 0) {
+                    // Handle splitter death before removing monster
+                    if (monster.isSplitter) {
+                        handleSplitterDeath(monster);
+                    }
+                    
                     const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
                     const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
                     const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
@@ -4211,6 +4395,11 @@ function updateMeleeAttacks() {
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
                                 if (otherMonster.health <= 0) {
+                                    // Handle splitter death for exploded monsters
+                                    if (otherMonster.isSplitter) {
+                                        handleSplitterDeath(otherMonster);
+                                    }
+                                    
                                     monsters.splice(k, 1);
                                     kills++;
                                     
@@ -4271,6 +4460,10 @@ function updateMeleeAttacks() {
 }
 
 function updateMonsters(currentTime) {
+    // Update dashers
+    dashers = monsters.filter(m => m.isDasher);
+    dashers.forEach(dasher => updateDasher(dasher, currentTime));
+    
     monsters.forEach(monster => {
         if (monster.slowed && monster.slowUntil < currentTime) {
             monster.slowed = false;
@@ -4287,6 +4480,11 @@ function updateMonsters(currentTime) {
         }
         
         if (monster.stunned || monster.frozen) {
+            return;
+        }
+        
+        // Don't move while dashing - dasher movement handled separately
+        if (monster.isDasher && monster.isDashing) {
             return;
         }
         
@@ -4552,6 +4750,7 @@ function drawMonsters() {
         ctx.save();
         ctx.translate(monster.x, monster.y);
         
+        // Draw monster
         ctx.fillStyle = monster.color;
         ctx.shadowColor = monster.color;
         ctx.shadowBlur = monster.isBoss ? 20 : 10;
@@ -4559,6 +4758,7 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.fill();
         
+        // Status effects
         if (monster.stunned && monster.stunnedUntil > currentTime) {
             ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
             ctx.beginPath();
@@ -4573,6 +4773,18 @@ function drawMonsters() {
             ctx.fill();
         }
         
+        // Dash indicator for dashers
+        if (monster.isDasher && monster.isDashing) {
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius + 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        // Outline
         ctx.shadowBlur = 0;
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
@@ -4580,6 +4792,7 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
+        // Icon
         if (monster.monsterType && monster.monsterType.icon) {
             ctx.fillStyle = 'white';
             ctx.font = `${monster.radius}px Arial`;
@@ -4588,6 +4801,7 @@ function drawMonsters() {
             ctx.fillText(monster.monsterType.icon, 0, 0);
         }
         
+        // Eyes
         const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
         const eyeRadius = monster.radius * 0.2;
         
@@ -4614,6 +4828,7 @@ function drawMonsters() {
                 eyeRadius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
+        // Health bar
         const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
         const barWidth = monster.radius * 2;
         const barHeight = 4;
