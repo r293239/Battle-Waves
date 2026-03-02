@@ -11,7 +11,7 @@ const MONSTER_TYPES = {
         damageMultiplier: 1,
         sizeMultiplier: 1,
         icon: '👾',
-        goldDrop: { min: 5, max: 15 } // Gold range
+        goldDrop: { min: 5, max: 15 }
     },
     FAST: {
         name: 'Fast',
@@ -132,7 +132,7 @@ const BOSS_WEAPONS = {
         meleeType: 'aoe',
         baseDamage: 35,
         attackSpeed: 1.2,
-        range: 200,
+        range: 250,
         description: 'Dashing scythe slash with lifesteal',
         swingColor: '#4B0082',
         swingAngle: 270,
@@ -142,10 +142,15 @@ const BOSS_WEAPONS = {
         handleColor: '#2F4F4F',
         edgeColor: '#FF00FF',
         sparkleColor: '#FF69B4',
-        dashRange: 300,
+        dashRange: 500,
+        dashSpeed: 15,
         lifeSteal: 0.15
     }
 };
+
+// Load scythe image
+const scytheImage = new Image();
+scytheImage.src = 'assets/scythe.png';
 
 // ============================================
 // WEAPON INSTANCE CLASS
@@ -164,17 +169,13 @@ class WeaponInstance {
         this.range = weaponData.range;
         this.description = weaponData.description;
         this.cost = weaponData.cost || 0;
-        this.baseCost = weaponData.cost || 0; // Store base cost for tier pricing
+        this.baseCost = weaponData.cost || 0;
         this.lastAttack = 0;
         this.animation = weaponData.animation || 'default';
         
-        // Spread factor for weapons (0 = perfect accuracy, higher = more spread)
         this.spread = weaponData.spread || 0;
-        
-        // Track last attack time for stagger
         this.lastAttackTime = 0;
         
-        // Ammo system
         this.usesAmmo = weaponData.usesAmmo || false;
         if (this.usesAmmo) {
             this.magazineSize = weaponData.magazineSize;
@@ -184,24 +185,16 @@ class WeaponInstance {
             this.reloadStart = 0;
         }
         
-        // Shotgun specific properties
         this.pelletCount = weaponData.pelletCount || 1;
         this.spreadAngle = weaponData.spreadAngle || 0;
-        
-        // Energy gun bounce properties
         this.bounceCount = weaponData.bounceCount || 0;
         this.bounceRange = weaponData.bounceRange || 0;
-        
-        // Boomerang specific properties
         this.returnSpeed = weaponData.returnSpeed || 0;
         this.maxTargets = weaponData.maxTargets || 1;
         this.useImage = weaponData.useImage || false;
         this.imagePath = weaponData.imagePath || null;
-        
-        // Melee properties
         this.pierceCount = weaponData.pierceCount || 1;
         
-        // Weapon appearance properties
         this.bladeColor = weaponData.bladeColor || weaponData.swingColor;
         this.hiltColor = weaponData.hiltColor || '#8B4513';
         this.handleColor = weaponData.handleColor || '#654321';
@@ -224,10 +217,7 @@ class WeaponInstance {
             this.shockwaveIntensity = weaponData.shockwaveIntensity || 1;
         }
         
-        // Tier multipliers
         this.tierMultipliers = weaponData.tierMultipliers || {};
-        
-        // Apply tier bonuses
         this.applyTierBonuses();
     }
 
@@ -282,7 +272,6 @@ class WeaponInstance {
             return false;
         }
         
-        // Add 5ms stagger to prevent same weapon attacks from overlapping
         if (this.lastAttackTime > 0 && currentTime - this.lastAttackTime < 5) {
             return false;
         }
@@ -356,7 +345,6 @@ class WeaponInstance {
                 }
                 return attacks;
             } else if (this.id === 'boomerang') {
-                // Boomerang specific attack - only one boomerang
                 const angle = Math.atan2(targetY - playerY, targetX - playerX);
                 return {
                     type: 'ranged',
@@ -383,7 +371,6 @@ class WeaponInstance {
                     hitThisFrame: false
                 };
             } else {
-                // Apply spread to all other ranged weapons - NO HOMING
                 const baseAngle = Math.atan2(targetY - playerY, targetX - playerX);
                 const spreadAmount = (Math.random() - 0.5) * this.spread;
                 const angle = baseAngle + spreadAmount;
@@ -428,7 +415,6 @@ class WeaponInstance {
                 shockwaveIntensity: this.shockwaveIntensity,
                 tier: this.tier,
                 
-                // Weapon appearance properties
                 bladeColor: this.bladeColor,
                 hiltColor: this.hiltColor,
                 handleColor: this.handleColor,
@@ -469,11 +455,9 @@ class WeaponInstance {
     }
     
     getShopCost() {
-        // Tier 2 weapons cost 1.5x the price of buying two tier 1 and merging
         if (this.tier === 2) {
-            return Math.floor(this.baseCost * 2 * 0.75); // 75% of buying two tier 1
+            return Math.floor(this.baseCost * 2 * 0.75);
         } else if (this.tier > 2) {
-            // Higher tiers scale exponentially
             return Math.floor(this.baseCost * Math.pow(1.8, this.tier - 1));
         }
         return this.baseCost;
@@ -511,7 +495,6 @@ class WeaponInstance {
 // GAME LOGIC
 // ============================================
 
-// Game State
 let gameState = 'start';
 let wave = 1;
 let gold = 50;
@@ -534,13 +517,18 @@ let bossAbilities = {
     bossWeapon: null,
     bossWeaponAttack: 0,
     bossDash: false,
-    bossDashTarget: null,
+    bossDashTarget: { x: 0, y: 0 },
     bossDashStart: 0,
     bossDashCooldown: 0,
+    bossDashDirection: { x: 0, y: 0 },
+    bossDashDistance: 0,
     minionSpawnTimer: 0
 };
 let asteroidTimer = null;
 let minionSpawnInterval = null;
+
+// Stats panel
+let statsPanelVisible = false;
 
 // Touch handling
 let touchStartTime = 0;
@@ -548,7 +536,6 @@ let touchMoved = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
 
-// Player movement keys
 let keys = {
     w: false,
     a: false,
@@ -560,7 +547,6 @@ let keys = {
     right: false
 };
 
-// UI Movement Buttons
 let movementButtons = {
     up: false,
     down: false,
@@ -568,7 +554,6 @@ let movementButtons = {
     right: false
 };
 
-// Save game state to localStorage
 function saveGame() {
     if (gameState === 'start' || gameState === 'gameover') return;
     
@@ -620,7 +605,6 @@ function saveGame() {
     showMessage('Game saved!');
 }
 
-// Load game state from localStorage
 function loadGame() {
     const saved = localStorage.getItem('gameSave');
     if (!saved) {
@@ -631,7 +615,6 @@ function loadGame() {
     try {
         const gameData = JSON.parse(saved);
         
-        // Restore game state
         wave = gameData.wave;
         gold = gameData.gold;
         kills = gameData.kills;
@@ -640,10 +623,8 @@ function loadGame() {
         refreshCount = gameData.refreshCount || 0;
         refreshCost = gameData.refreshCost || 5;
         
-        // Restore player
         Object.assign(player, gameData.player);
         
-        // Restore weapons
         player.weapons = [];
         gameData.weapons.forEach(w => {
             const weaponData = GAME_DATA.WEAPONS.find(weap => weap.id === w.id);
@@ -657,16 +638,13 @@ function loadGame() {
             }
         });
         
-        // Restore shop items
         shopItems = gameData.shopItems || [];
         
-        // Clear any existing blood contract interval
         if (player.bloodContract) {
             if (player.bloodContractInterval) {
                 clearInterval(player.bloodContractInterval);
             }
             
-            // Restart blood contract drain
             player.bloodContractInterval = setInterval(() => {
                 if (gameState === 'wave') {
                     if (player.health > 1) {
@@ -680,7 +658,6 @@ function loadGame() {
             }, 1000);
         }
         
-        // Update UI
         startScreen.style.display = 'none';
         waveCompleteOverlay.style.display = 'none';
         gameOverOverlay.style.display = 'none';
@@ -708,17 +685,14 @@ function loadGame() {
     }
 }
 
-// Clear saved game
 function clearSave() {
     localStorage.removeItem('gameSave');
     showMessage('Save file cleared!');
 }
 
-// Check for existing save on startup
 function checkForSave() {
     const saved = localStorage.getItem('gameSave');
     if (saved) {
-        // Add continue button to start screen
         const continueBtn = document.createElement('button');
         continueBtn.id = 'continueGameBtn';
         continueBtn.textContent = 'Continue Game';
@@ -737,14 +711,12 @@ function checkForSave() {
             startScreen.style.display = 'none';
         });
         
-        // Check if button already exists
         if (!document.getElementById('continueGameBtn')) {
             startScreen.appendChild(continueBtn);
         }
     }
 }
 
-// Game Objects
 const player = {
     x: 400,
     y: 300,
@@ -753,7 +725,7 @@ const player = {
     maxHealth: 20,
     baseDamage: 5,
     speed: 3,
-    baseSpeed: 3, // Store base speed for slow field effect
+    baseSpeed: 3,
     color: '#ff6b6b',
     
     lifeSteal: 0,
@@ -769,7 +741,6 @@ const player = {
     
     ammoPack: false,
     
-    // Player stats
     dodgeChance: 0,
     thornsDamage: 0,
     attackSpeedMultiplier: 1,
@@ -778,20 +749,17 @@ const player = {
     guardianAngelUsed: false,
     bloodContractDamage: 0,
     
-    // Consumable inventory
     consumables: [],
     
-    // Permanent item flags
     berserkerRing: false,
     sharpeningStone: false,
     sharpeningStoneWave: 0,
     enchantersInk: false,
     guardianAngel: false,
     bloodContract: false,
-    bloodContractInterval: null, // For tracking the drain interval
+    bloodContractInterval: null,
     lastBloodDamage: 0,
     
-    // Slow field effect
     inSlowField: false,
     slowFieldTicks: 0,
     lastSlowFieldTick: 0
@@ -801,15 +769,13 @@ let monsters = [];
 let mouseX = 400;
 let mouseY = 300;
 
-// Effect arrays
 let groundFire = [];
 let poisonClouds = [];
 let voidZones = [];
 let activeTraps = [];
 let bossProjectiles = [];
-let monsterProjectiles = []; // For gunner monster projectiles
+let monsterProjectiles = [];
 
-// DOM Elements
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const waveDisplay = document.getElementById('waveDisplay');
@@ -833,7 +799,6 @@ const refreshCostSpan = document.getElementById('refreshCost');
 const refreshCounter = document.getElementById('refreshCounter');
 const consumablesGrid = document.getElementById('consumablesGrid');
 
-// UI Elements
 const healthValue = document.getElementById('healthValue');
 const damageValue = document.getElementById('damageValue');
 const speedValue = document.getElementById('speedValue');
@@ -842,9 +807,138 @@ const waveValue = document.getElementById('waveValue');
 const killsValue = document.getElementById('killsValue');
 const healthFill = document.getElementById('healthFill');
 
-// Load boomerang image
 const boomerangImage = new Image();
 boomerangImage.src = 'assets/boomerang.png';
+
+// ============================================
+// STATS PANEL
+// ============================================
+
+function createStatsPanel() {
+    const panel = document.createElement('div');
+    panel.id = 'statsPanel';
+    panel.className = 'stats-panel-hidden';
+    panel.innerHTML = `
+        <div class="stats-header">
+            <h3>Player Stats</h3>
+            <button id="closeStatsBtn">✕</button>
+        </div>
+        <div class="stats-content">
+            <div class="stat-row">
+                <span class="stat-label">❤️ Health:</span>
+                <span class="stat-value" id="stat-health">0/0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">⚔️ Damage:</span>
+                <span class="stat-value" id="stat-damage">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">👟 Speed:</span>
+                <span class="stat-value" id="stat-speed">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">💰 Gold:</span>
+                <span class="stat-value" id="stat-gold">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">👾 Kills:</span>
+                <span class="stat-value" id="stat-kills">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">🌊 Wave:</span>
+                <span class="stat-value" id="stat-wave">0</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-row">
+                <span class="stat-label">🦇 Life Steal:</span>
+                <span class="stat-value" id="stat-lifesteal">0%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">🎯 Critical:</span>
+                <span class="stat-value" id="stat-critical">0%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">💰 Gold Multi:</span>
+                <span class="stat-value" id="stat-goldmulti">0%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">🔄 Regen:</span>
+                <span class="stat-value" id="stat-regen">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">🛡️ Damage Red:</span>
+                <span class="stat-value" id="stat-dmgred">0%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">💨 Dodge:</span>
+                <span class="stat-value" id="stat-dodge">0%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">🌵 Thorns:</span>
+                <span class="stat-value" id="stat-thorns">0%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">⚡ Attack Speed:</span>
+                <span class="stat-value" id="stat-attackspeed">1.0x</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-row">
+                <span class="stat-label">📜 Blood Contract:</span>
+                <span class="stat-value" id="stat-bloodcontract">No</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">😇 Guardian Angel:</span>
+                <span class="stat-value" id="stat-guardian">No</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">⚡ Berserker Ring:</span>
+                <span class="stat-value" id="stat-berserker">No</span>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(panel);
+    
+    document.getElementById('closeStatsBtn').addEventListener('click', toggleStatsPanel);
+    document.getElementById('closeStatsBtn').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        toggleStatsPanel();
+    });
+}
+
+function toggleStatsPanel() {
+    const panel = document.getElementById('statsPanel');
+    statsPanelVisible = !statsPanelVisible;
+    panel.className = statsPanelVisible ? 'stats-panel-visible' : 'stats-panel-hidden';
+    
+    if (statsPanelVisible) {
+        updateStatsPanel();
+    }
+}
+
+function updateStatsPanel() {
+    if (!statsPanelVisible) return;
+    
+    document.getElementById('stat-health').textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
+    document.getElementById('stat-damage').textContent = Math.floor(player.baseDamage);
+    document.getElementById('stat-speed').textContent = player.speed.toFixed(1);
+    document.getElementById('stat-gold').textContent = gold;
+    document.getElementById('stat-kills').textContent = kills;
+    document.getElementById('stat-wave').textContent = wave;
+    
+    document.getElementById('stat-lifesteal').textContent = Math.floor(player.lifeSteal * 100) + '%';
+    document.getElementById('stat-critical').textContent = Math.floor(player.criticalChance * 100) + '%';
+    document.getElementById('stat-goldmulti').textContent = Math.floor(player.goldMultiplier * 100) + '%';
+    document.getElementById('stat-regen').textContent = player.healthRegen;
+    document.getElementById('stat-dmgred').textContent = Math.floor(player.damageReduction * 100) + '%';
+    document.getElementById('stat-dodge').textContent = Math.floor(player.dodgeChance * 100) + '%';
+    document.getElementById('stat-thorns').textContent = Math.floor(player.thornsDamage * 100) + '%';
+    document.getElementById('stat-attackspeed').textContent = player.attackSpeedMultiplier.toFixed(1) + 'x';
+    
+    document.getElementById('stat-bloodcontract').textContent = player.bloodContract ? 'Yes' : 'No';
+    document.getElementById('stat-guardian').textContent = player.guardianAngel ? 'Yes' : 'No';
+    document.getElementById('stat-berserker').textContent = player.berserkerRing ? 'Yes' : 'No';
+}
 
 // ============================================
 // UI MOVEMENT BUTTONS
@@ -866,7 +960,6 @@ function createMovementButtons() {
     
     document.body.appendChild(container);
     
-    // Mouse events
     document.getElementById('move-up').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.up = true; });
     document.getElementById('move-up').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.up = false; });
     document.getElementById('move-up').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.up = false; });
@@ -883,7 +976,6 @@ function createMovementButtons() {
     document.getElementById('move-right').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.right = false; });
     document.getElementById('move-right').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.right = false; });
     
-    // Touch events
     document.getElementById('move-up').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.up = true; });
     document.getElementById('move-up').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.up = false; });
     document.getElementById('move-up').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.up = false; });
@@ -923,7 +1015,6 @@ function getWaveConfig(waveNumber) {
             spawnDelay: waveData.spawnDelay || 150
         };
     } else {
-        // For waves beyond 30, scale up progressively
         const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
         const extraWaves = waveNumber - GAME_DATA.WAVES.length;
         const scaleFactor = 1 + extraWaves * 0.15;
@@ -943,19 +1034,15 @@ function getWaveConfig(waveNumber) {
 function generateShopItems() {
     const shopItems = [];
     
-    // Get all weapons except handgun
     const availableWeapons = GAME_DATA.WEAPONS.filter(w => w.id !== 'handgun');
     
-    // Add tier 1 and tier 2 weapons
     for (let i = 0; i < 2; i++) {
         if (availableWeapons.length > 0) {
             const randomIndex = Math.floor(Math.random() * availableWeapons.length);
             const weapon = {...availableWeapons[randomIndex]};
             
-            // 30% chance for tier 2 weapon
             const tier = Math.random() < 0.3 ? 2 : 1;
             
-            // Create weapon instance to get proper cost
             const weaponInstance = new WeaponInstance(weapon, tier);
             
             shopItems.push({
@@ -968,7 +1055,6 @@ function generateShopItems() {
         }
     }
     
-    // Add items
     const availableItems = [...GAME_DATA.ITEMS];
     for (let i = 0; i < 2; i++) {
         if (availableItems.length > 0) {
@@ -1023,13 +1109,11 @@ function generateStatBuffs() {
 // ============================================
 
 function initGame() {
-    // Clear any existing blood contract interval
     if (player.bloodContractInterval) {
         clearInterval(player.bloodContractInterval);
         player.bloodContractInterval = null;
     }
     
-    // Clear any existing minion spawn interval
     if (minionSpawnInterval) {
         clearInterval(minionSpawnInterval);
         minionSpawnInterval = null;
@@ -1056,7 +1140,6 @@ function initGame() {
         meleeAttacks: [],
         ammoPack: false,
         
-        // Reset stats
         dodgeChance: 0,
         thornsDamage: 0,
         attackSpeedMultiplier: 1,
@@ -1065,7 +1148,6 @@ function initGame() {
         guardianAngelUsed: false,
         bloodContractDamage: 0,
         
-        // Reset consumables and permanent items
         consumables: [],
         berserkerRing: false,
         sharpeningStone: false,
@@ -1076,7 +1158,6 @@ function initGame() {
         bloodContractInterval: null,
         lastBloodDamage: 0,
         
-        // Slow field effect
         inSlowField: false,
         slowFieldTicks: 0,
         lastSlowFieldTick: 0
@@ -1099,7 +1180,6 @@ function initGame() {
     refreshCostSpan.textContent = '5g';
     refreshCounter.textContent = 'Refreshes: 0';
     
-    // Reset effect arrays
     groundFire = [];
     poisonClouds = [];
     voidZones = [];
@@ -1112,9 +1192,11 @@ function initGame() {
     bossAbilities.bossWeapon = null;
     bossAbilities.bossWeaponAttack = 0;
     bossAbilities.bossDash = false;
-    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashTarget = { x: 0, y: 0 };
     bossAbilities.bossDashStart = 0;
     bossAbilities.bossDashCooldown = 0;
+    bossAbilities.bossDashDirection = { x: 0, y: 0 };
+    bossAbilities.bossDashDistance = 0;
     bossAbilities.minionSpawnTimer = 0;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -1158,9 +1240,9 @@ function showSpawnIndicators() {
     
     let totalMonsters = waveConfig.monsters;
     if (waveConfig.isBoss) {
-        totalMonsters = 1; // Boss only gets one indicator at center
+        totalMonsters = 1;
         if (waveConfig.minions) {
-            totalMonsters += waveConfig.minions; // Add minion indicators
+            totalMonsters += waveConfig.minions;
         }
     }
     
@@ -1168,17 +1250,15 @@ function showSpawnIndicators() {
         let x, y;
         
         if (waveConfig.isBoss && i === 0) {
-            // Boss indicator at center
             x = canvas.width / 2;
             y = canvas.height / 2;
         } else {
-            // Minion or regular monster indicators around the edges
             const side = Math.floor(Math.random() * 4);
             switch(side) {
-                case 0: x = 30 + Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break; // Left edge
-                case 1: x = canvas.width - 30 - Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break; // Right edge
-                case 2: x = Math.random() * (canvas.width - 60) + 30; y = 30 + Math.random() * 100; break; // Top edge
-                case 3: x = Math.random() * (canvas.width - 60) + 30; y = canvas.height - 30 - Math.random() * 100; break; // Bottom edge
+                case 0: x = 30 + Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break;
+                case 1: x = canvas.width - 30 - Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break;
+                case 2: x = Math.random() * (canvas.width - 60) + 30; y = 30 + Math.random() * 100; break;
+                case 3: x = Math.random() * (canvas.width - 60) + 30; y = canvas.height - 30 - Math.random() * 100; break;
             }
         }
         
@@ -1195,7 +1275,6 @@ function showSpawnIndicators() {
 
 function spawnMinions(count, centerX, centerY) {
     for (let i = 0; i < count; i++) {
-        // Spawn minions in a circle around the boss
         const angle = (i / count) * Math.PI * 2;
         const distance = 80 + Math.random() * 60;
         const x = centerX + Math.cos(angle) * distance;
@@ -1204,22 +1283,20 @@ function spawnMinions(count, centerX, centerY) {
         const minion = createMonster(MONSTER_TYPES.MINION, false, x, y);
         if (minion) {
             minion.isMinion = true;
-            minion.health = minion.maxHealth * 0.5; // Make minions weaker
+            minion.health = minion.maxHealth * 0.5;
             monsters.push(minion);
         }
     }
 }
 
-// Continuous minion spawning for boss waves
 function startMinionSpawning(boss) {
     if (minionSpawnInterval) {
         clearInterval(minionSpawnInterval);
     }
     
-    // Spawn minions every 5 seconds during boss fights
     minionSpawnInterval = setInterval(() => {
         if (waveActive && boss && boss.health > 0) {
-            const minionCount = 3 + Math.floor(Math.random() * 3); // 3-5 minions
+            const minionCount = 3 + Math.floor(Math.random() * 3);
             spawnMinions(minionCount, boss.x, boss.y);
             showMessage("Minions spawned!");
         } else {
@@ -1234,21 +1311,21 @@ function startWave() {
     waveActive = true;
     waveStartTime = Date.now();
     
-    // Reset player slow field effects
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed;
     
-    // Reset boss abilities
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
     bossAbilities.bossWeapon = null;
     bossAbilities.bossWeaponAttack = 0;
     bossAbilities.bossDash = false;
-    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashTarget = { x: 0, y: 0 };
     bossAbilities.bossDashStart = 0;
     bossAbilities.bossDashCooldown = 0;
+    bossAbilities.bossDashDirection = { x: 0, y: 0 };
+    bossAbilities.bossDashDistance = 0;
     bossAbilities.minionSpawnTimer = 0;
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -1263,7 +1340,6 @@ function startWave() {
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.classList.remove('boss-wave');
     
-    // Simple boss text
     if (waveConfig.isBoss) {
         if (wave === 10) {
             waveDisplay.textContent = `BOSS WAVE 10 - SHADOW DAGGER`;
@@ -1279,7 +1355,6 @@ function startWave() {
     
     waveDisplay.style.opacity = 1;
     
-    // Clear all arrays
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
@@ -1287,7 +1362,6 @@ function startWave() {
     bossProjectiles = [];
     monsterProjectiles = [];
     
-    // Reset first hit reduction for new wave
     if (player.firstHitReduction) {
         player.firstHitReduction = false;
     }
@@ -1297,23 +1371,19 @@ function startWave() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     
-    // Show spawn indicators
     showSpawnIndicators();
     
-    // Spawn monsters after a short delay
     setTimeout(() => {
         const monsterCount = waveConfig.monsters;
         const spawnDelay = waveConfig.spawnDelay || 200;
         
         if (waveConfig.isBoss) {
-            // Boss spawns at center
             const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
             if (boss) {
-                boss.lifeSteal = 0.1; // Add life steal to boss
+                boss.lifeSteal = 0.1;
                 boss.maxHealth = waveConfig.monsterHealth * 15;
                 boss.health = boss.maxHealth;
                 
-                // Assign boss weapon based on wave
                 if (wave === 10) {
                     bossAbilities.bossWeapon = {...BOSS_WEAPONS.DAGGER};
                     bossAbilities.bossWeapon.lastAttack = 0;
@@ -1330,10 +1400,8 @@ function startWave() {
                 
                 monsters.push(boss);
                 
-                // Start continuous minion spawning for boss
                 startMinionSpawning(boss);
                 
-                // Add dramatic spawn effect for boss
                 addVisualEffect({
                     type: 'bossSpawn',
                     x: boss.x,
@@ -1344,28 +1412,23 @@ function startWave() {
                     color: boss.color
                 });
                 
-                // Spawn initial minions
                 if (waveConfig.minions > 0) {
                     spawnMinions(waveConfig.minions, boss.x, boss.y);
                 }
                 
-                // Set up boss abilities based on wave
                 if (wave === 10) {
                     bossAbilities.shotgun = true;
                 } else if (wave === 20) {
-                    // Asteroid ability - 5 at a time
                     asteroidTimer = setInterval(() => {
                         if (waveActive && monsters.some(m => m.isBoss)) {
-                            // Spawn 5 asteroids at once around the boss
                             for (let i = 0; i < 5; i++) {
                                 setTimeout(() => {
                                     if (waveActive) spawnAsteroid();
                                 }, i * 200);
                             }
                         }
-                    }, 4000); // Every 4 seconds
+                    }, 4000);
                 } else if (wave === 30) {
-                    // Slow field that follows the boss
                     bossAbilities.slowField = {
                         active: true,
                         radius: 200,
@@ -1375,7 +1438,6 @@ function startWave() {
             }
             spawnIndicators = [];
         } else {
-            // Staggered spawning for regular monsters
             let spawnedCount = 0;
             
             for (let i = 0; i < monsterCount; i++) {
@@ -1384,7 +1446,6 @@ function startWave() {
                         let monsterType;
                         const rand = Math.random();
                         
-                        // Determine monster type based on wave
                         if (wave < 3) {
                             monsterType = MONSTER_TYPES.NORMAL;
                         } else if (wave < 6) {
@@ -1407,7 +1468,6 @@ function startWave() {
                             else monsterType = MONSTER_TYPES.MINION;
                         }
                         
-                        // Use indicator position if available
                         if (spawnIndicators.length > i) {
                             const indicator = spawnIndicators[i];
                             const monster = createMonster(monsterType, false, indicator.x, indicator.y);
@@ -1422,7 +1482,6 @@ function startWave() {
                         }
                         spawnedCount++;
                         
-                        // Clear indicators when last monster spawns
                         if (spawnedCount >= monsterCount) {
                             spawnIndicators = [];
                         }
@@ -1430,7 +1489,7 @@ function startWave() {
                 }, i * spawnDelay);
             }
         }
-    }, 2000); // Wait 2 seconds for indicators to show
+    }, 2000);
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
@@ -1440,18 +1499,15 @@ function startWave() {
 function spawnAsteroid() {
     if (!waveActive) return;
     
-    // Find boss position to spawn asteroids around it
     const boss = monsters.find(m => m.isBoss);
     if (!boss) return;
     
-    // Random position around the boss
     const angle = Math.random() * Math.PI * 2;
     const distance = 150 + Math.random() * 100;
     const x = boss.x + Math.cos(angle) * distance;
     const y = boss.y + Math.sin(angle) * distance;
     const radius = 40;
     
-    // Add warning indicator
     addVisualEffect({
         type: 'asteroidWarning',
         x: x,
@@ -1461,11 +1517,9 @@ function spawnAsteroid() {
         duration: 800
     });
     
-    // Spawn asteroid after warning
     setTimeout(() => {
         if (!waveActive) return;
         
-        // Damage players within radius
         const dx = player.x - x;
         const dy = player.y - y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1480,7 +1534,6 @@ function spawnAsteroid() {
             }
         }
         
-        // Damage monsters within radius (but not the boss)
         for (let i = monsters.length - 1; i >= 0; i--) {
             const monster = monsters[i];
             const dx = monster.x - x;
@@ -1495,7 +1548,6 @@ function spawnAsteroid() {
                     monsters.splice(i, 1);
                     kills++;
                     
-                    // Random gold drop based on monster type
                     const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
                     const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
                     const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
@@ -1505,7 +1557,6 @@ function spawnAsteroid() {
             }
         }
         
-        // Visual effect
         addVisualEffect({
             type: 'asteroid',
             x: x,
@@ -1536,7 +1587,6 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
         x = spawnX;
         y = spawnY;
     } else {
-        // Random edge spawn
         const side = Math.floor(Math.random() * 4);
         switch(side) {
             case 0: x = 50; y = Math.random() * (canvas.height - 100) + 50; break;
@@ -1562,7 +1612,6 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
         isMinion: monsterType.isMinion || false,
         lifeSteal: monsterType.lifeSteal || 0,
         
-        // Status effects
         slowed: false,
         slowUntil: 0,
         frozen: false,
@@ -1570,16 +1619,13 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
         stunned: false,
         stunnedUntil: 0,
         
-        // Explosive properties
         explosive: monsterType.explosive || false,
         
-        // Gunner properties
         isGunner: monsterType === MONSTER_TYPES.GUNNER,
         
         originalSpeed: (isBoss ? 0.7 : (1 + wave * 0.05)) * monsterType.speed
     };
     
-    // Add spawn effect
     addVisualEffect({
         type: 'spawn',
         x: x,
@@ -1616,6 +1662,10 @@ function updateUI() {
     }
     
     monsterCount.textContent = `Monsters: ${monsters.length}`;
+    
+    if (statsPanelVisible) {
+        updateStatsPanel();
+    }
 }
 
 function updateWeaponDisplay() {
@@ -1665,13 +1715,11 @@ function updateWeaponDisplay() {
                 </div>
             `;
             
-            // Mouse events
             slot.addEventListener('click', (e) => {
                 e.preventDefault();
                 selectWeapon(i);
             });
             
-            // Touch events
             slot.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 selectWeapon(i);
@@ -1703,13 +1751,11 @@ function updateConsumablesDisplay() {
             <div class="consumable-count">${consumable.count || 1}</div>
         `;
         
-        // Mouse events
         slot.addEventListener('click', (e) => {
             e.preventDefault();
             useConsumable(index);
         });
         
-        // Touch events
         slot.addEventListener('touchstart', (e) => {
             e.preventDefault();
             useConsumable(index);
@@ -1754,7 +1800,6 @@ function useConsumable(index) {
             break;
     }
     
-    // Remove consumed item
     if (consumable.count && consumable.count > 1) {
         consumable.count--;
     } else {
@@ -1953,13 +1998,11 @@ function updateShopDisplay() {
                 <div class="item-cost">${cost}g</div>
             `;
             
-            // Mouse events
             itemElement.addEventListener('click', (e) => {
                 e.preventDefault();
                 purchaseItem(i);
             });
             
-            // Touch events
             itemElement.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 purchaseItem(i);
@@ -2012,7 +2055,6 @@ function purchaseItem(index) {
         
     } else {
         if (data.type === 'consumable') {
-            // Add to consumables inventory
             const existingConsumable = player.consumables.find(c => c.id === data.id);
             if (existingConsumable) {
                 existingConsumable.count = (existingConsumable.count || 1) + 1;
@@ -2027,7 +2069,6 @@ function purchaseItem(index) {
             showMessage(`Added ${data.name} to consumables!`);
             updateConsumablesDisplay();
         } else {
-            // Permanent item
             applyPermanentItemEffect(data);
             showMessage(`Purchased ${data.name}!`);
         }
@@ -2081,31 +2122,23 @@ function applyPermanentItemEffect(item) {
             player.guardianAngel = true;
             break;
         case 'blood_contract':
-            // Blood Contract logic
             player.bloodContract = true;
-            player.lifeSteal += 0.03; // +3% lifesteal
-            player.healthRegen = 0; // Reset health regen
+            player.lifeSteal += 0.03;
+            player.healthRegen = 0;
             
-            // Clear any existing interval
             if (player.bloodContractInterval) {
                 clearInterval(player.bloodContractInterval);
             }
             
-            // Start health drain (every second) - ONLY DURING WAVES
             player.bloodContractInterval = setInterval(() => {
-                // Only take damage during wave state
                 if (gameState === 'wave') {
                     if (player.health > 1) {
                         player.health -= 1;
                     } else {
-                        // Keep at 1 HP to prevent death from item
                         player.health = 1;
                     }
                     
-                    // Update UI
                     updateUI();
-                    
-                    // Visual feedback
                     createDamageIndicator(player.x, player.y, 1, false);
                 }
             }, 1000);
@@ -2128,13 +2161,11 @@ function showStatBuffs() {
             <div class="buff-description">${buff.description}</div>
         `;
         
-        // Mouse events
         buffElement.addEventListener('click', (e) => {
             e.preventDefault();
             selectStatBuff(buff);
         });
         
-        // Touch events
         buffElement.addEventListener('touchstart', (e) => {
             e.preventDefault();
             selectStatBuff(buff);
@@ -2162,7 +2193,6 @@ function selectStatBuff(buff) {
     
     if (buff.effect.speed) {
         player.baseSpeed += buff.effect.speed;
-        // Apply current slow field effect if active
         if (!player.inSlowField) {
             player.speed += buff.effect.speed;
         }
@@ -2208,12 +2238,10 @@ function endWave() {
     gameState = 'statSelect';
     waveActive = false;
     
-    // Reset player slow field effects
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed;
     
-    // Clear boss abilities
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -2228,7 +2256,7 @@ function endWave() {
     bossAbilities.bossWeapon = null;
     bossAbilities.bossWeaponAttack = 0;
     bossAbilities.bossDash = false;
-    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashTarget = { x: 0, y: 0 };
     bossAbilities.bossDashStart = 0;
     
     const waveConfig = getWaveConfig(wave);
@@ -2241,7 +2269,6 @@ function endWave() {
         }
     });
     
-    // Reset temporary buffs
     if (player.sharpeningStone && player.sharpeningStoneWave === wave) {
         player.sharpeningStone = false;
     }
@@ -2253,12 +2280,10 @@ function gameOver() {
     gameState = 'gameover';
     waveActive = false;
     
-    // Reset player slow field effects
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed;
     
-    // Clear boss abilities
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -2273,19 +2298,16 @@ function gameOver() {
     bossAbilities.bossWeapon = null;
     bossAbilities.bossWeaponAttack = 0;
     bossAbilities.bossDash = false;
-    bossAbilities.bossDashTarget = null;
+    bossAbilities.bossDashTarget = { x: 0, y: 0 };
     bossAbilities.bossDashStart = 0;
     
-    // Clear blood contract interval
     if (player.bloodContractInterval) {
         clearInterval(player.bloodContractInterval);
         player.bloodContractInterval = null;
     }
     
-    // Clear save file on death
     clearSave();
     
-    // Guardian angel check
     if (player.guardianAngel && !player.guardianAngelUsed) {
         player.guardianAngelUsed = true;
         player.health = player.maxHealth * 0.5;
@@ -2348,18 +2370,15 @@ function gameLoop() {
     const deltaTime = currentTime - lastFrameTime;
     lastFrameTime = currentTime;
     
-    // Handle movement
     if (gameState === 'wave') {
         let moveX = 0;
         let moveY = 0;
         
-        // Keyboard input
         if (keys.w || keys.up) moveY -= 1;
         if (keys.s || keys.down) moveY += 1;
         if (keys.a || keys.left) moveX -= 1;
         if (keys.d || keys.right) moveX += 1;
         
-        // UI button input
         if (movementButtons.up) moveY -= 1;
         if (movementButtons.down) moveY += 1;
         if (movementButtons.left) moveX -= 1;
@@ -2373,7 +2392,6 @@ function gameLoop() {
             player.x += moveX;
             player.y += moveY;
             
-            // Keep player in bounds
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
         }
@@ -2438,7 +2456,6 @@ function drawSpawnIndicators() {
             continue;
         }
         
-        // Animate the indicator
         const pulseScale = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
         const alpha = 1 - progress * 0.5;
         
@@ -2451,20 +2468,16 @@ function drawSpawnIndicators() {
             ctx.shadowColor = '#ffd700';
             ctx.shadowBlur = 20 * alpha;
             
-            // Rotating rings
             ctx.rotate(elapsed * 0.002);
             
-            // Outer ring
             ctx.beginPath();
             ctx.arc(0, 0, 40 * pulseScale, 0, Math.PI * 2);
             ctx.stroke();
             
-            // Inner ring
             ctx.beginPath();
             ctx.arc(0, 0, 25, 0, Math.PI * 2);
             ctx.stroke();
             
-            // Cross
             ctx.rotate(-elapsed * 0.002);
             ctx.beginPath();
             ctx.moveTo(-30, -30);
@@ -2478,12 +2491,10 @@ function drawSpawnIndicators() {
             ctx.shadowColor = '#9370db';
             ctx.shadowBlur = 10 * alpha;
             
-            // Pulsing circle
             ctx.beginPath();
             ctx.arc(0, 0, 20 * pulseScale, 0, Math.PI * 2);
             ctx.stroke();
             
-            // Small x
             ctx.beginPath();
             ctx.moveTo(-10, -10);
             ctx.lineTo(10, 10);
@@ -2496,12 +2507,10 @@ function drawSpawnIndicators() {
             ctx.shadowColor = '#ff0000';
             ctx.shadowBlur = 10 * alpha;
             
-            // Pulsing circle
             ctx.beginPath();
             ctx.arc(0, 0, 25 * pulseScale, 0, Math.PI * 2);
             ctx.stroke();
             
-            // X marker
             ctx.beginPath();
             ctx.moveTo(-15, -15);
             ctx.lineTo(15, 15);
@@ -2516,7 +2525,6 @@ function drawSpawnIndicators() {
 
 function drawSlowField() {
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
-        // Find the boss to get its position
         const boss = monsters.find(m => m.isBoss && wave === 30);
         if (!boss) return;
         
@@ -2525,7 +2533,6 @@ function drawSlowField() {
         ctx.save();
         ctx.translate(boss.x, boss.y);
         
-        // Pulsing slow field
         const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
         
         ctx.fillStyle = `rgba(100, 100, 255, ${alpha})`;
@@ -2535,7 +2542,6 @@ function drawSlowField() {
         ctx.arc(0, 0, bossAbilities.slowField.radius * pulse, 0, Math.PI * 2);
         ctx.fill();
         
-        // Inner ring
         ctx.strokeStyle = `rgba(200, 200, 255, ${alpha})`;
         ctx.lineWidth = 3;
         ctx.shadowBlur = 20;
@@ -2543,7 +2549,6 @@ function drawSlowField() {
         ctx.arc(0, 0, bossAbilities.slowField.radius * 0.7, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Slow field text
         ctx.fillStyle = 'white';
         ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
@@ -2551,7 +2556,6 @@ function drawSlowField() {
         ctx.shadowBlur = 15;
         ctx.fillText('SLOW FIELD', 0, -bossAbilities.slowField.radius - 20);
         
-        // Show permanent speed decrease ticks
         if (player.inSlowField && player.slowFieldTicks > 0) {
             ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
             ctx.font = 'bold 14px Arial';
@@ -2581,7 +2585,6 @@ function drawProjectiles() {
         } else if (projectile.weaponId === 'machinegun') {
             drawMachinegunProjectile(ctx, projectile, currentTime);
         } else {
-            // Default projectile
             ctx.shadowColor = projectile.color;
             ctx.shadowBlur = 15;
             ctx.fillStyle = projectile.color;
@@ -2608,7 +2611,6 @@ function drawMonsterProjectiles() {
         ctx.save();
         ctx.translate(proj.x, proj.y);
         
-        // Draw gunner projectile
         ctx.shadowColor = proj.color;
         ctx.shadowBlur = 15;
         ctx.fillStyle = proj.color;
@@ -2616,7 +2618,6 @@ function drawMonsterProjectiles() {
         ctx.arc(0, 0, 5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Inner core
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
         ctx.arc(0, 0, 2, 0, Math.PI * 2);
@@ -2636,18 +2637,15 @@ function drawBossProjectiles() {
         ctx.save();
         ctx.translate(proj.x, proj.y);
         
-        // Draw boss projectile
         ctx.shadowColor = proj.color;
         ctx.shadowBlur = 15 * alpha;
         
-        // Outer glow
         ctx.fillStyle = proj.color;
         ctx.globalAlpha = alpha * 0.7;
         ctx.beginPath();
         ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Inner projectile
         ctx.fillStyle = '#FFFFFF';
         ctx.globalAlpha = alpha;
         ctx.beginPath();
@@ -2659,12 +2657,10 @@ function drawBossProjectiles() {
 }
 
 function drawBoomerangProjectile(ctx, projectile, currentTime) {
-    // Boomerang with spinning animation using PNG
     const rotation = (projectile.rotation || 0) + 0.1;
     projectile.rotation = rotation;
     
     if (boomerangImage.complete && boomerangImage.naturalHeight > 0) {
-        // Draw the PNG image
         ctx.save();
         ctx.translate(projectile.x, projectile.y);
         ctx.rotate(rotation);
@@ -2673,7 +2669,6 @@ function drawBoomerangProjectile(ctx, projectile, currentTime) {
         ctx.drawImage(boomerangImage, -20, -20, 40, 40);
         ctx.restore();
         
-        // Draw trail when returning
         if (projectile.state === 'returning') {
             ctx.save();
             ctx.globalAlpha = 0.3;
@@ -2689,7 +2684,6 @@ function drawBoomerangProjectile(ctx, projectile, currentTime) {
             ctx.restore();
         }
     } else {
-        // Fallback drawing if image not loaded
         ctx.save();
         ctx.translate(projectile.x, projectile.y);
         ctx.rotate(rotation);
@@ -2697,7 +2691,6 @@ function drawBoomerangProjectile(ctx, projectile, currentTime) {
         ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
         ctx.shadowBlur = 15;
         
-        // Boomerang shape
         ctx.fillStyle = '#8B4513';
         ctx.strokeStyle = '#654321';
         ctx.lineWidth = 2;
@@ -2712,7 +2705,6 @@ function drawBoomerangProjectile(ctx, projectile, currentTime) {
         ctx.fill();
         ctx.stroke();
         
-        // Edge highlight when returning
         if (projectile.state === 'returning') {
             ctx.strokeStyle = '#FFD700';
             ctx.lineWidth = 2;
@@ -2733,7 +2725,6 @@ function drawShotgunPellet(ctx, projectile, currentTime) {
     ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
     ctx.fill();
     
-    // Tiny trail
     ctx.shadowBlur = 5;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.beginPath();
@@ -2743,7 +2734,6 @@ function drawShotgunPellet(ctx, projectile, currentTime) {
 }
 
 function drawLaserProjectile(ctx, projectile, currentTime) {
-    // Laser beam with pulsing effect
     const pulse = Math.sin(currentTime * 0.02) * 2;
     
     ctx.shadowColor = '#00FFFF';
@@ -2756,7 +2746,6 @@ function drawLaserProjectile(ctx, projectile, currentTime) {
     ctx.lineTo(projectile.x, projectile.y);
     ctx.stroke();
     
-    // Inner core
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -2765,7 +2754,6 @@ function drawLaserProjectile(ctx, projectile, currentTime) {
     ctx.lineTo(projectile.x, projectile.y);
     ctx.stroke();
     
-    // Glow
     ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
     ctx.shadowBlur = 30;
     ctx.beginPath();
@@ -2774,7 +2762,6 @@ function drawLaserProjectile(ctx, projectile, currentTime) {
 }
 
 function drawMachinegunProjectile(ctx, projectile, currentTime) {
-    // Fast bullet with trail
     ctx.shadowColor = '#FFD700';
     ctx.shadowBlur = 15;
     ctx.fillStyle = '#FFD700';
@@ -2782,7 +2769,6 @@ function drawMachinegunProjectile(ctx, projectile, currentTime) {
     ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
     ctx.fill();
     
-    // Trail
     for (let i = 1; i <= 3; i++) {
         const alpha = 0.3 - i * 0.1;
         ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
@@ -2829,7 +2815,6 @@ function drawMeleeAttacks() {
                 drawTrident(ctx, attack, angle, progress, distance, alpha);
                 break;
             default:
-                // Default fallback
                 drawDefaultMelee(ctx, attack, angle, progress, distance, alpha);
                 break;
         }
@@ -2857,7 +2842,6 @@ function drawBossMeleeAttacks() {
     const distance = attack.radius * (progress * 1.2);
     const alpha = 1 - progress * 0.7;
     
-    // Draw boss weapon based on wave
     if (wave === 10) {
         drawBossDagger(ctx, attack, angle, progress, distance, alpha);
     } else if (wave === 20) {
@@ -2975,40 +2959,51 @@ function drawBossScythe(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(75, 0, 130, 0.7)';
     ctx.shadowBlur = 20 * alpha;
     
-    // Handle
-    ctx.save();
-    ctx.fillStyle = '#2F4F4F';
-    ctx.fillRect(-5, -attack.radius * 0.8, 10, attack.radius * 1.6);
-    ctx.restore();
-    
-    // Blade
-    ctx.save();
-    ctx.translate(0, -attack.radius * 0.6);
-    ctx.rotate(-0.5);
-    
-    const bladeGradient = ctx.createLinearGradient(0, -20, 80, -20);
-    bladeGradient.addColorStop(0, '#4B0082');
-    bladeGradient.addColorStop(1, '#9400D3');
-    
-    ctx.fillStyle = bladeGradient;
-    ctx.shadowColor = 'rgba(148, 0, 211, 0.7)';
-    
-    ctx.beginPath();
-    ctx.moveTo(0, -15);
-    ctx.lineTo(80, -25);
-    ctx.lineTo(80, -5);
-    ctx.lineTo(0, 15);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Edge
-    ctx.strokeStyle = `rgba(255, 105, 180, ${alpha})`;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(80, -25);
-    ctx.lineTo(80, -5);
-    ctx.stroke();
-    ctx.restore();
+    // Draw scythe using image if loaded, otherwise fallback to drawing
+    if (scytheImage.complete && scytheImage.naturalHeight > 0) {
+        ctx.save();
+        ctx.translate(40, -20);
+        ctx.rotate(-0.3);
+        ctx.scale(1.5, 1.5);
+        ctx.shadowColor = 'rgba(148, 0, 211, 0.7)';
+        ctx.shadowBlur = 20;
+        ctx.drawImage(scytheImage, -25, -25, 50, 50);
+        ctx.restore();
+    } else {
+        // Handle
+        ctx.save();
+        ctx.fillStyle = '#2F4F4F';
+        ctx.fillRect(-5, -attack.radius * 0.8, 10, attack.radius * 1.6);
+        ctx.restore();
+        
+        // Blade
+        ctx.save();
+        ctx.translate(0, -attack.radius * 0.6);
+        ctx.rotate(-0.5);
+        
+        const bladeGradient = ctx.createLinearGradient(0, -20, 80, -20);
+        bladeGradient.addColorStop(0, '#4B0082');
+        bladeGradient.addColorStop(1, '#9400D3');
+        
+        ctx.fillStyle = bladeGradient;
+        ctx.shadowColor = 'rgba(148, 0, 211, 0.7)';
+        
+        ctx.beginPath();
+        ctx.moveTo(0, -15);
+        ctx.lineTo(80, -25);
+        ctx.lineTo(80, -5);
+        ctx.lineTo(0, 15);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.strokeStyle = `rgba(255, 105, 180, ${alpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(80, -25);
+        ctx.lineTo(80, -5);
+        ctx.stroke();
+        ctx.restore();
+    }
     
     // Trail
     if (progress > 0.2 && progress < 0.8) {
@@ -3344,7 +3339,6 @@ function drawDefaultMelee(ctx, attack, angle, progress, distance, alpha) {
 }
 
 function drawGroundEffects() {
-    // Draw ground fire
     groundFire.forEach(fire => {
         const progress = (Date.now() - fire.startTime) / fire.duration;
         if (progress > 1) return;
@@ -3358,7 +3352,6 @@ function drawGroundEffects() {
         ctx.arc(fire.x, fire.y, fire.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Inner glow
         ctx.fillStyle = '#FFD700';
         ctx.shadowBlur = 20;
         ctx.beginPath();
@@ -3367,7 +3360,6 @@ function drawGroundEffects() {
         ctx.restore();
     });
     
-    // Draw poison clouds
     poisonClouds.forEach(cloud => {
         const progress = (Date.now() - cloud.startTime) / cloud.duration;
         if (progress > 1) return;
@@ -3383,7 +3375,6 @@ function drawGroundEffects() {
         ctx.restore();
     });
     
-    // Draw traps
     activeTraps.forEach(trap => {
         if (!trap.active) return;
         
@@ -3434,7 +3425,6 @@ function drawPlayer() {
     ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
     ctx.fill();
     
-    // Blood contract visual effect
     if (player.bloodContract) {
         ctx.shadowColor = '#8B0000';
         ctx.shadowBlur = 20;
@@ -3445,7 +3435,6 @@ function drawPlayer() {
         ctx.stroke();
     }
     
-    // Slow field effect indicator
     if (player.inSlowField) {
         ctx.shadowColor = '#6464ff';
         ctx.shadowBlur = 15;
@@ -3455,7 +3444,6 @@ function drawPlayer() {
         ctx.arc(0, 0, player.radius + 8 + Math.sin(Date.now() * 0.01) * 3, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Show speed decrease
         if (player.slowFieldTicks > 0) {
             ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
             ctx.font = 'bold 14px Arial';
@@ -3472,7 +3460,6 @@ function drawPlayer() {
 function updateGame(deltaTime) {
     const currentTime = Date.now();
     
-    // Apply slow field effect (Wave 30 boss)
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
         const boss = monsters.find(m => m.isBoss && wave === 30);
         if (boss) {
@@ -3484,69 +3471,75 @@ function updateGame(deltaTime) {
             player.inSlowField = distToField < bossAbilities.slowField.radius;
             
             if (player.inSlowField) {
-                // Apply 50% slow
                 player.speed = player.baseSpeed * 0.5;
                 
-                // Every second, permanently decrease speed by 1
                 if (currentTime - player.lastSlowFieldTick >= 1000) {
                     player.baseSpeed = Math.max(1, player.baseSpeed - 1);
-                    player.speed = player.baseSpeed * 0.5; // Reapply 50% slow
+                    player.speed = player.baseSpeed * 0.5;
                     player.slowFieldTicks++;
                     player.lastSlowFieldTick = currentTime;
                     
-                    // Visual feedback
                     createDamageIndicator(player.x, player.y, 1, false);
                     showMessage("Speed decreased by 1!");
                 }
             } else if (wasInSlowField) {
-                // Exited slow field - restore normal speed
                 player.speed = player.baseSpeed;
             }
         }
     }
     
-    // Check for boss enrage (wave 20 boss at half health)
     if (wave === 20 && !bossAbilities.enraged) {
         const boss = monsters.find(m => m.isBoss);
         if (boss && boss.health <= boss.maxHealth / 2) {
             bossAbilities.enraged = true;
-            boss.attackCooldown = 800; // Reduced cooldown
-            boss.color = '#ff4444'; // Red enraged color
-            boss.speed = boss.originalSpeed * 1.3; // Move faster when enraged
+            boss.attackCooldown = 800;
+            boss.color = '#ff4444';
+            boss.speed = boss.originalSpeed * 1.3;
             showMessage("BOSS ENRAGED - ATTACK SPEED AND MOVEMENT INCREASED!");
         }
     }
     
-    // Boss dash for wave 30 scythe boss
+    // Improved dash for wave 30 boss
     if (wave === 30 && bossAbilities.bossWeapon) {
         const boss = monsters.find(m => m.isBoss);
         if (boss && !bossAbilities.bossDash && currentTime - bossAbilities.bossDashCooldown > 3000) {
-            // Start dash every 3 seconds
-            bossAbilities.bossDash = true;
-            bossAbilities.bossDashTarget = { x: player.x, y: player.y };
-            bossAbilities.bossDashStart = currentTime;
+            // Start dash - calculate direction and distance once
+            const dx = player.x - boss.x;
+            const dy = player.y - boss.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Dash duration
+            // Set dash target beyond the player for a smooth pass-through
+            const dashDistance = BOSS_WEAPONS.SCYTHE.dashRange;
+            const direction = { x: dx / distance, y: dy / distance };
+            
+            bossAbilities.bossDash = true;
+            bossAbilities.bossDashDirection = direction;
+            bossAbilities.bossDashStart = currentTime;
+            bossAbilities.bossDashDistance = 0;
+            bossAbilities.bossDashTarget = {
+                x: boss.x + direction.x * dashDistance,
+                y: boss.y + direction.y * dashDistance
+            };
+            
+            // Dash lasts 500ms at high speed
             setTimeout(() => {
                 bossAbilities.bossDash = false;
-                bossAbilities.bossDashTarget = null;
                 bossAbilities.bossDashCooldown = currentTime;
+                bossAbilities.bossDashDistance = 0;
             }, 500);
         }
         
-        if (bossAbilities.bossDash && bossAbilities.bossDashTarget) {
-            // Move boss towards dash target
-            const dx = bossAbilities.bossDashTarget.x - boss.x;
-            const dy = bossAbilities.bossDashTarget.y - boss.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+        if (bossAbilities.bossDash && bossAbilities.bossDashDirection) {
+            // Smooth continuous dash at high speed
+            const dashSpeed = BOSS_WEAPONS.SCYTHE.dashSpeed;
+            boss.x += bossAbilities.bossDashDirection.x * dashSpeed;
+            boss.y += bossAbilities.bossDashDirection.y * dashSpeed;
             
-            if (dist > 5) {
-                boss.x += (dx / dist) * boss.speed * 3; // 3x speed during dash
-                boss.y += (dy / dist) * boss.speed * 3;
-            }
+            // Update distance traveled
+            bossAbilities.bossDashDistance += dashSpeed;
             
-            // Perform scythe attack during dash
-            if (!bossAbilities.bossWeaponAttack) {
+            // Perform scythe attack at start of dash
+            if (!bossAbilities.bossWeaponAttack && bossAbilities.bossDashDistance < 100) {
                 const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
                 bossAbilities.bossWeaponAttack = {
                     type: 'melee',
@@ -3562,13 +3555,21 @@ function updateGame(deltaTime) {
                     angle: angle,
                     lifeSteal: BOSS_WEAPONS.SCYTHE.lifeSteal
                 };
+            }
+            
+            // Check if dash hit player
+            const distToPlayer = Math.sqrt(
+                Math.pow(player.x - boss.x, 2) + Math.pow(player.y - boss.y, 2)
+            );
+            if (distToPlayer < boss.radius + player.radius) {
+                const damage = BOSS_WEAPONS.SCYTHE.baseDamage * 0.5;
+                player.health -= damage;
+                createDamageIndicator(player.x, player.y, damage, true);
                 
-                // Apply life steal if attack hits
-                if (dist < BOSS_WEAPONS.SCYTHE.range) {
-                    const healAmount = BOSS_WEAPONS.SCYTHE.baseDamage * BOSS_WEAPONS.SCYTHE.lifeSteal;
-                    boss.health = Math.min(boss.maxHealth, boss.health + healAmount);
-                    createHealthPopup(boss.x, boss.y, Math.floor(healAmount));
-                }
+                // Life steal for boss
+                const healAmount = damage * BOSS_WEAPONS.SCYTHE.lifeSteal;
+                boss.health = Math.min(boss.maxHealth, boss.health + healAmount);
+                createHealthPopup(boss.x, boss.y, Math.floor(healAmount));
             }
         }
     }
@@ -3581,7 +3582,6 @@ function updateGame(deltaTime) {
                 Math.pow(player.x - boss.x, 2) + Math.pow(player.y - boss.y, 2)
             );
             
-            // Attack when in range
             if (distanceToPlayer <= bossAbilities.bossWeapon.range && 
                 currentTime - (bossAbilities.bossWeapon.lastAttack || 0) > 2000) {
                 
@@ -3607,7 +3607,6 @@ function updateGame(deltaTime) {
         }
     }
     
-    // Health regen
     if (player.healthRegen > 0 && currentTime - player.lastRegen >= 1000) {
         player.health = Math.min(player.maxHealth, player.health + player.healthRegen);
         player.lastRegen = currentTime;
@@ -3622,7 +3621,6 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    // Wave completion check
     if (waveActive && monsters.length === 0 && spawnIndicators.length === 0) {
         wave++;
         endWave();
@@ -3637,7 +3635,6 @@ function updateWeapons() {
     player.weapons.forEach(weapon => {
         if (!weapon || monsters.length === 0) return;
         
-        // Apply attack speed multiplier
         const originalAttackSpeed = weapon.attackSpeed;
         weapon.attackSpeed = originalAttackSpeed * player.attackSpeedMultiplier;
         const canAttack = weapon.canAttack(currentTime);
@@ -3694,17 +3691,14 @@ function updateMonsterProjectiles(currentTime) {
     for (let i = monsterProjectiles.length - 1; i >= 0; i--) {
         const proj = monsterProjectiles[i];
         
-        // Move projectile
         proj.x += proj.vx;
         proj.y += proj.vy;
         
-        // Check lifetime
         if (currentTime - proj.startTime > proj.lifetime) {
             monsterProjectiles.splice(i, 1);
             continue;
         }
         
-        // Check collision with player
         const dx = player.x - proj.x;
         const dy = player.y - proj.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -3726,7 +3720,6 @@ function updateMonsterProjectiles(currentTime) {
             monsterProjectiles.splice(i, 1);
         }
         
-        // Remove if off screen
         if (proj.x < -50 || proj.x > canvas.width + 50 || 
             proj.y < -50 || proj.y > canvas.height + 50) {
             monsterProjectiles.splice(i, 1);
@@ -3738,17 +3731,14 @@ function updateBossProjectiles(currentTime) {
     for (let i = bossProjectiles.length - 1; i >= 0; i--) {
         const proj = bossProjectiles[i];
         
-        // Move projectile
         proj.x += proj.vx;
         proj.y += proj.vy;
         
-        // Check lifetime
         if (currentTime - proj.startTime > proj.lifetime) {
             bossProjectiles.splice(i, 1);
             continue;
         }
         
-        // Check collision with player
         const dx = player.x - proj.x;
         const dy = player.y - proj.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -3770,7 +3760,6 @@ function updateBossProjectiles(currentTime) {
             bossProjectiles.splice(i, 1);
         }
         
-        // Remove if off screen
         if (proj.x < -50 || proj.x > canvas.width + 50 || 
             proj.y < -50 || proj.y > canvas.height + 50) {
             bossProjectiles.splice(i, 1);
@@ -3782,7 +3771,6 @@ function shootBossProjectiles(boss) {
     const currentTime = Date.now();
     
     if (wave === 10) {
-        // Shotgun blast for wave 10 boss
         const baseAngle = Math.atan2(player.y - boss.y, player.x - boss.x);
         for (let i = -3; i <= 4; i++) {
             const angle = baseAngle + (i * 0.2);
@@ -3799,7 +3787,6 @@ function shootBossProjectiles(boss) {
             });
         }
     } else if (wave === 20 || wave === 30) {
-        // Spread shot for later bosses
         const baseAngle = Math.atan2(player.y - boss.y, player.x - boss.x);
         for (let i = -2; i <= 2; i++) {
             const angle = baseAngle + (i * 0.15);
@@ -3816,7 +3803,6 @@ function shootBossProjectiles(boss) {
             });
         }
     } else {
-        // Default 4-way spread for other bosses
         const directions = [
             { vx: 1, vy: 1 },
             { vx: -1, vy: 1 },
@@ -3850,7 +3836,6 @@ function updateProjectiles() {
     for (let i = player.projectiles.length - 1; i >= 0; i--) {
         const projectile = player.projectiles[i];
         
-        // Store start position for distance calculation
         if (!projectile.startX) {
             projectile.startX = projectile.x;
             projectile.startY = projectile.y;
@@ -3858,7 +3843,6 @@ function updateProjectiles() {
         }
         
         if (projectile.isBoomerang) {
-            // Boomerang specific movement
             if (projectile.state === 'outgoing') {
                 projectile.x += Math.cos(projectile.angle) * projectile.speed;
                 projectile.y += Math.sin(projectile.angle) * projectile.speed;
@@ -3867,12 +3851,10 @@ function updateProjectiles() {
                 const dy = projectile.y - projectile.startY;
                 projectile.distanceTraveled = Math.sqrt(dx * dx + dy * dy);
                 
-                // Switch to returning state after reaching max distance
                 if (projectile.distanceTraveled >= projectile.range / 2) {
                     projectile.state = 'returning';
                 }
             } else {
-                // Return to player
                 const dx = player.x - projectile.x;
                 const dy = player.y - projectile.y;
                 const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
@@ -3888,10 +3870,8 @@ function updateProjectiles() {
                 projectile.angle = angle;
             }
             
-            // Increment rotation for spinning effect
             projectile.rotation = (projectile.rotation || 0) + 0.2;
         } else {
-            // Regular projectile movement - NO HOMING, just straight line
             projectile.x += Math.cos(projectile.angle) * projectile.speed;
             projectile.y += Math.sin(projectile.angle) * projectile.speed;
             
@@ -3905,7 +3885,6 @@ function updateProjectiles() {
             }
         }
         
-        // Handle bouncing for energy gun
         if (projectile.bounceCount > 0 && projectile.targetsHit) {
             let nextTarget = null;
             let nextTargetDistance = Infinity;
@@ -3931,7 +3910,6 @@ function updateProjectiles() {
             }
         }
         
-        // Check collision with monsters - SAME FOR ALL PROJECTILES
         for (let j = monsters.length - 1; j >= 0; j--) {
             const monster = monsters[j];
             
@@ -3960,21 +3938,18 @@ function updateProjectiles() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Boss life steal
                 if (monster.isBoss && monster.lifeSteal) {
                     const bossHeal = damage * monster.lifeSteal;
                     monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
                     createHealthPopup(monster.x, monster.y, Math.floor(bossHeal));
                 }
                 
-                // Track hits for boomerang (but DON'T prevent death detection)
                 if (projectile.isBoomerang) {
                     if (!projectile.targetsHit.includes(monster)) {
                         projectile.targetsHit.push(monster);
                     }
                 }
                 
-                // Remove projectile if it's not a boomerang or if boomerang has hit max targets
                 if (!projectile.isBoomerang) {
                     if (!projectile.bounceCount || !projectile.targetsHit) {
                         player.projectiles.splice(i, 1);
@@ -3984,26 +3959,21 @@ function updateProjectiles() {
                         }
                     }
                 } else if (projectile.isBoomerang && projectile.targetsHit.length >= projectile.maxTargets) {
-                    // Remove boomerang if it's hit max targets
                     player.projectiles.splice(i, 1);
                     break;
                 }
                 
-                // Check if monster health is <= 0 and remove it
                 if (monster.health <= 0) {
-                    // Random gold drop based on monster type
                     const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
                     const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
                     const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
                     gold += goldEarned;
                     createGoldPopup(monster.x, monster.y, goldEarned);
                     
-                    // Explosive monster death explosion
                     if (monster.monsterType && monster.monsterType.explosive) {
                         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
                         const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
                         
-                        // Damage player if within range
                         const dxToPlayer = player.x - monster.x;
                         const dyToPlayer = player.y - monster.y;
                         const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
@@ -4012,17 +3982,14 @@ function updateProjectiles() {
                             player.health -= explosionDamage;
                             createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
                             
-                            // Check if player died from explosion
                             if (player.health <= 0) {
                                 gameOver();
                             }
                         }
                         
-                        // AOE: Damage OTHER monsters within explosion radius
                         for (let k = monsters.length - 1; k >= 0; k--) {
                             const otherMonster = monsters[k];
                             
-                            // Skip the exploding monster itself
                             if (otherMonster === monster) continue;
                             
                             const dx = otherMonster.x - monster.x;
@@ -4030,16 +3997,13 @@ function updateProjectiles() {
                             const distance = Math.sqrt(dx * dx + dy * dy);
                             
                             if (distance < explosionRadius + otherMonster.radius) {
-                                // Damage other monsters
                                 otherMonster.health -= explosionDamage;
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
-                                // Check if other monster died from explosion
                                 if (otherMonster.health <= 0) {
                                     monsters.splice(k, 1);
                                     kills++;
                                     
-                                    // Random gold drop for exploded monster
                                     const otherGoldRange = otherMonster.monsterType.goldDrop || { min: 5, max: 15 };
                                     const otherGoldDrop = Math.floor(Math.random() * (otherGoldRange.max - otherGoldRange.min + 1)) + otherGoldRange.min;
                                     const otherGoldEarned = Math.floor(otherGoldDrop * (1 + player.goldMultiplier));
@@ -4058,7 +4022,6 @@ function updateProjectiles() {
                             }
                         }
                         
-                        // Visual explosion effects
                         addVisualEffect({
                             type: 'explosion',
                             x: monster.x,
@@ -4138,7 +4101,6 @@ function updateMeleeAttacks() {
                     createHealthPopup(player.x, player.y, Math.floor(healAmount));
                 }
                 
-                // Boss life steal
                 if (monster.isBoss && monster.lifeSteal) {
                     const bossHeal = damage * monster.lifeSteal;
                     monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
@@ -4152,19 +4114,16 @@ function updateMeleeAttacks() {
                 }
                 
                 if (monster.health <= 0) {
-                    // Random gold drop based on monster type
                     const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
                     const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
                     const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
                     gold += goldEarned;
                     createGoldPopup(monster.x, monster.y, goldEarned);
                     
-                    // Explosive monster death explosion
                     if (monster.monsterType && monster.monsterType.explosive) {
                         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
                         const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
                         
-                        // Damage player if within range
                         const dxToPlayer = player.x - monster.x;
                         const dyToPlayer = player.y - monster.y;
                         const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
@@ -4173,17 +4132,14 @@ function updateMeleeAttacks() {
                             player.health -= explosionDamage;
                             createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
                             
-                            // Check if player died from explosion
                             if (player.health <= 0) {
                                 gameOver();
                             }
                         }
                         
-                        // AOE: Damage OTHER monsters within explosion radius
                         for (let k = monsters.length - 1; k >= 0; k--) {
                             const otherMonster = monsters[k];
                             
-                            // Skip the exploding monster itself
                             if (otherMonster === monster) continue;
                             
                             const dx = otherMonster.x - monster.x;
@@ -4191,16 +4147,13 @@ function updateMeleeAttacks() {
                             const distance = Math.sqrt(dx * dx + dy * dy);
                             
                             if (distance < explosionRadius + otherMonster.radius) {
-                                // Damage other monsters
                                 otherMonster.health -= explosionDamage;
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
-                                // Check if other monster died from explosion
                                 if (otherMonster.health <= 0) {
                                     monsters.splice(k, 1);
                                     kills++;
                                     
-                                    // Random gold drop for exploded monster
                                     const otherGoldRange = otherMonster.monsterType.goldDrop || { min: 5, max: 15 };
                                     const otherGoldDrop = Math.floor(Math.random() * (otherGoldRange.max - otherGoldRange.min + 1)) + otherGoldRange.min;
                                     const otherGoldEarned = Math.floor(otherGoldDrop * (1 + player.goldMultiplier));
@@ -4219,7 +4172,6 @@ function updateMeleeAttacks() {
                             }
                         }
                         
-                        // Visual explosion effects
                         addVisualEffect({
                             type: 'explosion',
                             x: monster.x,
@@ -4287,19 +4239,16 @@ function updateMonsters(currentTime) {
             monster.y += (dy / distance) * monster.speed;
         }
         
-        // Gunner projectile attack
         if (monster.isGunner && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootGunnerProjectile(monster);
             monster.lastAttack = currentTime;
         }
         
-        // Boss projectile attack (additional ability, doesn't replace physical attacks)
         if (monster.isBoss && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootBossProjectiles(monster);
             monster.lastAttack = currentTime;
         }
         
-        // Physical attack when touching player
         if (distance < player.radius + monster.radius) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 let actualDamage = monster.damage;
@@ -4605,18 +4554,15 @@ function drawMonsters() {
                 eyeRadius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Health bar
         const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
         const barWidth = monster.radius * 2;
         const barHeight = 4;
         const barX = -monster.radius;
         const barY = -monster.radius - 10;
         
-        // Background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(barX, barY, barWidth, barHeight);
         
-        // Health fill - only draw if health > 0
         if (healthPercent > 0) {
             ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.2 ? '#ffff00' : '#ff0000';
             ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
@@ -4683,6 +4629,25 @@ function createHealthPopup(x, y, amount) {
 }
 
 // ============================================
+// STATS PANEL BUTTON
+// ============================================
+
+function createStatsButton() {
+    const button = document.createElement('button');
+    button.id = 'statsButton';
+    button.className = 'stats-button';
+    button.innerHTML = '📊 Stats';
+    
+    button.addEventListener('click', toggleStatsPanel);
+    button.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        toggleStatsPanel();
+    });
+    
+    document.body.appendChild(button);
+}
+
+// ============================================
 // TOUCH EVENT HANDLERS
 // ============================================
 
@@ -4709,21 +4674,18 @@ canvas.addEventListener('touchmove', (e) => {
 
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    // Optional: Add tap handling for future features
 });
 
 canvas.addEventListener('touchcancel', (e) => {
     e.preventDefault();
 });
 
-// Mouse movement (keep for desktop)
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
 });
 
-// Button event listeners
 startGameBtn.addEventListener('click', (e) => {
     e.preventDefault();
     initGame();
@@ -5014,17 +4976,148 @@ style.textContent = `
         -webkit-user-select: none;
         touch-action: manipulation;
     }
+
+    .stats-button {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 200;
+        padding: 10px 20px;
+        background: linear-gradient(45deg, #ffd700, #ffaa00);
+        color: #000;
+        border: none;
+        border-radius: 25px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        transition: all 0.2s;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+    }
+
+    .stats-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    }
+
+    .stats-button:active {
+        transform: scale(0.95);
+    }
+
+    #statsPanel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 300px;
+        max-height: 80vh;
+        background: rgba(20, 20, 40, 0.95);
+        backdrop-filter: blur(10px);
+        border: 2px solid #ffd700;
+        border-radius: 15px;
+        padding: 20px;
+        z-index: 1000;
+        color: white;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+        transition: all 0.3s;
+        overflow-y: auto;
+    }
+
+    .stats-panel-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    .stats-panel-visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: all;
+    }
+
+    .stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ffd700;
+    }
+
+    .stats-header h3 {
+        margin: 0;
+        color: #ffd700;
+        font-size: 1.3rem;
+    }
+
+    #closeStatsBtn {
+        background: none;
+        border: none;
+        color: #ffd700;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0 5px;
+        transition: transform 0.2s;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    #closeStatsBtn:hover {
+        transform: scale(1.2);
+    }
+
+    #closeStatsBtn:active {
+        transform: scale(0.9);
+    }
+
+    .stats-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
+    }
+
+    .stat-label {
+        color: #aaaaff;
+        font-size: 0.9rem;
+    }
+
+    .stat-value {
+        color: #ffd700;
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .stat-divider {
+        height: 1px;
+        background: rgba(255, 215, 0, 0.3);
+        margin: 10px 0;
+    }
 `;
 document.head.appendChild(style);
 
 // Add control hint
 const controlHint = document.createElement('div');
 controlHint.className = 'control-hint';
-controlHint.innerHTML = '⬆️⬇️⬅️➡️ or WASD | Click/Tap buttons | Space: Next Wave | R: Reload';
+controlHint.innerHTML = '⬆️⬇️⬅️➡️ or WASD | Click/Tap buttons | 📊 Stats | Space: Next Wave | R: Reload';
 document.body.appendChild(controlHint);
 
 // Create movement buttons
 createMovementButtons();
+
+// Create stats panel and button
+createStatsPanel();
+createStatsButton();
 
 // Check for existing save on startup
 checkForSave();
