@@ -530,6 +530,20 @@ let minionSpawnInterval = null;
 // Stats panel
 let statsPanelVisible = false;
 
+// Joystick variables
+let joystickActive = false;
+let joystickStartX = 0;
+let joystickStartY = 0;
+let joystickCurrentX = 0;
+let joystickCurrentY = 0;
+let joystickBaseX = 0;
+let joystickBaseY = 0;
+let joystickMaxDistance = 50;
+
+// Message queue for notifications
+let messageQueue = [];
+let messageContainer = null;
+
 // Touch handling
 let touchStartTime = 0;
 let touchMoved = false;
@@ -541,13 +555,6 @@ let keys = {
     a: false,
     s: false,
     d: false,
-    up: false,
-    down: false,
-    left: false,
-    right: false
-};
-
-let movementButtons = {
     up: false,
     down: false,
     left: false,
@@ -602,13 +609,13 @@ function saveGame() {
     };
     
     localStorage.setItem('gameSave', JSON.stringify(gameData));
-    showMessage('Game saved!');
+    queueMessage('Game saved!');
 }
 
 function loadGame() {
     const saved = localStorage.getItem('gameSave');
     if (!saved) {
-        showMessage('No saved game found!');
+        queueMessage('No saved game found!');
         return false;
     }
     
@@ -676,18 +683,18 @@ function loadGame() {
         updateShopDisplay();
         updateConsumablesDisplay();
         
-        showMessage('Game loaded!');
+        queueMessage('Game loaded!');
         return true;
     } catch (e) {
         console.error('Failed to load game:', e);
-        showMessage('Failed to load save file!');
+        queueMessage('Failed to load save file!');
         return false;
     }
 }
 
 function clearSave() {
     localStorage.removeItem('gameSave');
-    showMessage('Save file cleared!');
+    queueMessage('Save file cleared!');
 }
 
 function checkForSave() {
@@ -809,6 +816,138 @@ const healthFill = document.getElementById('healthFill');
 
 const boomerangImage = new Image();
 boomerangImage.src = 'assets/boomerang.png';
+
+// ============================================
+// MESSAGE QUEUE SYSTEM
+// ============================================
+
+function createMessageContainer() {
+    messageContainer = document.createElement('div');
+    messageContainer.id = 'messageContainer';
+    messageContainer.className = 'message-container';
+    document.body.appendChild(messageContainer);
+}
+
+function queueMessage(text, duration = 2000) {
+    messageQueue.push({ text, duration });
+    if (messageQueue.length === 1) {
+        showNextMessage();
+    }
+}
+
+function showNextMessage() {
+    if (messageQueue.length === 0 || !messageContainer) return;
+    
+    const message = messageQueue[0];
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message-item';
+    messageElement.textContent = message.text;
+    
+    messageContainer.appendChild(messageElement);
+    
+    // Trigger animation
+    setTimeout(() => {
+        messageElement.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        messageElement.classList.remove('show');
+        messageElement.classList.add('hide');
+        
+        setTimeout(() => {
+            if (messageElement.parentNode) {
+                messageElement.parentNode.removeChild(messageElement);
+            }
+            messageQueue.shift();
+            showNextMessage();
+        }, 300);
+    }, message.duration);
+}
+
+// ============================================
+// JOYSTICK
+// ============================================
+
+function createJoystick() {
+    const joystickContainer = document.createElement('div');
+    joystickContainer.id = 'joystickContainer';
+    joystickContainer.className = 'joystick-container';
+    joystickContainer.innerHTML = `
+        <div id="joystickBase" class="joystick-base">
+            <div id="joystickHandle" class="joystick-handle"></div>
+        </div>
+    `;
+    
+    document.body.appendChild(joystickContainer);
+    
+    const joystickBase = document.getElementById('joystickBase');
+    const joystickHandle = document.getElementById('joystickHandle');
+    
+    function getJoystickPosition(e) {
+        const touch = e.touches[0];
+        const rect = joystickBase.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        let deltaX = touch.clientX - centerX;
+        let deltaY = touch.clientY - centerY;
+        
+        // Limit distance
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        if (distance > joystickMaxDistance) {
+            deltaX = (deltaX / distance) * joystickMaxDistance;
+            deltaY = (deltaY / distance) * joystickMaxDistance;
+        }
+        
+        return { deltaX, deltaY };
+    }
+    
+    joystickBase.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        joystickActive = true;
+        const rect = joystickBase.getBoundingClientRect();
+        joystickBaseX = rect.left + rect.width / 2;
+        joystickBaseY = rect.top + rect.height / 2;
+        
+        const { deltaX, deltaY } = getJoystickPosition(e);
+        joystickCurrentX = deltaX;
+        joystickCurrentY = deltaY;
+        
+        joystickHandle.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        joystickBase.classList.add('active');
+    });
+    
+    joystickBase.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!joystickActive) return;
+        
+        const { deltaX, deltaY } = getJoystickPosition(e);
+        joystickCurrentX = deltaX;
+        joystickCurrentY = deltaY;
+        
+        joystickHandle.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    });
+    
+    joystickBase.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        joystickActive = false;
+        joystickCurrentX = 0;
+        joystickCurrentY = 0;
+        
+        joystickHandle.style.transform = 'translate(0px, 0px)';
+        joystickBase.classList.remove('active');
+    });
+    
+    joystickBase.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        joystickActive = false;
+        joystickCurrentX = 0;
+        joystickCurrentY = 0;
+        
+        joystickHandle.style.transform = 'translate(0px, 0px)';
+        joystickBase.classList.remove('active');
+    });
+}
 
 // ============================================
 // STATS PANEL
@@ -941,59 +1080,6 @@ function updateStatsPanel() {
 }
 
 // ============================================
-// UI MOVEMENT BUTTONS
-// ============================================
-
-function createMovementButtons() {
-    const container = document.createElement('div');
-    container.className = 'movement-buttons';
-    container.innerHTML = `
-        <div class="movement-row">
-            <button class="move-btn" id="move-up">⬆️</button>
-        </div>
-        <div class="movement-row">
-            <button class="move-btn" id="move-left">⬅️</button>
-            <button class="move-btn" id="move-down">⬇️</button>
-            <button class="move-btn" id="move-right">➡️</button>
-        </div>
-    `;
-    
-    document.body.appendChild(container);
-    
-    document.getElementById('move-up').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.up = true; });
-    document.getElementById('move-up').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.up = false; });
-    document.getElementById('move-up').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.up = false; });
-    
-    document.getElementById('move-down').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.down = true; });
-    document.getElementById('move-down').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.down = false; });
-    document.getElementById('move-down').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.down = false; });
-    
-    document.getElementById('move-left').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.left = true; });
-    document.getElementById('move-left').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.left = false; });
-    document.getElementById('move-left').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.left = false; });
-    
-    document.getElementById('move-right').addEventListener('mousedown', (e) => { e.preventDefault(); movementButtons.right = true; });
-    document.getElementById('move-right').addEventListener('mouseup', (e) => { e.preventDefault(); movementButtons.right = false; });
-    document.getElementById('move-right').addEventListener('mouseleave', (e) => { e.preventDefault(); movementButtons.right = false; });
-    
-    document.getElementById('move-up').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.up = true; });
-    document.getElementById('move-up').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.up = false; });
-    document.getElementById('move-up').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.up = false; });
-    
-    document.getElementById('move-down').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.down = true; });
-    document.getElementById('move-down').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.down = false; });
-    document.getElementById('move-down').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.down = false; });
-    
-    document.getElementById('move-left').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.left = true; });
-    document.getElementById('move-left').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.left = false; });
-    document.getElementById('move-left').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.left = false; });
-    
-    document.getElementById('move-right').addEventListener('touchstart', (e) => { e.preventDefault(); movementButtons.right = true; });
-    document.getElementById('move-right').addEventListener('touchend', (e) => { e.preventDefault(); movementButtons.right = false; });
-    document.getElementById('move-right').addEventListener('touchcancel', (e) => { e.preventDefault(); movementButtons.right = false; });
-}
-
-// ============================================
 // HELPER FUNCTIONS
 // ============================================
 
@@ -1072,7 +1158,7 @@ function generateShopItems() {
 
 function refreshShop() {
     if (gold < refreshCost) {
-        showMessage(`Not enough gold! Need ${refreshCost}g`);
+        queueMessage(`Not enough gold! Need ${refreshCost}g`);
         return;
     }
     
@@ -1086,7 +1172,7 @@ function refreshShop() {
     updateShopDisplay();
     updateUI();
     
-    showMessage(`Shop refreshed! Cost increased to ${refreshCost}g`);
+    queueMessage(`Shop refreshed! Cost increased to ${refreshCost}g`);
 }
 
 function generateStatBuffs() {
@@ -1298,7 +1384,7 @@ function startMinionSpawning(boss) {
         if (waveActive && boss && boss.health > 0) {
             const minionCount = 3 + Math.floor(Math.random() * 3);
             spawnMinions(minionCount, boss.x, boss.y);
-            showMessage("Minions spawned!");
+            queueMessage("Minions spawned!");
         } else {
             clearInterval(minionSpawnInterval);
             minionSpawnInterval = null;
@@ -1767,7 +1853,7 @@ function updateConsumablesDisplay() {
 
 function useConsumable(index) {
     if (gameState !== 'wave') {
-        showMessage("Can only use consumables during waves!");
+        queueMessage("Can only use consumables during waves!");
         return;
     }
     
@@ -1776,7 +1862,7 @@ function useConsumable(index) {
     switch(consumable.id) {
         case 'health_potion':
             player.health = Math.min(player.maxHealth, player.health + 20);
-            showMessage("Used Health Potion! +20 HP");
+            queueMessage("Used Health Potion! +20 HP");
             break;
         case 'ammo_pack':
             player.weapons.forEach(weapon => {
@@ -1785,7 +1871,7 @@ function useConsumable(index) {
                     weapon.isReloading = false;
                 }
             });
-            showMessage("Used Ammo Pack! All weapons reloaded");
+            queueMessage("Used Ammo Pack! All weapons reloaded");
             break;
         case 'explosive_trap':
             activeTraps.push({
@@ -1796,7 +1882,7 @@ function useConsumable(index) {
                 radius: 80,
                 startTime: Date.now()
             });
-            showMessage("Placed Explosive Trap!");
+            queueMessage("Placed Explosive Trap!");
             break;
     }
     
@@ -1873,19 +1959,19 @@ function mergeWeapons() {
     const weapon2 = player.weapons[mergeTargetIndex];
     
     if (weapon1.id !== weapon2.id || weapon1.tier !== weapon2.tier) {
-        showMessage("Can only merge identical weapons of same tier!");
+        queueMessage("Can only merge identical weapons of same tier!");
         return;
     }
     
     if (weapon1.tier >= 5) {
-        showMessage("Maximum tier (5) reached!");
+        queueMessage("Maximum tier (5) reached!");
         return;
     }
     
     const mergeCost = weapon1.getMergeCost(weapon2);
     
     if (gold < mergeCost) {
-        showMessage(`Need ${mergeCost} gold to merge!`);
+        queueMessage(`Need ${mergeCost} gold to merge!`);
         return;
     }
     
@@ -1894,7 +1980,7 @@ function mergeWeapons() {
     const mergedWeapon = weapon1.merge(weapon2);
     
     if (!mergedWeapon) {
-        showMessage("Merge failed!");
+        queueMessage("Merge failed!");
         return;
     }
     
@@ -1906,7 +1992,7 @@ function mergeWeapons() {
     scrapWeaponBtn.style.display = 'none';
     mergeWeaponBtn.style.display = 'none';
     
-    showMessage(`Merged to create ${mergedWeapon.getDisplayName()}!`);
+    queueMessage(`Merged to create ${mergedWeapon.getDisplayName()}!`);
     
     updateUI();
     updateWeaponDisplay();
@@ -1918,7 +2004,7 @@ function scrapWeapon() {
     const weapon = player.weapons[selectedWeaponIndex];
     
     if (weapon.id === 'handgun' && player.weapons.length === 1) {
-        showMessage("Cannot scrap your only weapon!");
+        queueMessage("Cannot scrap your only weapon!");
         return;
     }
     
@@ -1930,7 +2016,7 @@ function scrapWeapon() {
     selectedWeaponIndex = -1;
     scrapWeaponBtn.style.display = 'none';
     
-    showMessage(`Scrapped ${weapon.getDisplayName()} for ${scrapValue} gold!`);
+    queueMessage(`Scrapped ${weapon.getDisplayName()} for ${scrapValue} gold!`);
     
     updateUI();
     updateWeaponDisplay();
@@ -2036,7 +2122,7 @@ function purchaseItem(index) {
     }
     
     if (gold < cost) {
-        showMessage(`Not enough gold! Need ${cost}, have ${gold}`);
+        queueMessage(`Not enough gold! Need ${cost}, have ${gold}`);
         return;
     }
     
@@ -2044,14 +2130,14 @@ function purchaseItem(index) {
     
     if (shopItem.type === 'weapon') {
         if (player.weapons.length >= 6) {
-            showMessage('No empty weapon slots!');
+            queueMessage('No empty weapon slots!');
             gold += cost;
             return;
         }
         
         const tier = shopItem.tier || 1;
         player.weapons.push(new WeaponInstance(data, tier));
-        showMessage(`Purchased ${data.name} Tier ${tier}!`);
+        queueMessage(`Purchased ${data.name} Tier ${tier}!`);
         
     } else {
         if (data.type === 'consumable') {
@@ -2066,11 +2152,11 @@ function purchaseItem(index) {
                     count: 1
                 });
             }
-            showMessage(`Added ${data.name} to consumables!`);
+            queueMessage(`Added ${data.name} to consumables!`);
             updateConsumablesDisplay();
         } else {
             applyPermanentItemEffect(data);
-            showMessage(`Purchased ${data.name}!`);
+            queueMessage(`Purchased ${data.name}!`);
         }
     }
     
@@ -2143,7 +2229,7 @@ function applyPermanentItemEffect(item) {
                 }
             }, 1000);
             
-            showMessage("Blood Contract activated! +3% lifesteal, but -1 HP per second during waves");
+            queueMessage("Blood Contract activated! +3% lifesteal, but -1 HP per second during waves");
             break;
     }
 }
@@ -2218,7 +2304,7 @@ function selectStatBuff(buff) {
         player.damageReduction += buff.effect.damageReduction;
     }
     
-    showMessage(`Selected: ${buff.name}`);
+    queueMessage(`Selected: ${buff.name}`);
     
     waveCompleteOverlay.style.display = 'none';
     gameState = 'shop';
@@ -2313,41 +2399,12 @@ function gameOver() {
         player.health = player.maxHealth * 0.5;
         gameState = 'wave';
         waveActive = true;
-        showMessage("GUARDIAN ANGEL SAVED YOU!");
+        queueMessage("GUARDIAN ANGEL SAVED YOU!");
         return;
     }
     
     gameOverText.textContent = `You survived ${wave} waves with ${kills} kills.`;
     gameOverOverlay.style.display = 'flex';
-}
-
-function showMessage(text) {
-    const message = document.createElement('div');
-    message.textContent = text;
-    message.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: #ffcc00;
-        padding: 20px 40px;
-        border-radius: 10px;
-        border: 2px solid #ffcc00;
-        z-index: 1001;
-        font-size: 1.2rem;
-        font-weight: bold;
-        pointer-events: none;
-        animation: fadeOut 2s forwards;
-    `;
-    
-    document.body.appendChild(message);
-    
-    setTimeout(() => {
-        if (message.parentNode) {
-            message.parentNode.removeChild(message);
-        }
-    }, 2000);
 }
 
 function showReloadIndicator(weaponName) {
@@ -2374,15 +2431,18 @@ function gameLoop() {
         let moveX = 0;
         let moveY = 0;
         
+        // Keyboard input
         if (keys.w || keys.up) moveY -= 1;
         if (keys.s || keys.down) moveY += 1;
         if (keys.a || keys.left) moveX -= 1;
         if (keys.d || keys.right) moveX += 1;
         
-        if (movementButtons.up) moveY -= 1;
-        if (movementButtons.down) moveY += 1;
-        if (movementButtons.left) moveX -= 1;
-        if (movementButtons.right) moveX += 1;
+        // Joystick input
+        if (joystickActive) {
+            const strength = Math.min(1, Math.sqrt(joystickCurrentX * joystickCurrentX + joystickCurrentY * joystickCurrentY) / joystickMaxDistance);
+            moveX += (joystickCurrentX / joystickMaxDistance) * strength;
+            moveY += (joystickCurrentY / joystickMaxDistance) * strength;
+        }
         
         if (moveX !== 0 || moveY !== 0) {
             const length = Math.sqrt(moveX * moveX + moveY * moveY);
@@ -3480,7 +3540,7 @@ function updateGame(deltaTime) {
                     player.lastSlowFieldTick = currentTime;
                     
                     createDamageIndicator(player.x, player.y, 1, false);
-                    showMessage("Speed decreased by 1!");
+                    queueMessage("Speed decreased by 1!");
                 }
             } else if (wasInSlowField) {
                 player.speed = player.baseSpeed;
@@ -3495,7 +3555,7 @@ function updateGame(deltaTime) {
             boss.attackCooldown = 800;
             boss.color = '#ff4444';
             boss.speed = boss.originalSpeed * 1.3;
-            showMessage("BOSS ENRAGED - ATTACK SPEED AND MOVEMENT INCREASED!");
+            queueMessage("BOSS ENRAGED - ATTACK SPEED AND MOVEMENT INCREASED!");
         }
     }
     
@@ -4254,7 +4314,7 @@ function updateMonsters(currentTime) {
                 let actualDamage = monster.damage;
                 
                 if (Math.random() < player.dodgeChance) {
-                    showMessage("DODGE!");
+                    queueMessage("DODGE!");
                     monster.lastAttack = currentTime;
                     return;
                 }
@@ -4773,6 +4833,28 @@ style.textContent = `
         70% { opacity: 1; }
         100% { opacity: 0; }
     }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
     
     .consumables-container {
         margin-top: 20px;
@@ -4856,78 +4938,91 @@ style.textContent = `
         font-size: 0.9rem;
     }
 
-    .movement-buttons {
+    .joystick-container {
         position: fixed;
-        bottom: 20px;
-        left: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 5px;
+        bottom: 30px;
+        left: 30px;
         z-index: 100;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
-        touch-action: manipulation;
+        touch-action: none;
     }
 
-    .movement-row {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-    }
-
-    .move-btn {
-        width: 60px;
-        height: 60px;
+    .joystick-base {
+        width: 120px;
+        height: 120px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        border: 2px solid rgba(255, 255, 255, 0.5);
-        color: white;
-        font-size: 24px;
-        cursor: pointer;
+        background: rgba(255, 255, 255, 0.15);
+        border: 3px solid rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(5px);
-        transition: all 0.2s;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        -webkit-tap-highlight-color: transparent;
-        user-select: none;
-        -webkit-user-select: none;
-        touch-action: manipulation;
+        transition: all 0.2s;
     }
 
-    .move-btn:hover {
+    .joystick-base.active {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 215, 0, 0.5);
+    }
+
+    .joystick-handle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
         background: rgba(255, 255, 255, 0.3);
-        transform: scale(1.1);
-        border-color: #ffd700;
-    }
-
-    .move-btn:active {
-        transform: scale(0.95);
-        background: rgba(255, 215, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.6);
+        transition: transform 0.05s ease;
+        pointer-events: none;
     }
 
     @media (max-width: 768px) {
-        .move-btn {
-            width: 50px;
-            height: 50px;
-            font-size: 20px;
+        .joystick-base {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .joystick-handle {
+            width: 40px;
+            height: 40px;
         }
     }
 
-    .control-hint {
+    .message-container {
         position: fixed;
-        bottom: 10px;
-        right: 10px;
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 0.8rem;
-        background: rgba(0, 0, 0, 0.3);
-        padding: 5px 10px;
-        border-radius: 5px;
+        top: 100px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
         pointer-events: none;
-        z-index: 100;
+        max-width: 300px;
+    }
+
+    .message-item {
+        background: rgba(0, 0, 0, 0.8);
+        color: #ffcc00;
+        padding: 12px 20px;
+        border-radius: 8px;
+        border: 2px solid #ffcc00;
+        font-size: 1rem;
+        font-weight: bold;
+        transform: translateX(100%);
+        opacity: 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .message-item.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .message-item.hide {
+        transform: translateX(100%);
+        opacity: 0;
     }
 
     #continueGameBtn {
@@ -5103,17 +5198,33 @@ style.textContent = `
         background: rgba(255, 215, 0, 0.3);
         margin: 10px 0;
     }
+
+    .control-hint {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.8rem;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 5px 10px;
+        border-radius: 5px;
+        pointer-events: none;
+        z-index: 100;
+    }
 `;
 document.head.appendChild(style);
 
 // Add control hint
 const controlHint = document.createElement('div');
 controlHint.className = 'control-hint';
-controlHint.innerHTML = '⬆️⬇️⬅️➡️ or WASD | Click/Tap buttons | 📊 Stats | Space: Next Wave | R: Reload';
+controlHint.innerHTML = 'Joystick | WASD | 📊 Stats | Space: Next Wave | R: Reload';
 document.body.appendChild(controlHint);
 
-// Create movement buttons
-createMovementButtons();
+// Create message container
+createMessageContainer();
+
+// Create joystick
+createJoystick();
 
 // Create stats panel and button
 createStatsPanel();
