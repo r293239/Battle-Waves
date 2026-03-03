@@ -67,23 +67,23 @@ const GAME_DATA = {
         {
             id: 'health_boost',
             name: 'Health Boost',
-            description: 'Increase max health by 10',
+            description: 'Increase max health by 10%',
             icon: '❤️',
-            effect: { maxHealth: 10, health: 10 }
+            effect: { maxHealthPercent: 0.1, healthPercent: 0.1 }
         },
         {
             id: 'damage_boost',
             name: 'Damage Boost',
-            description: 'Increase damage by 3',
+            description: 'Increase damage by 10%',
             icon: '⚔️',
-            effect: { damage: 3 }
+            effect: { damagePercent: 0.1 }
         },
         {
             id: 'speed_boost',
             name: 'Speed Boost',
-            description: 'Increase speed by 1',
+            description: 'Increase speed by 10%',
             icon: '👟',
-            effect: { speed: 1 }
+            effect: { speedPercent: 0.1 }
         },
         {
             id: 'life_steal',
@@ -109,9 +109,9 @@ const GAME_DATA = {
         {
             id: 'regen',
             name: 'Health Regen',
-            description: 'Regenerate 1 HP per second',
+            description: 'Regenerate 1% HP per second',
             icon: '🔄',
-            effect: { healthRegen: 1 }
+            effect: { healthRegenPercent: 0.01 }
         },
         {
             id: 'armor',
@@ -389,7 +389,7 @@ const GAME_DATA = {
             icon: '❤️',
             type: 'consumable',
             cost: 50,
-            description: 'Restore 20 health'
+            description: 'Restore 25% of max health'
         },
         {
             id: 'damage_orb',
@@ -397,7 +397,7 @@ const GAME_DATA = {
             icon: '💎',
             type: 'permanent',
             cost: 100,
-            description: 'Permanently +5 damage'
+            description: 'Permanently +15% damage'
         },
         {
             id: 'speed_boots',
@@ -405,7 +405,7 @@ const GAME_DATA = {
             icon: '👟',
             type: 'permanent',
             cost: 80,
-            description: 'Permanently +2 speed'
+            description: 'Permanently +15% speed'
         },
         {
             id: 'health_upgrade',
@@ -413,7 +413,7 @@ const GAME_DATA = {
             icon: '🛡️',
             type: 'permanent',
             cost: 140,
-            description: 'Permanently +30 max health'
+            description: 'Permanently +25% max health'
         },
         {
             id: 'ammo_pack',
@@ -429,7 +429,7 @@ const GAME_DATA = {
             icon: '📜🩸',
             type: 'permanent',
             cost: 150,
-            description: '+3% lifesteal, but lose 1 HP per second and reset health regen',
+            description: '+3% lifesteal, but lose 1% HP per second (stacks)',
             effect: { 
                 lifeSteal: 0.03,
                 healthRegen: 0
@@ -438,38 +438,11 @@ const GAME_DATA = {
                 // Reset health regen to 0 when purchased
                 player.healthRegen = 0;
                 
-                // Store reference to drain interval on player
-                if (!player.bloodContractActive) {
-                    player.bloodContractActive = true;
-                    
-                    // Clear any existing interval
-                    if (player.bloodDrainInterval) {
-                        clearInterval(player.bloodDrainInterval);
-                    }
-                    
-                    // Start health drain (every second)
-                    player.bloodDrainInterval = setInterval(() => {
-                        if (player.health > 1) {
-                            player.health -= 1;
-                        } else {
-                            // Keep at 1 HP to prevent death from item
-                            player.health = 1;
-                        }
-                        
-                        // Update UI if function exists
-                        if (typeof player.updateHealthDisplay === 'function') {
-                            player.updateHealthDisplay();
-                        }
-                    }, 1000);
-                }
+                // Blood contract stacking is handled in the game logic
+                // This is just the data definition
             },
             onRemove: function(player) {
-                // Clean up interval when item is removed
-                if (player.bloodDrainInterval) {
-                    clearInterval(player.bloodDrainInterval);
-                    player.bloodDrainInterval = null;
-                }
-                player.bloodContractActive = false;
+                // Clean up is handled in game logic
             }
         }
     ]
@@ -477,3 +450,5 @@ const GAME_DATA = {
 
 // Verify data is loaded
 console.log('GAME_DATA loaded with', GAME_DATA.WAVES.length, 'waves');
+console.log('STAT_BUFFS updated to percentage-based:', GAME_DATA.STAT_BUFFS.length);
+console.log('ITEMS updated to percentage-based:', GAME_DATA.ITEMS.length);
