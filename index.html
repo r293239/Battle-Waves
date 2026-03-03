@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Waves - Enhanced Edition</title>
+    <title>Battle Waves</title>
     <style>
         * {
             margin: 0;
@@ -13,276 +13,180 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
+            background: linear-gradient(135deg, #0f0f1f, #1a1a2e);
             color: #fff;
             min-height: 100vh;
-            padding: 16px;
+            padding: 20px;
+            overflow-x: hidden;
         }
 
-        /* Main Layout - More organized with card-based design */
-        .app-container {
-            max-width: 1600px;
+        .container {
+            max-width: 1400px;
             margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        /* Header - More compact and informative */
-        .top-bar {
-            background: rgba(20, 20, 40, 0.95);
-            border-radius: 12px;
-            padding: 12px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border: 2px solid #4a4a9a;
-            backdrop-filter: blur(10px);
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-
-        .game-title-section {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .game-title {
-            font-size: 2.2rem;
-            background: linear-gradient(135deg, #ff6b6b, #ffa726);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            font-weight: 800;
-            letter-spacing: 1px;
-        }
-
-        .wave-badge {
-            background: rgba(255, 204, 0, 0.15);
-            border: 2px solid #ffcc00;
-            border-radius: 30px;
-            padding: 6px 16px;
-            font-weight: bold;
-            color: #ffcc00;
-            font-size: 1.1rem;
-        }
-
-        .boss-wave {
-            background: rgba(255, 0, 0, 0.2);
-            border-color: #ff4444;
-            color: #ff4444;
-            animation: bossPulse 2s infinite;
-        }
-
-        .quick-stats {
             display: flex;
             gap: 20px;
             flex-wrap: wrap;
         }
 
-        .quick-stat {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 6px 14px;
-            border-radius: 30px;
-            border: 1px solid #4a4a9a;
+        .game-header {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 15px;
+            border: 2px solid #4a4a9a;
         }
 
-        .quick-stat .icon {
+        .game-title {
+            font-size: 3.5rem;
+            background: linear-gradient(90deg, #ff6b6b, #ffa726);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+            margin-bottom: 10px;
+        }
+
+        .game-subtitle {
+            color: #aaaaff;
             font-size: 1.2rem;
         }
 
-        .quick-stat .value {
-            font-weight: bold;
-            color: #ffcc00;
-        }
-
-        /* Main content area - Two column layout */
-        .main-content {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        /* Game canvas area - Prominent position */
-        .game-section {
+        .game-area {
             flex: 2;
-            min-width: 700px;
+            min-width: 300px;
+            position: relative;
         }
 
-        .canvas-wrapper {
+        .canvas-container {
             position: relative;
             background: #000;
-            border-radius: 16px;
+            border-radius: 10px;
             overflow: hidden;
             border: 3px solid #4a4a9a;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 30px rgba(74, 74, 154, 0.3);
+            min-height: 600px;
         }
 
         canvas {
             display: block;
-            width: 100%;
-            height: auto;
             background: #0a0a1a;
-            cursor: none; /* Better for aiming */
+            width: 800px;
+            height: 600px;
         }
 
-        /* Canvas overlays */
         .wave-display {
             position: absolute;
             top: 20px;
             left: 0;
             right: 0;
             text-align: center;
-            font-size: 2.2rem;
+            font-size: 2rem;
             font-weight: bold;
             color: #ffcc00;
-            text-shadow: 0 0 20px rgba(255, 204, 0, 0.7);
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
             z-index: 10;
-            pointer-events: none;
+            transition: opacity 0.5s;
         }
 
-        .monster-count {
-            position: absolute;
-            top: 70px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 1.2rem;
-            color: #aaaaff;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 4px;
-            width: fit-content;
-            margin: 0 auto;
-            border-radius: 20px;
-            padding: 4px 16px;
-            border: 1px solid #4a4a9a;
+        .boss-wave {
+            color: #ff0000;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.7);
+            animation: bossPulse 1.5s infinite;
         }
 
-        /* Right panel - Better organized with tabs or sections */
-        .info-panel {
+        @keyframes bossPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .ui-panel {
             flex: 1;
-            min-width: 380px;
+            min-width: 300px;
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #4a4a9a;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 20px;
         }
 
-        /* Player stats card */
-        .stats-card {
-            background: rgba(20, 20, 40, 0.95);
-            border-radius: 16px;
-            border: 2px solid #4a4a9a;
-            padding: 16px;
-            backdrop-filter: blur(10px);
+        .panel-section {
+            background: rgba(40, 40, 80, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #5555aa;
         }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            border-bottom: 2px solid #4a4a9a;
-            padding-bottom: 8px;
-        }
-
-        .card-header h3 {
+        .section-title {
             color: #ffcc00;
-            font-size: 1.3rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #5555aa;
+            padding-bottom: 5px;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 12px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
         }
 
-        .stat-pill {
-            background: rgba(50, 50, 100, 0.3);
-            border-radius: 12px;
-            padding: 8px;
-            text-align: center;
-            border: 1px solid #5555aa;
+        .stat-item {
+            background: rgba(50, 50, 100, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
         }
 
-        .stat-pill .label {
-            font-size: 0.8rem;
+        .stat-label {
+            font-size: 0.9rem;
             color: #aaaaff;
-            margin-bottom: 4px;
         }
 
-        .stat-pill .value {
-            font-size: 1.4rem;
+        .stat-value {
+            font-size: 1.3rem;
             font-weight: bold;
-            color: #ffcc00;
+            color: #fff;
         }
 
-        .health-section {
-            margin-top: 8px;
+        .health-container {
+            margin-top: 10px;
         }
 
-        .health-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 4px;
-            color: #aaaaff;
-        }
-
-        .health-bar-container {
+        .health-bar {
             width: 100%;
-            height: 24px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
             overflow: hidden;
-            border: 1px solid #5555aa;
+            margin-top: 5px;
         }
 
         .health-fill {
             height: 100%;
             background: linear-gradient(90deg, #ff416c, #ff4b2b);
-            border-radius: 12px;
-            transition: width 0.3s ease;
-            position: relative;
-        }
-
-        .health-fill::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            animation: shine 2s infinite;
-        }
-
-        /* Weapons section - More visual */
-        .weapons-card {
-            background: rgba(20, 20, 40, 0.95);
-            border-radius: 16px;
-            border: 2px solid #4a4a9a;
-            padding: 16px;
+            border-radius: 10px;
+            transition: width 0.3s;
+            width: 100%;
         }
 
         .weapons-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin: 16px 0;
+            gap: 10px;
+            margin-top: 10px;
         }
 
         .weapon-slot {
             aspect-ratio: 1;
-            background: rgba(40, 40, 80, 0.6);
-            border: 2px solid #5555aa;
-            border-radius: 12px;
+            background: rgba(50, 50, 100, 0.3);
+            border: 2px dashed #5555aa;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -290,67 +194,50 @@
             font-size: 2rem;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
         .weapon-slot:hover {
-            transform: translateY(-2px);
+            background: rgba(50, 50, 100, 0.6);
             border-color: #ffcc00;
-            box-shadow: 0 8px 16px rgba(255, 204, 0, 0.2);
+        }
+
+        .weapon-slot.occupied {
+            background: rgba(60, 60, 120, 0.4);
+            border: 2px solid #ff6b6b;
         }
 
         .weapon-slot.selected {
             border: 3px solid #ffcc00;
-            box-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+            box-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
             transform: scale(1.05);
-        }
-
-        .weapon-slot.occupied {
-            background: rgba(60, 60, 120, 0.8);
-            border-color: #ff6b6b;
-        }
-
-        .tier-badge {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            background: linear-gradient(135deg, #ffd700, #ffaa00);
-            color: #000;
-            font-weight: bold;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-            border: 2px solid #000;
-            z-index: 2;
         }
 
         .weapon-level {
             position: absolute;
-            bottom: 4px;
-            right: 4px;
-            background: rgba(0, 0, 0, 0.8);
+            bottom: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
             color: #ffcc00;
             padding: 2px 6px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            border: 1px solid #ffcc00;
+            border-radius: 10px;
+            font-size: 0.8rem;
         }
 
-        .ammo-display {
+        .tier-badge {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #00ffff;
-            padding: 2px 6px;
-            border-radius: 12px;
+            top: 5px;
+            left: 5px;
+            background: linear-gradient(45deg, #ffd700, #ffaa00);
+            color: #000;
+            font-weight: bold;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 0.7rem;
-            border: 1px solid #00ffff;
+            border: 2px solid #000;
         }
 
         .cooldown-bar {
@@ -359,138 +246,84 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 0 0 12px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 0 0 10px 10px;
             overflow: hidden;
         }
 
         .cooldown-fill {
             height: 100%;
             background: linear-gradient(90deg, #00ff00, #00cc00);
+            border-radius: 0 0 10px 10px;
             width: 100%;
             transition: width 0.1s linear;
         }
 
-        .weapon-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        /* Consumables section */
-        .consumables-card {
-            background: rgba(20, 20, 40, 0.95);
-            border-radius: 16px;
-            border: 2px solid #4ecdc4;
-            padding: 12px;
-        }
-
-        .consumables-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .consumable-slot {
-            aspect-ratio: 1;
-            background: rgba(60, 60, 120, 0.5);
-            border: 2px solid #4ecdc4;
-            border-radius: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.2s;
-            padding: 4px;
-        }
-
-        .consumable-slot:hover {
-            transform: translateY(-2px);
-            border-color: #ffd700;
-            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
-        }
-
-        .consumable-icon {
-            font-size: 1.2rem;
-        }
-
-        .consumable-name {
-            font-size: 0.65rem;
-            text-align: center;
-            color: #aaaaff;
-        }
-
-        .consumable-count {
+        .ammo-display {
             position: absolute;
-            top: 2px;
-            right: 2px;
-            background: #ffd700;
-            color: #000;
-            min-width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.6rem;
-            font-weight: bold;
-            padding: 0 2px;
-        }
-
-        /* Shop section - More compact */
-        .shop-card {
-            background: rgba(20, 20, 40, 0.95);
-            border-radius: 16px;
-            border: 2px solid #4a4a9a;
-            padding: 16px;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffcc00;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
         }
 
         .shop-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 15px;
         }
 
         .refresh-btn {
-            background: linear-gradient(135deg, #4a4a9a, #6a6ada);
+            background: linear-gradient(45deg, #4a4a9a, #6a6ada);
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 30px;
+            padding: 8px 15px;
+            border-radius: 20px;
             cursor: pointer;
             font-weight: bold;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 5px;
             transition: all 0.2s;
         }
 
         .refresh-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(74, 74, 154, 0.4);
+            box-shadow: 0 5px 15px rgba(74, 74, 154, 0.4);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .refresh-cost {
             background: rgba(0, 0, 0, 0.5);
             padding: 2px 8px;
-            border-radius: 20px;
+            border-radius: 10px;
             font-size: 0.8rem;
             color: #ffd700;
         }
 
+        .refresh-counter {
+            margin-top: 5px;
+            text-align: right;
+            color: #aaaaff;
+            font-size: 0.8rem;
+        }
+
         .shop-items {
             display: grid;
-            gap: 8px;
-            margin: 12px 0;
+            gap: 10px;
         }
 
         .shop-item {
-            background: rgba(60, 60, 120, 0.3);
-            padding: 10px 12px;
+            background: rgba(60, 60, 120, 0.5);
+            padding: 15px;
             border-radius: 10px;
             border: 2px solid #5555aa;
             cursor: pointer;
@@ -501,103 +334,104 @@
         }
 
         .shop-item:hover:not(.empty) {
-            transform: translateX(4px);
+            transform: translateY(-2px);
             border-color: #ffcc00;
-            background: rgba(70, 70, 140, 0.6);
+            background: rgba(70, 70, 140, 0.7);
+            box-shadow: 0 5px 15px rgba(255, 204, 0, 0.2);
         }
 
-        .item-name {
-            font-weight: bold;
-            color: #fff;
+        .shop-item.empty {
+            opacity: 0.5;
+            cursor: default;
         }
 
-        .item-effect {
-            font-size: 0.8rem;
-            color: #aaaaff;
-        }
-
-        .item-cost {
-            background: linear-gradient(135deg, #ffd700, #ffaa00);
-            color: #000;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 10px 16px;
-            border: none;
-            border-radius: 30px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.95rem;
+        .item-info {
             flex: 1;
         }
 
+        .item-name {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .item-effect {
+            color: #aaaaff;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .item-cost {
+            background: linear-gradient(45deg, #ffd700, #ffaa00);
+            color: #000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            white-space: nowrap;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
         .btn-primary {
-            background: linear-gradient(135deg, #ff6b6b, #ffa726);
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
             color: white;
         }
 
-        .btn-success {
-            background: linear-gradient(135deg, #00b09b, #96c93d);
-            color: white;
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ff416c, #ff4b2b);
-            color: white;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
         }
 
         .btn-secondary {
-            background: linear-gradient(135deg, #4a4a9a, #6a6ada);
+            background: linear-gradient(45deg, #4a4a9a, #6a6ada);
             color: white;
         }
 
-        .btn:hover {
+        .btn-secondary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 5px 15px rgba(74, 74, 154, 0.4);
         }
 
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
+        .btn-danger {
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: white;
         }
 
-        /* Tags */
-        .tag {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-size: 0.6rem;
-            font-weight: bold;
-            margin-left: 4px;
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 65, 108, 0.4);
         }
 
-        .fast-tag { background: rgba(0, 255, 255, 0.2); color: #00ffff; border: 1px solid #00ffff; }
-        .tank-tag { background: rgba(255, 165, 0, 0.2); color: #ffa500; border: 1px solid #ffa500; }
-        .boss-tag { background: rgba(255, 0, 0, 0.3); color: #ff4444; border: 2px solid #ff4444; }
-        
-        /* Instructions */
-        .hint-text {
-            font-size: 0.8rem;
-            color: #aaaaff;
-            margin-top: 8px;
-            text-align: center;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 6px;
-            border-radius: 8px;
+        .btn-success {
+            background: linear-gradient(45deg, #00b09b, #96c93d);
+            color: white;
         }
 
-        /* Overlays */
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 176, 155, 0.4);
+        }
+
         .overlay {
             position: fixed;
             top: 0;
@@ -605,58 +439,70 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(5px);
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             z-index: 1000;
-            padding: 20px;
+            overflow-y: auto;
+            padding: 30px 20px;
         }
 
         .overlay-content {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            background: rgba(30, 30, 60, 0.95);
             padding: 40px;
-            border-radius: 24px;
+            border-radius: 20px;
             border: 3px solid #ffcc00;
             max-width: 700px;
             width: 100%;
-            max-height: 80vh;
-            overflow-y: auto;
+            text-align: center;
+            margin: auto 0;
+            box-shadow: 0 0 50px rgba(255, 204, 0, 0.2);
         }
 
         .overlay-title {
-            font-size: 2.5rem;
+            font-size: 3rem;
             color: #ffcc00;
             margin-bottom: 20px;
-            text-align: center;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+        }
+
+        .overlay-text {
+            font-size: 1.2rem;
+            color: #aaaaff;
+            margin-bottom: 30px;
+            line-height: 1.6;
         }
 
         .stat-buffs {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin: 24px 0;
+            gap: 15px;
+            margin: 20px 0;
         }
 
         .stat-buff {
             background: rgba(50, 50, 100, 0.6);
-            padding: 16px;
-            border-radius: 12px;
+            padding: 15px;
+            border-radius: 10px;
             border: 2px solid #5555aa;
             cursor: pointer;
             transition: all 0.2s;
+            text-align: left;
         }
 
         .stat-buff:hover {
-            transform: translateY(-4px);
+            transform: translateY(-3px);
             border-color: #ffcc00;
             background: rgba(70, 70, 140, 0.8);
+            box-shadow: 0 5px 15px rgba(255, 204, 0, 0.2);
         }
 
         .buff-name {
             color: #ffcc00;
             font-weight: bold;
-            margin-bottom: 4px;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
         }
 
         .buff-description {
@@ -664,68 +510,334 @@
             font-size: 0.9rem;
         }
 
-        /* Animations */
-        @keyframes bossPulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        @keyframes shine {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        /* Responsive */
-        @media (max-width: 1200px) {
-            .main-content {
-                flex-direction: column;
-            }
-            .game-section {
-                min-width: 100%;
-            }
-            .info-panel {
-                min-width: 100%;
-            }
+        .instructions {
+            margin-top: 20px;
+            color: #aaaaff;
+            font-size: 0.9rem;
+            text-align: center;
+            line-height: 1.5;
         }
 
         @media (max-width: 768px) {
-            .top-bar {
+            .container {
                 flex-direction: column;
-                align-items: flex-start;
             }
-            .quick-stats {
-                width: 100%;
-                justify-content: space-between;
+            
+            .game-title {
+                font-size: 2.5rem;
             }
+            
+            .weapons-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
             .stat-buffs {
+                grid-template-columns: 1fr;
+            }
+            
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+            
+            .overlay-content {
+                padding: 30px 20px;
+            }
+            
+            .overlay-title {
+                font-size: 2.5rem;
+            }
+            
+            .feature-list {
                 grid-template-columns: 1fr;
             }
         }
 
-        /* Utility classes */
-        .hidden {
-            display: none !important;
+        .item-tag {
+            display: inline-block;
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+            border: 1px solid #ff6b6b;
         }
 
-        .text-gold { color: #ffd700; }
-        .text-damage { color: #ff6b6b; }
-        .text-health { color: #ff416c; }
-        
-        .reload-indicator {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: #ffcc00;
-            padding: 20px 40px;
-            border-radius: 50px;
-            border: 3px solid #ffcc00;
-            font-size: 1.5rem;
+        .monster-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+
+        .fast-tag {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+            border: 1px solid #00ffff;
+        }
+
+        .tank-tag {
+            background: rgba(255, 165, 0, 0.2);
+            color: #ffa500;
+            border: 1px solid #ffa500;
+        }
+
+        .explosive-tag {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff0000;
+            border: 1px solid #ff0000;
+        }
+
+        .boss-tag {
+            background: rgba(255, 215, 0, 0.3);
+            color: #ffd700;
+            border: 2px solid #ffd700;
             font-weight: bold;
-            z-index: 2000;
+        }
+
+        .aoe-tag {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+        }
+
+        .pierce-tag {
+            background: rgba(148, 0, 211, 0.2);
+            color: #9400d3;
+            border: 1px solid #9400d3;
+        }
+
+        .single-tag {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
+        }
+
+        .ranged-tag {
+            background: rgba(0, 191, 255, 0.2);
+            color: #00bfff;
+            border: 1px solid #00bfff;
+        }
+
+        .shotgun-tag {
+            background: rgba(255, 140, 0, 0.2);
+            color: #ff8c00;
+            border: 1px solid #ff8c00;
+        }
+
+        .energy-tag {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+            border: 1px solid #00ffff;
+        }
+
+        .start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .start-title {
+            font-size: 4rem;
+            color: #ffcc00;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+        }
+        
+        .start-instructions {
+            font-size: 1.2rem;
+            color: #aaaaff;
+            margin-bottom: 30px;
+            max-width: 600px;
+            line-height: 1.6;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .feature {
+            background: rgba(50, 50, 100, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #5555aa;
+            transition: all 0.2s;
+        }
+        
+        .feature:hover {
+            background: rgba(70, 70, 140, 0.5);
+            border-color: #ffcc00;
+            transform: translateY(-2px);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .feature-text {
+            color: #aaaaff;
+            font-size: 0.9rem;
+        }
+        
+        #startGameBtn {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .spawn-indicator {
+            position: absolute;
+            color: #ff0000;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+            z-index: 5;
             animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .next-wave-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .scrap-weapon-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .merge-weapon-btn {
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        .weapon-info {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffcc00;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            display: none;
+        }
+        
+        .weapon-slot:hover .weapon-info {
+            display: block;
+        }
+        
+        .melee-type {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 0.7rem;
+            background: rgba(255, 165, 0, 0.3);
+            color: #ffa500;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .weapon-details {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.7);
+            color: #aaaaff;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .empty-slot {
+            color: #5555aa;
+            font-size: 1.5rem;
+        }
+
+        .monster-count {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 1.2rem;
+            color: #ffcc00;
+            text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+            z-index: 5;
+        }
+
+        .damage-indicator {
+            position: absolute;
+            color: #ff0000;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+        }
+
+        .gold-popup {
+            position: absolute;
+            color: #ffd700;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUpGold 1s forwards;
+        }
+
+        .health-popup {
+            position: absolute;
+            color: #00ff00;
+            font-size: 1rem;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+            animation: floatUpHealth 1s forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-30px); }
+        }
+
+        @keyframes floatUpGold {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-40px); }
+        }
+
+        @keyframes floatUpHealth {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
         .merge-info {
@@ -735,153 +847,234 @@
             transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.9);
             color: #ffcc00;
-            padding: 12px 24px;
-            border-radius: 30px;
+            padding: 10px 20px;
+            border-radius: 10px;
             border: 2px solid #ffcc00;
-            z-index: 2000;
+            z-index: 1001;
+            font-size: 1rem;
+            font-weight: bold;
+            display: none;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
-            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .reload-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #ffcc00;
+            padding: 20px 40px;
+            border-radius: 15px;
+            border: 3px solid #ffcc00;
+            font-size: 1.5rem;
+            font-weight: bold;
+            z-index: 1002;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+
+        .overlay::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .overlay::-webkit-scrollbar-track {
+            background: rgba(30, 30, 60, 0.5);
+            border-radius: 10px;
+        }
+
+        .overlay::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            border-radius: 10px;
+        }
+
+        .overlay::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #ffa726, #ff6b6b);
+        }
+
+        /* Consumables Container Styles */
+        .consumables-container {
+            margin-top: 20px;
+            padding: 10px;
+            background: rgba(40, 40, 80, 0.6);
+            border-radius: 10px;
+            border: 1px solid #5555aa;
+        }
+        
+        .consumables-container h4 {
+            color: #ffcc00;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .consumables-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .consumable-slot {
+            aspect-ratio: 1;
+            background: rgba(60, 60, 120, 0.5);
+            border: 2px solid #4ecdc4;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 5px;
+        }
+        
+        .consumable-slot:hover {
+            transform: translateY(-2px);
+            border-color: #ffd700;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+        }
+        
+        .consumable-icon {
+            font-size: 1.5rem;
+        }
+        
+        .consumable-name {
+            font-size: 0.7rem;
+            text-align: center;
+            color: #aaaaff;
+        }
+        
+        .consumable-count {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #ffd700;
+            color: #000;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        
+        .empty-consumable {
+            grid-column: span 4;
+            text-align: center;
+            color: #5555aa;
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+        
+        /* New button position - above shop */
+        .wave-button-container {
+            margin-bottom: 15px;
+        }
+        
+        .next-wave-btn {
+            width: 100%;
+            margin-top: 0;
         }
     </style>
 </head>
 <body>
-    <div class="merge-info hidden" id="mergeInfo"></div>
-    <div class="reload-indicator hidden" id="reloadIndicator">RELOADING...</div>
+    <div class="merge-info" id="mergeInfo"></div>
+    <div class="reload-indicator" id="reloadIndicator">RELOADING...</div>
+    
+    <div class="container">
+        <div class="game-header">
+            <h1 class="game-title">Battle Waves</h1>
+            <p class="game-subtitle">Survive waves of monsters, upgrade your stats, and buy powerful weapons!</p>
+        </div>
 
-    <div class="app-container">
-        <!-- Top Bar - Always visible stats -->
-        <div class="top-bar">
-            <div class="game-title-section">
-                <span class="game-title">⚔️ BATTLE WAVES</span>
-                <span class="wave-badge" id="topWaveBadge">Wave 1</span>
-            </div>
-            <div class="quick-stats">
-                <div class="quick-stat">
-                    <span class="icon">❤️</span>
-                    <span class="value" id="topHealth">20</span>
-                </div>
-                <div class="quick-stat">
-                    <span class="icon">⚡</span>
-                    <span class="value" id="topDamage">5</span>
-                </div>
-                <div class="quick-stat">
-                    <span class="icon">💰</span>
-                    <span class="value" id="topGold">50</span>
-                </div>
-                <div class="quick-stat">
-                    <span class="icon">👾</span>
-                    <span class="value" id="topKills">0</span>
-                </div>
+        <div class="game-area">
+            <div class="canvas-container">
+                <div class="wave-display" id="waveDisplay">Wave 1</div>
+                <div class="monster-count" id="monsterCount">Monsters: 0</div>
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
             </div>
         </div>
 
-        <!-- Main Content Area -->
-        <div class="main-content">
-            <!-- Game Canvas Section -->
-            <div class="game-section">
-                <div class="canvas-wrapper">
-                    <div class="wave-display" id="waveDisplay">Wave 1</div>
-                    <div class="monster-count" id="monsterCount">Monsters: 0</div>
-                    <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="ui-panel">
+            <div class="panel-section">
+                <h3 class="section-title">Player Stats</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Health</div>
+                        <div class="stat-value" id="healthValue">20/20</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Damage</div>
+                        <div class="stat-value" id="damageValue">5</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Speed</div>
+                        <div class="stat-value" id="speedValue">3.0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Gold</div>
+                        <div class="stat-value" id="goldValue">50</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Wave</div>
+                        <div class="stat-value" id="waveValue">1</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Kills</div>
+                        <div class="stat-value" id="killsValue">0</div>
+                    </div>
+                </div>
+                <div class="health-container">
+                    <div class="stat-label">Health Bar</div>
+                    <div class="health-bar">
+                        <div class="health-fill" id="healthFill" style="width: 100%;"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Info Panel -->
-            <div class="info-panel">
-                <!-- Player Stats Card -->
-                <div class="stats-card">
-                    <div class="card-header">
-                        <h3><span>📊</span> Player Stats</h3>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-pill">
-                            <div class="label">Health</div>
-                            <div class="value" id="healthValue">20/20</div>
-                        </div>
-                        <div class="stat-pill">
-                            <div class="label">Damage</div>
-                            <div class="value" id="damageValue">5</div>
-                        </div>
-                        <div class="stat-pill">
-                            <div class="label">Speed</div>
-                            <div class="value" id="speedValue">3.0</div>
-                        </div>
-                        <div class="stat-pill">
-                            <div class="label">Gold</div>
-                            <div class="value" id="goldValue">50</div>
-                        </div>
-                        <div class="stat-pill">
-                            <div class="label">Wave</div>
-                            <div class="value" id="waveValue">1</div>
-                        </div>
-                        <div class="stat-pill">
-                            <div class="label">Kills</div>
-                            <div class="value" id="killsValue">0</div>
-                        </div>
-                    </div>
-                    <div class="health-section">
-                        <div class="health-label">
-                            <span>HP</span>
-                            <span id="healthText">20/20</span>
-                        </div>
-                        <div class="health-bar-container">
-                            <div class="health-fill" id="healthFill" style="width: 100%;"></div>
-                        </div>
-                    </div>
+            <div class="panel-section">
+                <h3 class="section-title">Weapons (6 Slots)</h3>
+                <div class="weapons-grid" id="weaponsGrid"></div>
+                <button class="btn btn-danger scrap-weapon-btn" id="scrapWeaponBtn" style="display: none;">
+                    <span class="icon">🗑️</span> Scrap Selected Weapon
+                </button>
+                <button class="btn btn-success merge-weapon-btn" id="mergeWeaponBtn" style="display: none;">
+                    <span class="icon">🔄</span> Merge With Selected Weapon
+                </button>
+                <div class="instructions">
+                    Click a weapon to select it. Click another same-type weapon to merge (Tier 1-5).<br>
+                    Merging improves damage, attack speed, and special effects.
                 </div>
+            </div>
 
-                <!-- Weapons Card -->
-                <div class="weapons-card">
-                    <div class="card-header">
-                        <h3><span>⚔️</span> Weapons (6 Slots)</h3>
-                    </div>
-                    <div class="weapons-grid" id="weaponsGrid"></div>
-                    <div class="weapon-actions">
-                        <button class="btn btn-danger hidden" id="scrapWeaponBtn">
-                            <span>🗑️</span> Scrap
-                        </button>
-                        <button class="btn btn-success hidden" id="mergeWeaponBtn">
-                            <span>🔄</span> Merge
-                        </button>
-                    </div>
-                    <div class="hint-text">
-                        💡 Click to select • Same type to merge (Tier 1-5)
-                    </div>
+            <!-- Consumables Section -->
+            <div class="consumables-container">
+                <h4>Consumables</h4>
+                <div class="consumables-grid" id="consumablesGrid"></div>
+            </div>
+
+            <!-- Start Wave Button moved above shop -->
+            <div class="wave-button-container">
+                <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
+                    <span class="icon">⚔️</span> Start Next Wave
+                </button>
+            </div>
+
+            <div class="panel-section">
+                <div class="shop-header">
+                    <h3 class="section-title" style="margin-bottom: 0;">Shop (4 Items)</h3>
+                    <button class="refresh-btn" id="refreshShopBtn">
+                        <span class="icon">🔄</span>
+                        Refresh
+                        <span class="refresh-cost" id="refreshCost">5g</span>
+                    </button>
                 </div>
-
-                <!-- Consumables Card -->
-                <div class="consumables-card">
-                    <div class="card-header">
-                        <h3><span>🧪</span> Consumables</h3>
-                    </div>
-                    <div class="consumables-grid" id="consumablesGrid"></div>
-                </div>
-
-                <!-- Shop Card -->
-                <div class="shop-card">
-                    <div class="shop-header">
-                        <h3><span>🛒</span> Shop</h3>
-                        <button class="refresh-btn" id="refreshShopBtn">
-                            <span>🔄</span>
-                            <span class="refresh-cost" id="refreshCost">5g</span>
-                        </button>
-                    </div>
-                    <div class="shop-items" id="shopItems"></div>
-                    <div class="hint-text" id="refreshCounter">
-                        Refreshes: 0 • Cost increases with use
-                    </div>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" id="nextWaveBtn">
-                            <span>⚔️</span> Start Wave
-                        </button>
-                    </div>
-                    <div class="hint-text">
-                        ⭐ SPACE to start wave • R to reload
-                    </div>
+                <div class="shop-items" id="shopItems"></div>
+                <div class="refresh-counter" id="refreshCounter">Refreshes: 0</div>
+                <div class="instructions">
+                    Buy items to fill empty slots. Refresh shop for 5g (cost increases with each refresh).<br>
+                    Press SPACE to start wave | Press R to manually reload
                 </div>
             </div>
         </div>
@@ -889,60 +1082,81 @@
 
     <!-- Start Screen Overlay -->
     <div class="overlay" id="startScreen">
-        <div class="overlay-content">
-            <h2 class="overlay-title">⚔️ BATTLE WAVES</h2>
-            <div style="text-align: center; margin-bottom: 30px; color: #aaaaff;">
+        <div class="overlay-content start-screen">
+            <h2 class="start-title">Battle Waves</h2>
+            <p class="start-instructions">
                 Survive endless waves of monsters! Move with your mouse, weapons auto-attack.
+                Clear waves to earn gold and buy upgrades. Touch monsters to lose HP.
+            </p>
+            
+            <div class="feature-list">
+                <div class="feature">
+                    <div class="feature-icon">👑</div>
+                    <div class="feature-text">BOSS FIGHT on Wave 10!</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚔️</div>
+                    <div class="feature-text">Realistic Weapon Animations - Sword, Axe, Dagger, Hammer, Trident</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔫</div>
+                    <div class="feature-text">Ammo & Reload System for ranged weapons</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💥</div>
+                    <div class="feature-text">4 Monster Types: Normal, Fast, Tank, Explosive</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔄</div>
+                    <div class="feature-text">Shop Refresh System with scaling cost</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⏱️</div>
+                    <div class="feature-text">5ms Attack Stagger - No overlapping attacks</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔄</div>
+                    <div class="feature-text">Weapon Merging System (Tier 1-5)</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-text">Cooldown bars for all weapons</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🛡️</div>
+                    <div class="feature-text">8 Stat Buffs to choose from after each wave</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-text">Gold multiplier & Life Steal upgrades</div>
+                </div>
             </div>
-            <div class="stat-buffs" style="grid-template-columns: repeat(2, 1fr);">
-                <div class="stat-buff">
-                    <div class="buff-name">👑 Boss Fight</div>
-                    <div class="buff-description">Wave 10 brings a powerful boss</div>
-                </div>
-                <div class="stat-buff">
-                    <div class="buff-name">⚔️ Melee Weapons</div>
-                    <div class="buff-description">Sword, Axe, Dagger, Hammer, Trident</div>
-                </div>
-                <div class="stat-buff">
-                    <div class="buff-name">🔫 Ranged System</div>
-                    <div class="buff-description">Ammo & reload mechanics</div>
-                </div>
-                <div class="stat-buff">
-                    <div class="buff-name">🔄 Weapon Merging</div>
-                    <div class="buff-description">Combine same types to tier up</div>
-                </div>
-                <div class="stat-buff">
-                    <div class="buff-name">📈 Stat Buffs</div>
-                    <div class="buff-description">Choose upgrades after each wave</div>
-                </div>
-                <div class="stat-buff">
-                    <div class="buff-name">👾 Monster Variety</div>
-                    <div class="buff-description">Normal, Fast, Tank, Explosive</div>
-                </div>
-            </div>
-            <button class="btn btn-primary" id="startGameBtn" style="width: 100%; font-size: 1.2rem; padding: 16px;">
-                <span>🎮</span> START GAME
+            
+            <button class="btn btn-primary" id="startGameBtn">
+                <span class="icon">🎮</span> Start Game
             </button>
         </div>
     </div>
 
-    <!-- Wave Complete Overlay -->
-    <div class="overlay hidden" id="waveCompleteOverlay">
+    <!-- Wave Complete Overlay (Stat Buffs) -->
+    <div class="overlay" id="waveCompleteOverlay" style="display: none;">
         <div class="overlay-content">
-            <h2 class="overlay-title">Wave Complete! 🎉</h2>
-            <p style="text-align: center; color: #aaaaff; margin-bottom: 24px;">Choose a permanent upgrade:</p>
+            <h2 class="overlay-title">Wave Complete!</h2>
+            <p class="overlay-text">Choose one stat buff for the next wave:</p>
             <div class="stat-buffs" id="statBuffs"></div>
         </div>
     </div>
 
     <!-- Game Over Overlay -->
-    <div class="overlay hidden" id="gameOverOverlay">
+    <div class="overlay" id="gameOverOverlay" style="display: none;">
         <div class="overlay-content">
-            <h2 class="overlay-title">Game Over! 💀</h2>
-            <p class="overlay-text" id="gameOverText" style="text-align: center; font-size: 1.3rem;"></p>
-            <button class="btn btn-primary" id="restartBtn" style="width: 100%; font-size: 1.2rem; padding: 16px;">
-                <span>🔄</span> Play Again
-            </button>
+            <h2 class="overlay-title">Game Over!</h2>
+            <p class="overlay-text" id="gameOverText">You survived 0 waves with 0 kills.</p>
+            <div class="controls">
+                <button class="btn btn-primary" id="restartBtn">
+                    <span class="icon">🔄</span> Play Again
+                </button>
+            </div>
         </div>
     </div>
 
