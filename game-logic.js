@@ -204,6 +204,11 @@ class WeaponInstance {
         this.lastAttackTime = 0;
         
         this.usesAmmo = weaponData.usesAmmo || false;
+        this.isThrowable = weaponData.isThrowable || false;
+        this.resetEachRound = weaponData.resetEachRound || false;
+        this.projectileSize = weaponData.projectileSize || 4;
+        this.spinSpeed = weaponData.spinSpeed || 0;
+        
         if (this.usesAmmo) {
             this.magazineSize = weaponData.magazineSize;
             this.currentAmmo = this.magazineSize;
@@ -221,6 +226,9 @@ class WeaponInstance {
         this.useImage = weaponData.useImage || false;
         this.imagePath = weaponData.imagePath || null;
         this.pierceCount = weaponData.pierceCount || 1;
+        
+        // Dual daggers special property
+        this.dualStrike = weaponData.dualStrike || false;
         
         this.bladeColor = weaponData.bladeColor || weaponData.swingColor;
         this.hiltColor = weaponData.hiltColor || '#8B4513';
@@ -264,7 +272,9 @@ class WeaponInstance {
             
             if (this.usesAmmo && this.tierMultipliers.magazine) {
                 this.magazineSize = Math.round(this.magazineSize * this.tierMultipliers.magazine[this.tier]);
-                this.currentAmmo = this.magazineSize;
+                if (!this.isThrowable) {
+                    this.currentAmmo = this.magazineSize;
+                }
             }
             
             if (this.pelletCount && this.tierMultipliers.pelletCount) {
@@ -295,7 +305,9 @@ class WeaponInstance {
         }
         
         if (this.usesAmmo && this.currentAmmo <= 0) {
-            this.startReload();
+            if (!this.isThrowable) {
+                this.startReload();
+            }
             return false;
         }
         
@@ -310,7 +322,7 @@ class WeaponInstance {
     }
 
     startReload() {
-        if (!this.usesAmmo || this.isReloading || this.currentAmmo === this.magazineSize) {
+        if (!this.usesAmmo || this.isReloading || this.currentAmmo === this.magazineSize || this.isThrowable) {
             return;
         }
         
@@ -331,8 +343,15 @@ class WeaponInstance {
         if (!this.usesAmmo) return;
         
         this.currentAmmo--;
-        if (this.currentAmmo <= 0) {
+        if (this.currentAmmo <= 0 && !this.isThrowable) {
             this.startReload();
+        }
+    }
+
+    resetAmmo() {
+        if (this.resetEachRound) {
+            this.currentAmmo = this.magazineSize;
+            this.isReloading = false;
         }
     }
 
@@ -367,7 +386,8 @@ class WeaponInstance {
                         weaponId: this.id,
                         animation: this.animation,
                         isPellet: true,
-                        startTime: currentTime
+                        startTime: currentTime,
+                        size: 3
                     });
                 }
                 return attacks;
@@ -395,7 +415,27 @@ class WeaponInstance {
                     maxTargets: this.maxTargets,
                     rotation: 0,
                     startTime: currentTime,
-                    hitThisFrame: false
+                    hitThisFrame: false,
+                    size: 4
+                };
+            } else if (this.id === 'throwing_knives') {
+                const angle = Math.atan2(targetY - playerY, targetX - playerX);
+                return {
+                    type: 'ranged',
+                    x: playerX,
+                    y: playerY,
+                    angle: angle,
+                    speed: this.projectileSpeed,
+                    range: this.range,
+                    damage: this.baseDamage,
+                    color: this.projectileColor,
+                    weaponId: this.id,
+                    animation: 'knife',
+                    isThrowable: true,
+                    startTime: currentTime,
+                    size: this.projectileSize || 6,
+                    spinSpeed: this.spinSpeed || 0.2,
+                    rotation: 0
                 };
             } else {
                 const baseAngle = Math.atan2(targetY - playerY, targetX - playerX);
@@ -416,11 +456,38 @@ class WeaponInstance {
                     bounceCount: this.bounceCount,
                     bounceRange: this.bounceRange,
                     targetsHit: [],
-                    startTime: currentTime
+                    startTime: currentTime,
+                    size: 4
                 };
             }
         } else {
             const angle = Math.atan2(targetY - playerY, targetX - playerX);
+            
+            if (this.dualStrike) {
+                return {
+                    type: 'melee',
+                    x: playerX,
+                    y: playerY,
+                    radius: this.range,
+                    damage: this.baseDamage,
+                    color: this.swingColor,
+                    startTime: Date.now(),
+                    duration: 200,
+                    swingAngle: this.swingAngle,
+                    meleeType: 'dual',
+                    angle: angle,
+                    pierceCount: this.pierceCount,
+                    weaponId: this.id,
+                    animation: this.animation,
+                    trailColor: this.trailColor,
+                    sparkleColor: this.sparkleColor,
+                    bladeColor: this.bladeColor,
+                    hiltColor: this.hiltColor,
+                    gripColor: this.gripColor,
+                    dualStrike: true
+                };
+            }
+            
             return {
                 type: 'melee',
                 x: playerX,
@@ -466,11 +533,13 @@ class WeaponInstance {
             if (this.id === 'shotgun') return 'SHOTGUN';
             if (this.id === 'laser') return 'ENERGY';
             if (this.id === 'boomerang') return 'BOOMERANG';
+            if (this.id === 'throwing_knives') return 'THROWING';
             return 'RANGED';
         }
         if (this.meleeType === 'single') return 'SINGLE';
         if (this.meleeType === 'aoe') return 'AOE 360°';
         if (this.meleeType === 'pierce') return 'PIERCE';
+        if (this.meleeType === 'dual') return 'DUAL';
         return 'MELEE';
     }
     
@@ -558,6 +627,24 @@ let minionSpawnInterval = null;
 let dashers = [];
 let splitterTracking = [];
 
+// Tower tracking
+let playerTowers = {
+    landmines: {
+        count: 0,
+        max: 5,
+        active: []
+    }
+};
+
+// Temporary buffs
+let activeBuffs = {
+    rage: {
+        active: false,
+        endTime: 0,
+        originalMultiplier: 1.0
+    }
+};
+
 // Stats panel
 let statsPanelVisible = false;
 
@@ -600,11 +687,9 @@ const player = {
     radius: 20,
     health: 20,
     maxHealth: 20,
-    // Damage multiplier starts at 1.0 (100% of weapon damage)
     damageMultiplier: 1.0,
     speed: 3,
     baseSpeed: 3,
-    // Speed multiplier starts at 1.0 (100% of base speed)
     speedMultiplier: 1.0,
     color: '#ff6b6b',
     
@@ -702,6 +787,209 @@ player.updateHealthDisplay = function() {
         healthFill.style.width = `${percent}%`;
     }
 };
+
+// ============================================
+// TOWER FUNCTIONS
+// ============================================
+
+function spawnRandomLandmine() {
+    if (playerTowers.landmines.count <= 0) return;
+    
+    let x, y;
+    const minDistanceFromPlayer = 100;
+    let attempts = 0;
+    let validPosition = false;
+    
+    while (!validPosition && attempts < 50) {
+        x = 50 + Math.random() * (canvas.width - 100);
+        y = 50 + Math.random() * (canvas.height - 100);
+        
+        const dx = x - player.x;
+        const dy = y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > minDistanceFromPlayer) {
+            validPosition = true;
+        }
+        attempts++;
+    }
+    
+    const landmine = {
+        x: x,
+        y: y,
+        radius: 15,
+        damage: 80,
+        explosionRadius: 60,
+        active: true,
+        startTime: Date.now(),
+        color: '#8B4513',
+        triggerColor: '#FF0000'
+    };
+    
+    playerTowers.landmines.active.push(landmine);
+    
+    addVisualEffect({
+        type: 'landmineSpawn',
+        x: x,
+        y: y,
+        radius: 20,
+        color: '#8B4513',
+        startTime: Date.now(),
+        duration: 500
+    });
+    
+    queueMessage("Landmine deployed!");
+}
+
+function checkLandmineTriggers() {
+    for (let i = playerTowers.landmines.active.length - 1; i >= 0; i--) {
+        const mine = playerTowers.landmines.active[i];
+        
+        for (let j = 0; j < monsters.length; j++) {
+            const monster = monsters[j];
+            const dx = monster.x - mine.x;
+            const dy = monster.y - mine.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < mine.radius + monster.radius) {
+                explodeLandmine(mine, i);
+                break;
+            }
+        }
+    }
+}
+
+function explodeLandmine(mine, index) {
+    for (let i = monsters.length - 1; i >= 0; i--) {
+        const monster = monsters[i];
+        const dx = monster.x - mine.x;
+        const dy = monster.y - mine.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < mine.explosionRadius + monster.radius) {
+            monster.health -= mine.damage;
+            createDamageIndicator(monster.x, monster.y, mine.damage, true);
+            
+            if (monster.health <= 0) {
+                const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
+                const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
+                const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
+                gold += goldEarned;
+                createGoldPopup(monster.x, monster.y, goldEarned);
+                
+                monsters.splice(i, 1);
+                kills++;
+            }
+        }
+    }
+    
+    addVisualEffect({
+        type: 'explosion',
+        x: mine.x,
+        y: mine.y,
+        radius: mine.explosionRadius,
+        color: '#FF4500',
+        startTime: Date.now(),
+        duration: 400
+    });
+    
+    playerTowers.landmines.active.splice(index, 1);
+}
+
+// ============================================
+// CONSUMABLE FUNCTIONS
+// ============================================
+
+function useBomb() {
+    for (let i = monsters.length - 1; i >= 0; i--) {
+        const monster = monsters[i];
+        monster.health -= 100;
+        createDamageIndicator(monster.x, monster.y, 100, true);
+        
+        if (monster.health <= 0) {
+            const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
+            const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
+            const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
+            gold += goldEarned;
+            createGoldPopup(monster.x, monster.y, goldEarned);
+            
+            monsters.splice(i, 1);
+            kills++;
+        }
+    }
+    
+    addVisualEffect({
+        type: 'screenExplosion',
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 300,
+        color: '#FF4500',
+        startTime: Date.now(),
+        duration: 500
+    });
+    
+    queueMessage("BOOM! All monsters damaged!");
+}
+
+function activateRagePotion() {
+    activeBuffs.rage.active = true;
+    activeBuffs.rage.originalMultiplier = player.damageMultiplier;
+    activeBuffs.rage.endTime = Date.now() + 10000;
+    
+    player.damageMultiplier *= 1.5;
+    
+    addVisualEffect({
+        type: 'rage',
+        x: player.x,
+        y: player.y,
+        radius: 50,
+        color: '#FF0000',
+        startTime: Date.now(),
+        duration: 10000
+    });
+    
+    queueMessage("RAGE! +50% damage for 10 seconds!");
+    
+    setTimeout(() => {
+        if (activeBuffs.rage.active) {
+            activeBuffs.rage.active = false;
+            player.damageMultiplier = activeBuffs.rage.originalMultiplier;
+            queueMessage("Rage effect ended");
+        }
+    }, 10000);
+}
+
+function useExpScroll() {
+    if (player.weapons.length === 0) {
+        queueMessage("No weapons to upgrade!");
+        return;
+    }
+    
+    const randomIndex = Math.floor(Math.random() * player.weapons.length);
+    const weapon = player.weapons[randomIndex];
+    
+    if (weapon.tier >= 5) {
+        queueMessage(`${weapon.name} is already max tier!`);
+        return;
+    }
+    
+    const oldTier = weapon.tier;
+    weapon.tier++;
+    weapon.applyTierBonuses();
+    
+    addVisualEffect({
+        type: 'upgrade',
+        x: player.x,
+        y: player.y,
+        radius: 40,
+        color: '#FFD700',
+        startTime: Date.now(),
+        duration: 1000
+    });
+    
+    queueMessage(`${weapon.name} upgraded from Tier ${oldTier} to Tier ${weapon.tier}!`);
+    updateWeaponDisplay();
+}
 
 // ============================================
 // MESSAGE QUEUE SYSTEM
@@ -853,11 +1141,11 @@ function createStatsPanel() {
             </div>
             <div class="stat-row">
                 <span class="stat-label">⚔️ Damage Multiplier:</span>
-                <span class="stat-value" id="stat-damage">${(player.damageMultiplier * 100).toFixed(0)}%</span>
+                <span class="stat-value" id="stat-damage">100%</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">👟 Speed Multiplier:</span>
-                <span class="stat-value" id="stat-speed">${(player.speedMultiplier * 100).toFixed(0)}%</span>
+                <span class="stat-value" id="stat-speed">100%</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">💰 Gold:</span>
@@ -906,6 +1194,10 @@ function createStatsPanel() {
             </div>
             <div class="stat-divider"></div>
             <div class="stat-row">
+                <span class="stat-label">💣 Landmines:</span>
+                <span class="stat-value" id="stat-landmines">0/5</span>
+            </div>
+            <div class="stat-row">
                 <span class="stat-label">📜 Blood Contract:</span>
                 <span class="stat-value" id="stat-bloodcontract">No (0)</span>
             </div>
@@ -948,6 +1240,7 @@ function updateStatsPanel() {
     document.getElementById('stat-gold').textContent = gold;
     document.getElementById('stat-kills').textContent = kills;
     document.getElementById('stat-wave').textContent = wave;
+    document.getElementById('stat-landmines').textContent = `${playerTowers.landmines.count}/${playerTowers.landmines.max}`;
     
     document.getElementById('stat-lifesteal').textContent = Math.floor(player.lifeSteal * 100) + '%';
     document.getElementById('stat-critical').textContent = Math.floor(player.criticalChance * 100) + '%';
@@ -1007,6 +1300,12 @@ function saveGame() {
             enchantersInk: player.enchantersInk,
             consumables: player.consumables
         },
+        towers: {
+            landmines: {
+                count: playerTowers.landmines.count,
+                max: playerTowers.landmines.max
+            }
+        },
         weapons: player.weapons.map(w => ({
             id: w.id,
             tier: w.tier,
@@ -1040,6 +1339,11 @@ function loadGame() {
         refreshCost = gameData.refreshCost || 5;
         
         Object.assign(player, gameData.player);
+        
+        if (gameData.towers) {
+            playerTowers.landmines.count = gameData.towers.landmines.count || 0;
+            playerTowers.landmines.max = gameData.towers.landmines.max || 5;
+        }
         
         player.weapons = [];
         gameData.weapons.forEach(w => {
@@ -1205,7 +1509,7 @@ function generateShopItems() {
             const randomIndex = Math.floor(Math.random() * availableItems.length);
             const item = {...availableItems[randomIndex]};
             shopItems.push({
-                type: 'item',
+                type: item.type === 'tower' ? 'tower' : 'item',
                 data: item
             });
         }
@@ -1269,10 +1573,10 @@ function initGame() {
         radius: 20,
         health: GAME_DATA.PLAYER_START.health,
         maxHealth: GAME_DATA.PLAYER_START.maxHealth,
-        damageMultiplier: 1.0, // Start at 100%
+        damageMultiplier: 1.0,
         speed: GAME_DATA.PLAYER_START.speed,
         baseSpeed: GAME_DATA.PLAYER_START.speed,
-        speedMultiplier: 1.0, // Start at 100%
+        speedMultiplier: 1.0,
         color: '#ff6b6b',
         lifeSteal: 0,
         criticalChance: 0,
@@ -1308,6 +1612,10 @@ function initGame() {
         slowFieldTicks: 0,
         lastSlowFieldTick: 0
     });
+    
+    // Reset towers
+    playerTowers.landmines.count = 0;
+    playerTowers.landmines.active = [];
     
     const handgun = getWeaponById('handgun');
     player.weapons.push(new WeaponInstance(handgun));
@@ -1463,6 +1771,13 @@ function startWave() {
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
     
+    // Reset throwable weapon ammo
+    player.weapons.forEach(weapon => {
+        if (weapon.resetEachRound) {
+            weapon.resetAmmo();
+        }
+    });
+    
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
@@ -1522,6 +1837,13 @@ function startWave() {
     mergeTargetIndex = -1;
     
     showSpawnIndicators();
+    
+    // Spawn a landmine if player has any
+    setTimeout(() => {
+        if (playerTowers.landmines.count > 0) {
+            spawnRandomLandmine();
+        }
+    }, 500);
     
     setTimeout(() => {
         const monsterCount = waveConfig.monsters;
@@ -1890,7 +2212,6 @@ function updateDasher(dasher, currentTime) {
 // ============================================
 
 function updateUI() {
-    // Calculate total damage multiplier percentage
     const damagePercent = (player.damageMultiplier * 100).toFixed(0);
     const speedPercent = (player.speedMultiplier * 100).toFixed(0);
     
@@ -1953,15 +2274,31 @@ function updateWeaponDisplay() {
                 reloadPercent = Math.min(100, (timeSinceReloadStart / weapon.reloadTime) * 100);
             }
             
-            // Calculate effective damage with multiplier
             const effectiveDamage = Math.floor(weapon.baseDamage * player.damageMultiplier);
+            
+            // Special display for throwable weapons (like Throwing Knives)
+            let ammoDisplay = '';
+            if (weapon.usesAmmo) {
+                if (weapon.isThrowable) {
+                    // Show as knife icons or count
+                    const ammoPercent = (weapon.currentAmmo / weapon.magazineSize) * 100;
+                    ammoDisplay = `
+                        <div class="throwable-ammo">
+                            ${'🔪'.repeat(Math.min(weapon.currentAmmo, 5))}
+                            <span>${weapon.currentAmmo}/${weapon.magazineSize}</span>
+                        </div>
+                    `;
+                } else {
+                    ammoDisplay = `<div class="ammo-display">${weapon.currentAmmo}/${weapon.magazineSize}</div>`;
+                }
+            }
             
             slot.innerHTML = `
                 <div>${weapon.icon}</div>
                 ${weapon.tier > 1 ? `<div class="tier-badge">${weapon.tier}</div>` : ''}
                 <div class="weapon-level">${weapon.type === 'melee' ? '⚔️' : '🔫'}</div>
                 <div class="melee-type">${weapon.getTypeDescription()}</div>
-                ${weapon.usesAmmo ? `<div class="ammo-display">${weapon.currentAmmo}/${weapon.magazineSize}</div>` : ''}
+                ${ammoDisplay}
                 <div class="weapon-info">${weapon.getDisplayName()}<br>Base: ${weapon.baseDamage}<br>Total: ${effectiveDamage}<br>Spd: ${(weapon.attackSpeed * player.attackSpeedMultiplier).toFixed(1)}/s</div>
                 <div class="cooldown-bar">
                     <div class="cooldown-fill" style="width: ${cooldownPercent}%; 
@@ -2033,15 +2370,29 @@ function useConsumable(index) {
             player.health = Math.min(player.maxHealth, player.health + healAmount);
             queueMessage(`Used Health Potion! +${healAmount} HP (25%)`);
             break;
+            
         case 'ammo_pack':
             player.weapons.forEach(weapon => {
-                if (weapon.usesAmmo) {
+                if (weapon.usesAmmo && !weapon.isThrowable) {
                     weapon.currentAmmo = weapon.magazineSize;
                     weapon.isReloading = false;
                 }
             });
             queueMessage("Used Ammo Pack! All weapons reloaded");
             break;
+            
+        case 'rage_potion':
+            activateRagePotion();
+            break;
+            
+        case 'bomb':
+            useBomb();
+            break;
+            
+        case 'exp_scroll':
+            useExpScroll();
+            break;
+            
         case 'explosive_trap':
             activeTraps.push({
                 x: player.x,
@@ -2222,13 +2573,17 @@ function updateShopDisplay() {
                 if (data.type === 'melee') {
                     if (data.meleeType === 'aoe') tagClass = 'aoe-tag';
                     else if (data.meleeType === 'pierce') tagClass = 'pierce-tag';
+                    else if (data.meleeType === 'dual') tagClass = 'dual-tag';
                     else tagClass = 'single-tag';
                 } else {
                     if (data.id === 'shotgun') tagClass = 'shotgun-tag';
                     else if (data.id === 'laser') tagClass = 'energy-tag';
                     else if (data.id === 'boomerang') tagClass = 'boomerang-tag';
+                    else if (data.id === 'throwing_knives') tagClass = 'throwing-tag';
                     else tagClass = 'ranged-tag';
                 }
+            } else if (shopItem.type === 'tower') {
+                tagClass = 'tower-tag';
             }
             
             let typeText = '';
@@ -2236,8 +2591,11 @@ function updateShopDisplay() {
                 if (data.id === 'shotgun') typeText = 'SHOTGUN';
                 else if (data.id === 'laser') typeText = 'ENERGY';
                 else if (data.id === 'boomerang') typeText = 'BOOMERANG';
+                else if (data.id === 'throwing_knives') typeText = 'THROWING';
                 else if (data.type === 'melee') typeText = data.meleeType.toUpperCase();
                 else typeText = 'RANGED';
+            } else if (shopItem.type === 'tower') {
+                typeText = 'TOWER';
             } else {
                 typeText = data.type === 'consumable' ? 'CONSUMABLE' : 'PERMANENT';
             }
@@ -2308,6 +2666,19 @@ function purchaseItem(index) {
         player.weapons.push(new WeaponInstance(data, tier));
         queueMessage(`Purchased ${data.name} Tier ${tier}!`);
         
+    } else if (shopItem.type === 'tower') {
+        // Handle tower purchases
+        if (data.id === 'landmine') {
+            if (playerTowers.landmines.count >= playerTowers.landmines.max) {
+                queueMessage(`Maximum landmines (${playerTowers.landmines.max}) reached!`);
+                gold += cost;
+                return;
+            }
+            
+            playerTowers.landmines.count++;
+            queueMessage(`Purchased Landmine! (${playerTowers.landmines.count}/${playerTowers.landmines.max})`);
+        }
+        
     } else {
         if (data.type === 'consumable') {
             const existingConsumable = player.consumables.find(c => c.id === data.id);
@@ -2339,18 +2710,15 @@ function purchaseItem(index) {
 function applyPermanentItemEffect(item) {
     switch(item.id) {
         case 'damage_orb':
-            // +15% damage multiplier
             player.damageMultiplier += 0.15;
             queueMessage(`Damage increased by 15%! Now ${Math.floor(player.damageMultiplier * 100)}%`);
             break;
         case 'speed_boots':
-            // +15% speed multiplier
             player.speedMultiplier += 0.15;
             player.speed = player.baseSpeed * player.speedMultiplier;
             queueMessage(`Speed increased by 15%! Now ${Math.floor(player.speedMultiplier * 100)}%`);
             break;
         case 'health_upgrade':
-            // +25% max health
             const oldMax = player.maxHealth;
             player.maxHealth = Math.floor(oldMax * 1.25);
             player.health += player.maxHealth - oldMax;
@@ -2378,7 +2746,7 @@ function applyPermanentItemEffect(item) {
             player.firstHitReduction = true;
             break;
         case 'healing_fountain':
-            player.healthRegenPercent += 0.02; // 2% regen per second
+            player.healthRegenPercent += 0.02;
             break;
         case 'guardian_angel':
             player.guardianAngel = true;
@@ -2506,6 +2874,9 @@ function endWave() {
     gameState = 'statSelect';
     waveActive = false;
     
+    // Clear active landmines at end of wave
+    playerTowers.landmines.active = [];
+    
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
@@ -2531,7 +2902,7 @@ function endWave() {
     gold += Math.floor(waveConfig.goldReward * (1 + player.goldMultiplier));
     
     player.weapons.forEach(weapon => {
-        if (weapon.usesAmmo) {
+        if (weapon.usesAmmo && !weapon.isThrowable) {
             weapon.currentAmmo = weapon.magazineSize;
             weapon.isReloading = false;
         }
@@ -2646,6 +3017,7 @@ function gameLoop() {
     }
     
     drawSpawnIndicators();
+    drawTowers();
     drawMonsters();
     drawProjectiles();
     drawBossProjectiles();
@@ -2681,6 +3053,47 @@ function drawGrid() {
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
     }
+}
+
+function drawTowers() {
+    // Draw landmines
+    playerTowers.landmines.active.forEach(mine => {
+        ctx.save();
+        ctx.translate(mine.x, mine.y);
+        
+        const pulse = Math.sin(Date.now() * 0.01) * 0.2 + 0.8;
+        
+        ctx.shadowColor = '#8B4513';
+        ctx.shadowBlur = 15;
+        
+        // Outer ring (pulsing)
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, mine.radius * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Base
+        ctx.fillStyle = mine.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, mine.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner core
+        ctx.fillStyle = '#FF4500';
+        ctx.beginPath();
+        ctx.arc(0, 0, mine.radius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Danger symbol
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💣', 0, 0);
+        
+        ctx.restore();
+    });
 }
 
 function drawSpawnIndicators() {
@@ -2824,12 +3237,14 @@ function drawProjectiles() {
             drawLaserProjectile(ctx, projectile, currentTime);
         } else if (projectile.weaponId === 'machinegun') {
             drawMachinegunProjectile(ctx, projectile, currentTime);
+        } else if (projectile.animation === 'knife') {
+            drawThrowingKnife(ctx, projectile, currentTime);
         } else {
             ctx.shadowColor = projectile.color;
             ctx.shadowBlur = 15;
             ctx.fillStyle = projectile.color;
             ctx.beginPath();
-            ctx.arc(projectile.x, projectile.y, projectile.isPellet ? 2 : 4, 0, Math.PI * 2);
+            ctx.arc(projectile.x, projectile.y, projectile.size || 4, 0, Math.PI * 2);
             ctx.fill();
             
             ctx.shadowBlur = 0;
@@ -2844,6 +3259,47 @@ function drawProjectiles() {
         
         ctx.restore();
     });
+}
+
+function drawThrowingKnife(ctx, projectile, currentTime) {
+    // Update rotation for spinning
+    projectile.rotation = (projectile.rotation || 0) + (projectile.spinSpeed || 0.2);
+    
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(projectile.rotation);
+    
+    ctx.shadowColor = '#C0C0C0';
+    ctx.shadowBlur = 15;
+    
+    // Draw knife
+    ctx.fillStyle = '#C0C0C0';
+    ctx.strokeStyle = '#808080';
+    ctx.lineWidth = 2;
+    
+    // Blade
+    ctx.beginPath();
+    ctx.moveTo(0, -projectile.size);
+    ctx.lineTo(projectile.size, 0);
+    ctx.lineTo(0, projectile.size);
+    ctx.lineTo(-projectile.size, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Handle
+    ctx.fillStyle = '#8B4513';
+    ctx.beginPath();
+    ctx.rect(-projectile.size * 0.3, -projectile.size * 0.8, projectile.size * 0.6, projectile.size * 1.6);
+    ctx.fill();
+    
+    // Glint
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.arc(-projectile.size * 0.2, -projectile.size * 0.5, 1, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
 }
 
 function drawMonsterProjectiles() {
@@ -3054,6 +3510,9 @@ function drawMeleeAttacks() {
             case 'spear':
                 drawTrident(ctx, attack, angle, progress, distance, alpha);
                 break;
+            case 'dual_daggers':
+                drawDualDaggers(ctx, attack, angle, progress, distance, alpha);
+                break;
             default:
                 drawDefaultMelee(ctx, attack, angle, progress, distance, alpha);
                 break;
@@ -3061,6 +3520,81 @@ function drawMeleeAttacks() {
         
         ctx.restore();
     });
+}
+
+function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
+    // First dagger
+    ctx.save();
+    ctx.rotate(angle - 0.2);
+    ctx.translate(distance * 0.8, 0);
+    
+    ctx.shadowColor = 'rgba(70, 130, 180, 0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    
+    // Blade
+    ctx.fillStyle = attack.bladeColor || '#4682B4';
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(30, -1);
+    ctx.lineTo(30, 1);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Hilt
+    ctx.fillStyle = attack.hiltColor || '#2F4F4F';
+    ctx.fillRect(-5, -4, 8, 8);
+    
+    // Glow
+    ctx.fillStyle = attack.sparkleColor || '#00FFFF';
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.beginPath();
+    ctx.arc(30, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    // Second dagger (offset)
+    ctx.save();
+    ctx.rotate(angle + 0.2);
+    ctx.translate(distance * 0.8, 0);
+    
+    ctx.shadowColor = 'rgba(70, 130, 180, 0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    
+    // Blade
+    ctx.fillStyle = attack.bladeColor || '#4682B4';
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(30, -1);
+    ctx.lineTo(30, 1);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Hilt
+    ctx.fillStyle = attack.hiltColor || '#2F4F4F';
+    ctx.fillRect(-5, -4, 8, 8);
+    
+    // Glow
+    ctx.fillStyle = attack.sparkleColor || '#00FFFF';
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.beginPath();
+    ctx.arc(30, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    // Trail effect
+    if (progress < 0.5) {
+        ctx.save();
+        ctx.rotate(angle);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.3})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(40, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
 }
 
 function drawBossMeleeAttacks() {
@@ -3675,6 +4209,16 @@ function drawPlayer() {
         ctx.fillText(`${player.bloodContractStacks}`, 0, -player.radius - 10);
     }
     
+    if (activeBuffs.rage.active) {
+        ctx.shadowColor = '#FF0000';
+        ctx.shadowBlur = 30;
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 10 + Math.sin(Date.now() * 0.02) * 5, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
     if (player.inSlowField) {
         ctx.shadowColor = '#6464ff';
         ctx.shadowBlur = 15;
@@ -3699,6 +4243,9 @@ function drawPlayer() {
 
 function updateGame(deltaTime) {
     const currentTime = Date.now();
+    
+    // Check landmine triggers
+    checkLandmineTriggers();
     
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
         const boss = monsters.find(m => m.isBoss && wave === 30);
@@ -3901,6 +4448,12 @@ function updateWeapons() {
                     player.projectiles.push(attack);
                 } else {
                     player.meleeAttacks.push(attack);
+                    
+                    // For dual daggers, add second attack
+                    if (weapon.dualStrike) {
+                        const secondAttack = {...attack, angle: attack.angle + 0.2};
+                        player.meleeAttacks.push(secondAttack);
+                    }
                 }
             }
         }
@@ -4154,7 +4707,7 @@ function updateProjectiles() {
             const dy = projectile.y - monster.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < (projectile.isPellet ? 3 : 5) + monster.radius) {
+            if (distance < (projectile.size || 4) + monster.radius) {
                 let damage = projectile.damage;
                 let isCritical = false;
                 
@@ -4163,8 +4716,6 @@ function updateProjectiles() {
                     isCritical = true;
                 }
                 
-                // Apply damage multiplier - this is the key change
-                // Weapon damage * multiplier = total damage
                 damage = Math.floor(damage * player.damageMultiplier);
                 
                 monster.health -= damage;
@@ -4336,8 +4887,6 @@ function updateMeleeAttacks() {
                     isCritical = true;
                 }
                 
-                // Apply damage multiplier - this is the key change
-                // Weapon damage * multiplier = total damage
                 damage = Math.floor(damage * player.damageMultiplier);
                 
                 monster.health -= damage;
@@ -4704,6 +5253,49 @@ function drawVisualEffects() {
                 ctx.fill();
                 break;
                 
+            case 'landmineSpawn':
+                ctx.strokeStyle = effect.color;
+                ctx.lineWidth = 2;
+                ctx.shadowColor = effect.color;
+                ctx.shadowBlur = 15 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'screenExplosion':
+                ctx.fillStyle = `rgba(255, 69, 0, ${alpha * 0.3})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * progress, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'rage':
+                ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.2})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'upgrade':
+                ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+                ctx.shadowColor = '#FFD700';
+                ctx.shadowBlur = 30;
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2 + progress * 2;
+                    const distance = effect.radius * progress;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, 
+                           effect.y + Math.sin(angle) * distance, 
+                           3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+                
             case 'asteroidWarning':
                 ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
                 ctx.lineWidth = 3;
@@ -4960,7 +5552,7 @@ document.addEventListener('keydown', (e) => {
     if (key === 'r') {
         if (gameState === 'shop') {
             player.weapons.forEach(weapon => {
-                if (weapon.usesAmmo && !weapon.isReloading) {
+                if (weapon.usesAmmo && !weapon.isReloading && !weapon.isThrowable) {
                     weapon.startReload();
                 }
             });
@@ -5515,6 +6107,12 @@ style.textContent = `
         border-radius: 5px;
         pointer-events: none;
         z-index: 100;
+    }
+
+    .throwable-ammo {
+        display: flex;
+        gap: 2px;
+        font-size: 0.8rem;
     }
 `;
 document.head.appendChild(style);
