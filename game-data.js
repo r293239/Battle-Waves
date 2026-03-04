@@ -18,18 +18,18 @@ const GAME_DATA = {
     // Wave configurations - 30 waves, boss every 10th wave
     WAVES: [
         // Wave 1-9: Regular waves
-        { number: 1, monsters: 5, monsterHealth: 10, monsterDamage: 2, goldReward: 50, isBoss: false },
-        { number: 2, monsters: 7, monsterHealth: 15, monsterDamage: 3, goldReward: 60, isBoss: false },
-        { number: 3, monsters: 9, monsterHealth: 20, monsterDamage: 4, goldReward: 70, isBoss: false },
-        { number: 4, monsters: 11, monsterHealth: 30, monsterDamage: 5, goldReward: 80, isBoss: false },
-        { number: 5, monsters: 13, monsterHealth: 37, monsterDamage: 6, goldReward: 90, isBoss: false },
-        { number: 6, monsters: 15, monsterHealth: 43, monsterDamage: 7, goldReward: 100, isBoss: false },
-        { number: 7, monsters: 17, monsterHealth: 48, monsterDamage: 8, goldReward: 110, isBoss: false },
+        { number: 1, monsters: 5, monsterHealth: 20, monsterDamage: 2, goldReward: 50, isBoss: false },
+        { number: 2, monsters: 7, monsterHealth: 25, monsterDamage: 3, goldReward: 60, isBoss: false },
+        { number: 3, monsters: 9, monsterHealth: 30, monsterDamage: 4, goldReward: 70, isBoss: false },
+        { number: 4, monsters: 11, monsterHealth: 35, monsterDamage: 5, goldReward: 80, isBoss: false },
+        { number: 5, monsters: 13, monsterHealth: 40, monsterDamage: 6, goldReward: 90, isBoss: false },
+        { number: 6, monsters: 15, monsterHealth: 45, monsterDamage: 7, goldReward: 100, isBoss: false },
+        { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110, isBoss: false },
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120, isBoss: false },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130, isBoss: false },
         
         // Wave 10: First Boss Wave
-        { number: 10, monsters: 1, monsterHealth: 2700, monsterDamage: 15, goldReward: 300, isBoss: true },
+        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 300, isBoss: true },
 
         // Waves 11-19: Regular waves
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140, isBoss: false },
@@ -141,6 +141,7 @@ const GAME_DATA = {
             usesAmmo: true,
             magazineSize: 8,
             reloadTime: 1500,
+            spread: 0.05,
             tierMultipliers: {
                 damage: [1, 1.2, 1.4, 1.7, 2.1, 2.5],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -165,6 +166,7 @@ const GAME_DATA = {
             usesAmmo: true,
             magazineSize: 6,
             reloadTime: 2000,
+            spread: 0.2,
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
                 attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
@@ -188,6 +190,7 @@ const GAME_DATA = {
             usesAmmo: true,
             magazineSize: 50,
             reloadTime: 2500,
+            spread: 0.1,
             tierMultipliers: {
                 damage: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
                 attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
@@ -212,6 +215,7 @@ const GAME_DATA = {
             usesAmmo: true,
             magazineSize: 15,
             reloadTime: 1800,
+            spread: 0,
             tierMultipliers: {
                 damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -237,11 +241,42 @@ const GAME_DATA = {
             maxTargets: 4,
             useImage: true,
             imagePath: 'assets/boomerang.png',
+            spread: 0,
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
                 range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
                 maxTargets: [1, 1, 2, 2, 3, 4]
+            }
+        },
+        
+        // NEW: Throwing Knives
+        {
+            id: 'throwing_knives',
+            name: 'Throwing Knives',
+            icon: '🔪',
+            type: 'ranged',
+            baseDamage: 4,
+            attackSpeed: 2.0,
+            range: 250,
+            projectileSpeed: 12,
+            cost: 85,
+            description: 'Limited knives per round, higher tier = more knives',
+            projectileColor: '#C0C0C0',
+            animation: 'knife',
+            usesAmmo: true,
+            magazineSize: 5,
+            reloadTime: 0,
+            isThrowable: true,
+            resetEachRound: true,
+            projectileSize: 6,
+            spinSpeed: 0.2,
+            spread: 0.02,
+            tierMultipliers: {
+                damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                magazine: [1, 1.4, 1.8, 2.2, 2.6, 3.0],
+                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
             }
         },
         
@@ -297,6 +332,35 @@ const GAME_DATA = {
                 attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
                 range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
                 shockwaveIntensity: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
+            }
+        },
+        
+        // NEW: Dual Daggers
+        {
+            id: 'dual_daggers',
+            name: 'Dual Daggers',
+            icon: '🗡️🗡️',
+            type: 'melee',
+            meleeType: 'dual',
+            baseDamage: 6,
+            attackSpeed: 3.0,
+            range: 60,
+            cost: 90,
+            description: 'Two fast daggers that strike twice per attack',
+            swingColor: '#4682B4',
+            swingAngle: 45,
+            animation: 'dualDaggers',
+            trailColor: '#87CEEB',
+            bladeColor: '#4682B4',
+            hiltColor: '#2F4F4F',
+            gripColor: '#8B4513',
+            sparkleColor: '#00FFFF',
+            usesAmmo: false,
+            dualStrike: true,
+            tierMultipliers: {
+                damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
+                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
+                range: [1, 1.05, 1.1, 1.15, 1.2, 1.25]
             }
         },
         {
@@ -383,6 +447,7 @@ const GAME_DATA = {
 
     // Items available in shop
     ITEMS: [
+        // Consumable Items
         {
             id: 'health_potion',
             name: 'Health Potion',
@@ -391,6 +456,58 @@ const GAME_DATA = {
             cost: 50,
             description: 'Restore 25% of max health'
         },
+        {
+            id: 'ammo_pack',
+            name: 'Ammo Pack',
+            icon: '📦',
+            type: 'consumable',
+            cost: 40,
+            description: 'Fully reload all ranged weapons (except throwables)'
+        },
+        
+        // NEW: Rage Potion
+        {
+            id: 'rage_potion',
+            name: 'Rage Potion',
+            icon: '🔥',
+            type: 'consumable',
+            cost: 60,
+            description: '+50% damage for 10 seconds'
+        },
+        
+        // NEW: Bomb
+        {
+            id: 'bomb',
+            name: 'Bomb',
+            icon: '💣',
+            type: 'consumable',
+            cost: 45,
+            description: 'Large area explosion dealing 100 damage to all enemies'
+        },
+        
+        // NEW: Experience Scroll
+        {
+            id: 'exp_scroll',
+            name: 'Experience Scroll',
+            icon: '📜✨',
+            type: 'consumable',
+            cost: 500,
+            description: 'Instantly upgrade a random weapon by one tier'
+        },
+        
+        // NEW: Landmine Tower
+        {
+            id: 'landmine',
+            name: 'Landmine',
+            icon: '💥',
+            type: 'tower',
+            category: 'tower',
+            cost: 75,
+            maxPerGame: 5,
+            description: 'Place a landmine. One spawns randomly each wave, max 5 total. Deals 80 damage in an area when triggered.'
+        },
+        
+        // Permanent Items
         {
             id: 'damage_orb',
             name: 'Damage Orb',
@@ -416,12 +533,76 @@ const GAME_DATA = {
             description: 'Permanently +25% max health'
         },
         {
-            id: 'ammo_pack',
-            name: 'Ammo Pack',
-            icon: '📦',
-            type: 'consumable',
-            cost: 40,
-            description: 'Fully reload all ranged weapons'
+            id: 'vampire_teeth',
+            name: 'Vampire Teeth',
+            icon: '🦷',
+            type: 'permanent',
+            cost: 120,
+            description: 'Permanently +5% life steal'
+        },
+        {
+            id: 'berserker_ring',
+            name: 'Berserker Ring',
+            icon: '💍',
+            type: 'permanent',
+            cost: 150,
+            description: 'Damage increases as health decreases'
+        },
+        {
+            id: 'ninja_scroll',
+            name: 'Ninja Scroll',
+            icon: '📜',
+            type: 'permanent',
+            cost: 130,
+            description: '+15% chance to dodge attacks'
+        },
+        {
+            id: 'alchemist_stone',
+            name: 'Alchemist Stone',
+            icon: '🪨',
+            type: 'permanent',
+            cost: 140,
+            description: 'Earn 20% more gold'
+        },
+        {
+            id: 'thorns_armor',
+            name: 'Thorns Armor',
+            icon: '🌵',
+            type: 'permanent',
+            cost: 120,
+            description: 'Reflect 25% of damage back to attackers'
+        },
+        {
+            id: 'wind_charm',
+            name: 'Wind Charm',
+            icon: '🍃',
+            type: 'permanent',
+            cost: 110,
+            description: '+15% attack speed'
+        },
+        {
+            id: 'runic_plate',
+            name: 'Runic Plate',
+            icon: '🔰',
+            type: 'permanent',
+            cost: 160,
+            description: 'First hit in each wave deals 50% less damage'
+        },
+        {
+            id: 'healing_fountain',
+            name: 'Healing Fountain',
+            icon: '⛲',
+            type: 'permanent',
+            cost: 150,
+            description: 'Regenerate 2% HP per second'
+        },
+        {
+            id: 'guardian_angel',
+            name: 'Guardian Angel',
+            icon: '😇',
+            type: 'permanent',
+            cost: 200,
+            description: 'Once per game, survive fatal damage with 50% health'
         },
         {
             id: 'blood_contract',
@@ -429,26 +610,25 @@ const GAME_DATA = {
             icon: '📜🩸',
             type: 'permanent',
             cost: 150,
-            description: '+3% lifesteal, but lose 1% HP per second (stacks)',
-            effect: { 
-                lifeSteal: 0.03,
-                healthRegen: 0
-            },
-            onPurchase: function(player) {
-                // Reset health regen to 0 when purchased
-                player.healthRegen = 0;
-                
-                // Blood contract stacking is handled in the game logic
-                // This is just the data definition
-            },
-            onRemove: function(player) {
-                // Clean up is handled in game logic
-            }
+            description: '+3% lifesteal per stack, but lose 1% HP per second per stack (stacks)'
         }
     ]
 };
 
+// Tower tracking object (for use in game logic)
+const TOWER_DATA = {
+    landmine: {
+        maxPerGame: 5,
+        damage: 80,
+        radius: 60,
+        triggerRadius: 15,
+        color: '#8B4513'
+    }
+};
+
 // Verify data is loaded
 console.log('GAME_DATA loaded with', GAME_DATA.WAVES.length, 'waves');
-console.log('STAT_BUFFS updated to percentage-based:', GAME_DATA.STAT_BUFFS.length);
-console.log('ITEMS updated to percentage-based:', GAME_DATA.ITEMS.length);
+console.log('New items added: Rage Potion, Bomb, Experience Scroll, Landmine');
+console.log('New weapons added: Throwing Knives, Dual Daggers');
+console.log('Total weapons:', GAME_DATA.WEAPONS.length);
+console.log('Total items:', GAME_DATA.ITEMS.length);
