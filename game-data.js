@@ -190,7 +190,7 @@ const GAME_DATA = {
             usesAmmo: true,
             magazineSize: 50,
             reloadTime: 2500,
-            spread: 0.1,
+            spread: 1,
             tierMultipliers: {
                 damage: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
                 attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
@@ -265,12 +265,12 @@ const GAME_DATA = {
             projectileColor: '#C0C0C0',
             animation: 'knife',
             usesAmmo: true,
-            magazineSize: 5,
+            magazineSize: 7,
             reloadTime: 0,
             isThrowable: true,
             resetEachRound: true,
             projectileSize: 6,
-            spinSpeed: 0.2,
+            spinSpeed: 0,
             spread: 0.02,
             tierMultipliers: {
                 damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
@@ -481,7 +481,7 @@ const GAME_DATA = {
             name: 'Bomb',
             icon: '💣',
             type: 'consumable',
-            cost: 45,
+            cost: 75,
             description: 'Large area explosion dealing 100 damage to all enemies'
         },
         
@@ -537,7 +537,7 @@ const GAME_DATA = {
             name: 'Vampire Teeth',
             icon: '🦷',
             type: 'permanent',
-            cost: 120,
+            cost: 320,
             description: 'Permanently +5% life steal'
         },
         {
@@ -545,7 +545,7 @@ const GAME_DATA = {
             name: 'Berserker Ring',
             icon: '💍',
             type: 'permanent',
-            cost: 150,
+            cost: 250,
             description: 'Damage increases as health decreases'
         },
         {
@@ -553,7 +553,7 @@ const GAME_DATA = {
             name: 'Ninja Scroll',
             icon: '📜',
             type: 'permanent',
-            cost: 130,
+            cost: 145,
             description: '+15% chance to dodge attacks'
         },
         {
@@ -561,7 +561,7 @@ const GAME_DATA = {
             name: 'Alchemist Stone',
             icon: '🪨',
             type: 'permanent',
-            cost: 140,
+            cost: 150,
             description: 'Earn 20% more gold'
         },
         {
@@ -585,16 +585,8 @@ const GAME_DATA = {
             name: 'Runic Plate',
             icon: '🔰',
             type: 'permanent',
-            cost: 160,
+            cost: 260,
             description: 'First hit in each wave deals 50% less damage'
-        },
-        {
-            id: 'healing_fountain',
-            name: 'Healing Fountain',
-            icon: '⛲',
-            type: 'permanent',
-            cost: 150,
-            description: 'Regenerate 2% HP per second'
         },
         {
             id: 'guardian_angel',
@@ -628,7 +620,5 @@ const TOWER_DATA = {
 
 // Verify data is loaded
 console.log('GAME_DATA loaded with', GAME_DATA.WAVES.length, 'waves');
-console.log('New items added: Rage Potion, Bomb, Experience Scroll, Landmine');
-console.log('New weapons added: Throwing Knives, Dual Daggers');
 console.log('Total weapons:', GAME_DATA.WEAPONS.length);
 console.log('Total items:', GAME_DATA.ITEMS.length);
