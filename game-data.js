@@ -18,18 +18,18 @@ const GAME_DATA = {
     // Wave configurations - 30 waves, boss every 10th wave
     WAVES: [
         // Wave 1-9: Regular waves
-        { number: 1, monsters: 5, monsterHealth: 20, monsterDamage: 2, goldReward: 50, isBoss: false },
-        { number: 2, monsters: 7, monsterHealth: 25, monsterDamage: 3, goldReward: 60, isBoss: false },
-        { number: 3, monsters: 9, monsterHealth: 30, monsterDamage: 4, goldReward: 70, isBoss: false },
-        { number: 4, monsters: 11, monsterHealth: 35, monsterDamage: 5, goldReward: 80, isBoss: false },
-        { number: 5, monsters: 13, monsterHealth: 40, monsterDamage: 6, goldReward: 90, isBoss: false },
-        { number: 6, monsters: 15, monsterHealth: 45, monsterDamage: 7, goldReward: 100, isBoss: false },
-        { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110, isBoss: false },
+        { number: 1, monsters: 5, monsterHealth: 10, monsterDamage: 2, goldReward: 50, isBoss: false },
+        { number: 2, monsters: 7, monsterHealth: 15, monsterDamage: 3, goldReward: 60, isBoss: false },
+        { number: 3, monsters: 9, monsterHealth: 20, monsterDamage: 4, goldReward: 70, isBoss: false },
+        { number: 4, monsters: 11, monsterHealth: 30, monsterDamage: 5, goldReward: 80, isBoss: false },
+        { number: 5, monsters: 13, monsterHealth: 37, monsterDamage: 6, goldReward: 90, isBoss: false },
+        { number: 6, monsters: 15, monsterHealth: 43, monsterDamage: 7, goldReward: 100, isBoss: false },
+        { number: 7, monsters: 17, monsterHealth: 48, monsterDamage: 8, goldReward: 110, isBoss: false },
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120, isBoss: false },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130, isBoss: false },
         
         // Wave 10: First Boss Wave
-        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 300, isBoss: true },
+        { number: 10, monsters: 1, monsterHealth: 2700, monsterDamage: 15, goldReward: 300, isBoss: true },
 
         // Waves 11-19: Regular waves
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140, isBoss: false },
