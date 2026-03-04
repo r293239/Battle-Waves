@@ -600,10 +600,11 @@ const player = {
     radius: 20,
     health: 20,
     maxHealth: 20,
-    baseDamage: 5,
+    // Damage multiplier starts at 1.0 (100% of weapon damage)
     damageMultiplier: 1.0,
     speed: 3,
     baseSpeed: 3,
+    // Speed multiplier starts at 1.0 (100% of base speed)
     speedMultiplier: 1.0,
     color: '#ff6b6b',
     
@@ -627,7 +628,6 @@ const player = {
     firstHitReduction: false,
     voidCrystalChance: 0,
     guardianAngelUsed: false,
-    bloodContractDamage: 0,
     
     consumables: [],
     
@@ -852,12 +852,12 @@ function createStatsPanel() {
                 <span class="stat-value" id="stat-health">0/0</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">⚔️ Damage:</span>
-                <span class="stat-value" id="stat-damage">0 (x${(player.damageMultiplier || 1).toFixed(1)})</span>
+                <span class="stat-label">⚔️ Damage Multiplier:</span>
+                <span class="stat-value" id="stat-damage">${(player.damageMultiplier * 100).toFixed(0)}%</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">👟 Speed:</span>
-                <span class="stat-value" id="stat-speed">0 (x${(player.speedMultiplier || 1).toFixed(1)})</span>
+                <span class="stat-label">👟 Speed Multiplier:</span>
+                <span class="stat-value" id="stat-speed">${(player.speedMultiplier * 100).toFixed(0)}%</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">💰 Gold:</span>
@@ -943,8 +943,8 @@ function updateStatsPanel() {
     if (!statsPanelVisible) return;
     
     document.getElementById('stat-health').textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
-    document.getElementById('stat-damage').textContent = Math.floor(player.baseDamage * (player.damageMultiplier || 1));
-    document.getElementById('stat-speed').textContent = (player.baseSpeed * (player.speedMultiplier || 1)).toFixed(1);
+    document.getElementById('stat-damage').textContent = (player.damageMultiplier * 100).toFixed(0) + '%';
+    document.getElementById('stat-speed').textContent = (player.speedMultiplier * 100).toFixed(0) + '%';
     document.getElementById('stat-gold').textContent = gold;
     document.getElementById('stat-kills').textContent = kills;
     document.getElementById('stat-wave').textContent = wave;
@@ -983,7 +983,6 @@ function saveGame() {
             y: player.y,
             health: player.health,
             maxHealth: player.maxHealth,
-            baseDamage: player.baseDamage,
             damageMultiplier: player.damageMultiplier,
             speed: player.speed,
             baseSpeed: player.baseSpeed,
@@ -1270,11 +1269,10 @@ function initGame() {
         radius: 20,
         health: GAME_DATA.PLAYER_START.health,
         maxHealth: GAME_DATA.PLAYER_START.maxHealth,
-        baseDamage: GAME_DATA.PLAYER_START.damage,
-        damageMultiplier: 1.0,
+        damageMultiplier: 1.0, // Start at 100%
         speed: GAME_DATA.PLAYER_START.speed,
         baseSpeed: GAME_DATA.PLAYER_START.speed,
-        speedMultiplier: 1.0,
+        speedMultiplier: 1.0, // Start at 100%
         color: '#ff6b6b',
         lifeSteal: 0,
         criticalChance: 0,
@@ -1294,7 +1292,6 @@ function initGame() {
         firstHitReduction: false,
         voidCrystalChance: 0,
         guardianAngelUsed: false,
-        bloodContractDamage: 0,
         
         consumables: [],
         berserkerRing: false,
@@ -1464,7 +1461,7 @@ function startWave() {
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
-    player.speed = player.baseSpeed * (player.speedMultiplier || 1);
+    player.speed = player.baseSpeed * player.speedMultiplier;
     
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
@@ -1893,12 +1890,13 @@ function updateDasher(dasher, currentTime) {
 // ============================================
 
 function updateUI() {
-    const totalDamage = Math.floor(player.baseDamage * (player.damageMultiplier || 1));
-    const totalSpeed = (player.baseSpeed * (player.speedMultiplier || 1)).toFixed(1);
+    // Calculate total damage multiplier percentage
+    const damagePercent = (player.damageMultiplier * 100).toFixed(0);
+    const speedPercent = (player.speedMultiplier * 100).toFixed(0);
     
     healthValue.textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
-    damageValue.textContent = totalDamage;
-    speedValue.textContent = totalSpeed;
+    damageValue.textContent = damagePercent + '%';
+    speedValue.textContent = speedPercent + '%';
     goldValue.textContent = gold;
     waveValue.textContent = wave;
     killsValue.textContent = kills;
@@ -1955,13 +1953,16 @@ function updateWeaponDisplay() {
                 reloadPercent = Math.min(100, (timeSinceReloadStart / weapon.reloadTime) * 100);
             }
             
+            // Calculate effective damage with multiplier
+            const effectiveDamage = Math.floor(weapon.baseDamage * player.damageMultiplier);
+            
             slot.innerHTML = `
                 <div>${weapon.icon}</div>
                 ${weapon.tier > 1 ? `<div class="tier-badge">${weapon.tier}</div>` : ''}
                 <div class="weapon-level">${weapon.type === 'melee' ? '⚔️' : '🔫'}</div>
                 <div class="melee-type">${weapon.getTypeDescription()}</div>
                 ${weapon.usesAmmo ? `<div class="ammo-display">${weapon.currentAmmo}/${weapon.magazineSize}</div>` : ''}
-                <div class="weapon-info">${weapon.getDisplayName()}<br>Dmg: ${Math.floor(weapon.baseDamage * (player.damageMultiplier || 1))}<br>Spd: ${(weapon.attackSpeed * player.attackSpeedMultiplier).toFixed(1)}/s</div>
+                <div class="weapon-info">${weapon.getDisplayName()}<br>Base: ${weapon.baseDamage}<br>Total: ${effectiveDamage}<br>Spd: ${(weapon.attackSpeed * player.attackSpeedMultiplier).toFixed(1)}/s</div>
                 <div class="cooldown-bar">
                     <div class="cooldown-fill" style="width: ${cooldownPercent}%; 
                          ${weapon.isReloading ? 'background: linear-gradient(90deg, #ff0000, #ff8800);' : ''}"></div>
@@ -2338,19 +2339,22 @@ function purchaseItem(index) {
 function applyPermanentItemEffect(item) {
     switch(item.id) {
         case 'damage_orb':
-            player.damageMultiplier = (player.damageMultiplier || 1) + 0.15;
-            queueMessage("Damage increased by 15%!");
+            // +15% damage multiplier
+            player.damageMultiplier += 0.15;
+            queueMessage(`Damage increased by 15%! Now ${Math.floor(player.damageMultiplier * 100)}%`);
             break;
         case 'speed_boots':
-            player.speedMultiplier = (player.speedMultiplier || 1) + 0.15;
+            // +15% speed multiplier
+            player.speedMultiplier += 0.15;
             player.speed = player.baseSpeed * player.speedMultiplier;
-            queueMessage("Speed increased by 15%!");
+            queueMessage(`Speed increased by 15%! Now ${Math.floor(player.speedMultiplier * 100)}%`);
             break;
         case 'health_upgrade':
+            // +25% max health
             const oldMax = player.maxHealth;
             player.maxHealth = Math.floor(oldMax * 1.25);
             player.health += player.maxHealth - oldMax;
-            queueMessage("Max health increased by 25%!");
+            queueMessage(`Max health increased by 25%! Now ${player.maxHealth}`);
             break;
         case 'vampire_teeth':
             player.lifeSteal += 0.05;
@@ -2374,7 +2378,7 @@ function applyPermanentItemEffect(item) {
             player.firstHitReduction = true;
             break;
         case 'healing_fountain':
-            player.healthRegenPercent += 0.02;
+            player.healthRegenPercent += 0.02; // 2% regen per second
             break;
         case 'guardian_angel':
             player.guardianAngel = true;
@@ -2450,19 +2454,15 @@ function selectStatBuff(buff) {
     if (buff.effect.maxHealthPercent) {
         const oldMax = player.maxHealth;
         player.maxHealth = Math.floor(oldMax * (1 + buff.effect.maxHealthPercent));
-        if (buff.effect.healthPercent) {
-            player.health += player.maxHealth - oldMax;
-        } else {
-            player.health += player.maxHealth - oldMax;
-        }
+        player.health += player.maxHealth - oldMax;
     }
     
     if (buff.effect.damagePercent) {
-        player.damageMultiplier = (player.damageMultiplier || 1) + buff.effect.damagePercent;
+        player.damageMultiplier += buff.effect.damagePercent;
     }
     
     if (buff.effect.speedPercent) {
-        player.speedMultiplier = (player.speedMultiplier || 1) + buff.effect.speedPercent;
+        player.speedMultiplier += buff.effect.speedPercent;
         player.speed = player.baseSpeed * player.speedMultiplier;
     }
     
@@ -2508,7 +2508,7 @@ function endWave() {
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
-    player.speed = player.baseSpeed * (player.speedMultiplier || 1);
+    player.speed = player.baseSpeed * player.speedMultiplier;
     
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -2550,7 +2550,7 @@ function gameOver() {
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
-    player.speed = player.baseSpeed * (player.speedMultiplier || 1);
+    player.speed = player.baseSpeed * player.speedMultiplier;
     
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -3711,11 +3711,11 @@ function updateGame(deltaTime) {
             player.inSlowField = distToField < bossAbilities.slowField.radius;
             
             if (player.inSlowField) {
-                player.speed = (player.baseSpeed * (player.speedMultiplier || 1)) * 0.5;
+                player.speed = (player.baseSpeed * player.speedMultiplier) * 0.5;
                 
                 if (currentTime - player.lastSlowFieldTick >= 1000) {
                     player.baseSpeed = Math.max(1, player.baseSpeed - 1);
-                    player.speed = (player.baseSpeed * (player.speedMultiplier || 1)) * 0.5;
+                    player.speed = (player.baseSpeed * player.speedMultiplier) * 0.5;
                     player.slowFieldTicks++;
                     player.lastSlowFieldTick = currentTime;
                     
@@ -3723,7 +3723,7 @@ function updateGame(deltaTime) {
                     queueMessage("Speed decreased by 1!");
                 }
             } else if (wasInSlowField) {
-                player.speed = player.baseSpeed * (player.speedMultiplier || 1);
+                player.speed = player.baseSpeed * player.speedMultiplier;
             }
         }
     }
@@ -4163,12 +4163,13 @@ function updateProjectiles() {
                     isCritical = true;
                 }
                 
-                damage = Math.floor(damage * (player.damageMultiplier || 1));
-                damage += player.baseDamage;
+                // Apply damage multiplier - this is the key change
+                // Weapon damage * multiplier = total damage
+                damage = Math.floor(damage * player.damageMultiplier);
                 
                 monster.health -= damage;
                 
-                createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
+                createDamageIndicator(monster.x, monster.y, damage, isCritical);
                 
                 if (player.lifeSteal > 0) {
                     const healAmount = Math.floor(damage * player.lifeSteal);
@@ -4335,12 +4336,13 @@ function updateMeleeAttacks() {
                     isCritical = true;
                 }
                 
-                damage = Math.floor(damage * (player.damageMultiplier || 1));
-                damage += player.baseDamage;
+                // Apply damage multiplier - this is the key change
+                // Weapon damage * multiplier = total damage
+                damage = Math.floor(damage * player.damageMultiplier);
                 
                 monster.health -= damage;
                 
-                createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
+                createDamageIndicator(monster.x, monster.y, damage, isCritical);
                 
                 if (player.lifeSteal > 0) {
                     const healAmount = Math.floor(damage * player.lifeSteal);
