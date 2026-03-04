@@ -589,179 +589,11 @@ let keys = {
     up: false,
     down: false,
     left: false,
-    right: false
+    right: false,
+    space: false
 };
 
-function saveGame() {
-    if (gameState === 'start' || gameState === 'gameover') return;
-    
-    const gameData = {
-        wave: wave,
-        gold: gold,
-        kills: kills,
-        gameState: gameState,
-        waveActive: waveActive,
-        refreshCount: refreshCount,
-        refreshCost: refreshCost,
-        player: {
-            x: player.x,
-            y: player.y,
-            health: player.health,
-            maxHealth: player.maxHealth,
-            baseDamage: player.baseDamage,
-            speed: player.speed,
-            baseSpeed: player.baseSpeed,
-            lifeSteal: player.lifeSteal,
-            criticalChance: player.criticalChance,
-            goldMultiplier: player.goldMultiplier,
-            healthRegen: player.healthRegen,
-            damageReduction: player.damageReduction,
-            dodgeChance: player.dodgeChance,
-            thornsDamage: player.thornsDamage,
-            attackSpeedMultiplier: player.attackSpeedMultiplier,
-            firstHitReduction: player.firstHitReduction,
-            guardianAngel: player.guardianAngel,
-            guardianAngelUsed: player.guardianAngelUsed,
-            bloodContract: player.bloodContract,
-            bloodContractStacks: player.bloodContractStacks,
-            berserkerRing: player.berserkerRing,
-            sharpeningStone: player.sharpeningStone,
-            sharpeningStoneWave: player.sharpeningStoneWave,
-            enchantersInk: player.enchantersInk,
-            consumables: player.consumables
-        },
-        weapons: player.weapons.map(w => ({
-            id: w.id,
-            tier: w.tier,
-            currentAmmo: w.currentAmmo,
-            isReloading: w.isReloading
-        })),
-        shopItems: shopItems,
-        timestamp: Date.now()
-    };
-    
-    localStorage.setItem('gameSave', JSON.stringify(gameData));
-    queueMessage('Game saved!');
-}
-
-function loadGame() {
-    const saved = localStorage.getItem('gameSave');
-    if (!saved) {
-        queueMessage('No saved game found!');
-        return false;
-    }
-    
-    try {
-        const gameData = JSON.parse(saved);
-        
-        wave = gameData.wave;
-        gold = gameData.gold;
-        kills = gameData.kills;
-        gameState = gameData.gameState;
-        waveActive = gameData.waveActive;
-        refreshCount = gameData.refreshCount || 0;
-        refreshCost = gameData.refreshCost || 5;
-        
-        Object.assign(player, gameData.player);
-        
-        player.weapons = [];
-        gameData.weapons.forEach(w => {
-            const weaponData = GAME_DATA.WEAPONS.find(weap => weap.id === w.id);
-            if (weaponData) {
-                const weapon = new WeaponInstance(weaponData, w.tier);
-                if (weapon.usesAmmo) {
-                    weapon.currentAmmo = w.currentAmmo;
-                    weapon.isReloading = w.isReloading;
-                }
-                player.weapons.push(weapon);
-            }
-        });
-        
-        shopItems = gameData.shopItems || [];
-        
-        if (player.bloodContract) {
-            if (player.bloodContractInterval) {
-                clearInterval(player.bloodContractInterval);
-            }
-            
-            // Restart blood contract drain with percentage-based damage
-            player.bloodContractInterval = setInterval(() => {
-                if (gameState === 'wave') {
-                    // Calculate 1% of max health per stack
-                    const damagePercent = 0.01 * player.bloodContractStacks;
-                    const damageAmount = Math.max(1, Math.floor(player.maxHealth * damagePercent));
-                    
-                    if (player.health > damageAmount) {
-                        player.health -= damageAmount;
-                    } else {
-                        player.health = 1;
-                    }
-                    
-                    updateUI();
-                    createDamageIndicator(player.x, player.y, damageAmount, false);
-                }
-            }, 1000);
-        }
-        
-        startScreen.style.display = 'none';
-        waveCompleteOverlay.style.display = 'none';
-        gameOverOverlay.style.display = 'none';
-        
-        if (gameState === 'wave') {
-            startWave();
-        } else if (gameState === 'shop') {
-            nextWaveBtn.style.display = 'block';
-            updateShopDisplay();
-        } else if (gameState === 'statSelect') {
-            showStatBuffs();
-        }
-        
-        updateUI();
-        updateWeaponDisplay();
-        updateShopDisplay();
-        updateConsumablesDisplay();
-        
-        queueMessage('Game loaded!');
-        return true;
-    } catch (e) {
-        console.error('Failed to load game:', e);
-        queueMessage('Failed to load save file!');
-        return false;
-    }
-}
-
-function clearSave() {
-    localStorage.removeItem('gameSave');
-    queueMessage('Save file cleared!');
-}
-
-function checkForSave() {
-    const saved = localStorage.getItem('gameSave');
-    if (saved) {
-        const continueBtn = document.createElement('button');
-        continueBtn.id = 'continueGameBtn';
-        continueBtn.textContent = 'Continue Game';
-        continueBtn.style.marginTop = '10px';
-        continueBtn.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
-        
-        continueBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            loadGame();
-            startScreen.style.display = 'none';
-        });
-        
-        continueBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            loadGame();
-            startScreen.style.display = 'none';
-        });
-        
-        if (!document.getElementById('continueGameBtn')) {
-            startScreen.appendChild(continueBtn);
-        }
-    }
-}
-
+// Game Objects
 const player = {
     x: 400,
     y: 300,
@@ -769,14 +601,17 @@ const player = {
     health: 20,
     maxHealth: 20,
     baseDamage: 5,
+    damageMultiplier: 1.0,
     speed: 3,
     baseSpeed: 3,
+    speedMultiplier: 1.0,
     color: '#ff6b6b',
     
     lifeSteal: 0,
     criticalChance: 0,
     goldMultiplier: 0,
     healthRegen: 0,
+    healthRegenPercent: 0,
     damageReduction: 0,
     lastRegen: 0,
     
@@ -808,7 +643,9 @@ const player = {
     
     inSlowField: false,
     slowFieldTicks: 0,
-    lastSlowFieldTick: 0
+    lastSlowFieldTick: 0,
+    
+    updateHealthDisplay: null
 };
 
 let monsters = [];
@@ -856,6 +693,16 @@ const healthFill = document.getElementById('healthFill');
 const boomerangImage = new Image();
 boomerangImage.src = 'assets/boomerang.png';
 
+player.updateHealthDisplay = function() {
+    if (healthValue) {
+        healthValue.textContent = `${Math.floor(this.health)}/${this.maxHealth}`;
+    }
+    if (healthFill) {
+        const percent = (this.health / this.maxHealth) * 100;
+        healthFill.style.width = `${percent}%`;
+    }
+};
+
 // ============================================
 // MESSAGE QUEUE SYSTEM
 // ============================================
@@ -884,7 +731,6 @@ function showNextMessage() {
     
     messageContainer.appendChild(messageElement);
     
-    // Trigger animation
     setTimeout(() => {
         messageElement.classList.add('show');
     }, 10);
@@ -931,7 +777,6 @@ function createJoystick() {
         let deltaX = touch.clientX - centerX;
         let deltaY = touch.clientY - centerY;
         
-        // Limit distance
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         if (distance > joystickMaxDistance) {
             deltaX = (deltaX / distance) * joystickMaxDistance;
@@ -1008,11 +853,11 @@ function createStatsPanel() {
             </div>
             <div class="stat-row">
                 <span class="stat-label">⚔️ Damage:</span>
-                <span class="stat-value" id="stat-damage">0</span>
+                <span class="stat-value" id="stat-damage">0 (x${(player.damageMultiplier || 1).toFixed(1)})</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">👟 Speed:</span>
-                <span class="stat-value" id="stat-speed">0</span>
+                <span class="stat-value" id="stat-speed">0 (x${(player.speedMultiplier || 1).toFixed(1)})</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">💰 Gold:</span>
@@ -1041,7 +886,7 @@ function createStatsPanel() {
             </div>
             <div class="stat-row">
                 <span class="stat-label">🔄 Regen:</span>
-                <span class="stat-value" id="stat-regen">0</span>
+                <span class="stat-value" id="stat-regen">0%</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">🛡️ Damage Red:</span>
@@ -1098,8 +943,8 @@ function updateStatsPanel() {
     if (!statsPanelVisible) return;
     
     document.getElementById('stat-health').textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
-    document.getElementById('stat-damage').textContent = Math.floor(player.baseDamage);
-    document.getElementById('stat-speed').textContent = player.speed.toFixed(1);
+    document.getElementById('stat-damage').textContent = Math.floor(player.baseDamage * (player.damageMultiplier || 1));
+    document.getElementById('stat-speed').textContent = (player.baseSpeed * (player.speedMultiplier || 1)).toFixed(1);
     document.getElementById('stat-gold').textContent = gold;
     document.getElementById('stat-kills').textContent = kills;
     document.getElementById('stat-wave').textContent = wave;
@@ -1107,7 +952,7 @@ function updateStatsPanel() {
     document.getElementById('stat-lifesteal').textContent = Math.floor(player.lifeSteal * 100) + '%';
     document.getElementById('stat-critical').textContent = Math.floor(player.criticalChance * 100) + '%';
     document.getElementById('stat-goldmulti').textContent = Math.floor(player.goldMultiplier * 100) + '%';
-    document.getElementById('stat-regen').textContent = player.healthRegen;
+    document.getElementById('stat-regen').textContent = Math.floor((player.healthRegenPercent || 0) * 100) + '%';
     document.getElementById('stat-dmgred').textContent = Math.floor(player.damageReduction * 100) + '%';
     document.getElementById('stat-dodge').textContent = Math.floor(player.dodgeChance * 100) + '%';
     document.getElementById('stat-thorns').textContent = Math.floor(player.thornsDamage * 100) + '%';
@@ -1116,6 +961,181 @@ function updateStatsPanel() {
     document.getElementById('stat-bloodcontract').textContent = player.bloodContract ? `Yes (${player.bloodContractStacks})` : 'No (0)';
     document.getElementById('stat-guardian').textContent = player.guardianAngel ? 'Yes' : 'No';
     document.getElementById('stat-berserker').textContent = player.berserkerRing ? 'Yes' : 'No';
+}
+
+// ============================================
+// SAVE/LOAD FUNCTIONS
+// ============================================
+
+function saveGame() {
+    if (gameState === 'start' || gameState === 'gameover') return;
+    
+    const gameData = {
+        wave: wave,
+        gold: gold,
+        kills: kills,
+        gameState: gameState,
+        waveActive: waveActive,
+        refreshCount: refreshCount,
+        refreshCost: refreshCost,
+        player: {
+            x: player.x,
+            y: player.y,
+            health: player.health,
+            maxHealth: player.maxHealth,
+            baseDamage: player.baseDamage,
+            damageMultiplier: player.damageMultiplier,
+            speed: player.speed,
+            baseSpeed: player.baseSpeed,
+            speedMultiplier: player.speedMultiplier,
+            lifeSteal: player.lifeSteal,
+            criticalChance: player.criticalChance,
+            goldMultiplier: player.goldMultiplier,
+            healthRegen: player.healthRegen,
+            healthRegenPercent: player.healthRegenPercent,
+            damageReduction: player.damageReduction,
+            dodgeChance: player.dodgeChance,
+            thornsDamage: player.thornsDamage,
+            attackSpeedMultiplier: player.attackSpeedMultiplier,
+            firstHitReduction: player.firstHitReduction,
+            guardianAngel: player.guardianAngel,
+            guardianAngelUsed: player.guardianAngelUsed,
+            bloodContract: player.bloodContract,
+            bloodContractStacks: player.bloodContractStacks,
+            berserkerRing: player.berserkerRing,
+            sharpeningStone: player.sharpeningStone,
+            sharpeningStoneWave: player.sharpeningStoneWave,
+            enchantersInk: player.enchantersInk,
+            consumables: player.consumables
+        },
+        weapons: player.weapons.map(w => ({
+            id: w.id,
+            tier: w.tier,
+            currentAmmo: w.currentAmmo,
+            isReloading: w.isReloading
+        })),
+        shopItems: shopItems,
+        timestamp: Date.now()
+    };
+    
+    localStorage.setItem('gameSave', JSON.stringify(gameData));
+    queueMessage('Game saved!');
+}
+
+function loadGame() {
+    const saved = localStorage.getItem('gameSave');
+    if (!saved) {
+        queueMessage('No saved game found!');
+        return false;
+    }
+    
+    try {
+        const gameData = JSON.parse(saved);
+        
+        wave = gameData.wave;
+        gold = gameData.gold;
+        kills = gameData.kills;
+        gameState = gameData.gameState;
+        waveActive = gameData.waveActive;
+        refreshCount = gameData.refreshCount || 0;
+        refreshCost = gameData.refreshCost || 5;
+        
+        Object.assign(player, gameData.player);
+        
+        player.weapons = [];
+        gameData.weapons.forEach(w => {
+            const weaponData = GAME_DATA.WEAPONS.find(weap => weap.id === w.id);
+            if (weaponData) {
+                const weapon = new WeaponInstance(weaponData, w.tier);
+                if (weapon.usesAmmo) {
+                    weapon.currentAmmo = w.currentAmmo;
+                    weapon.isReloading = w.isReloading;
+                }
+                player.weapons.push(weapon);
+            }
+        });
+        
+        shopItems = gameData.shopItems || [];
+        
+        if (player.bloodContract) {
+            if (player.bloodContractInterval) {
+                clearInterval(player.bloodContractInterval);
+            }
+            
+            player.bloodContractInterval = setInterval(() => {
+                if (gameState === 'wave') {
+                    const damagePercent = 0.01 * player.bloodContractStacks;
+                    const damageAmount = Math.max(1, Math.floor(player.maxHealth * damagePercent));
+                    
+                    if (player.health > damageAmount) {
+                        player.health -= damageAmount;
+                    } else {
+                        player.health = 1;
+                    }
+                    
+                    updateUI();
+                    createDamageIndicator(player.x, player.y, damageAmount, false);
+                }
+            }, 1000);
+        }
+        
+        startScreen.style.display = 'none';
+        waveCompleteOverlay.style.display = 'none';
+        gameOverOverlay.style.display = 'none';
+        
+        if (gameState === 'wave') {
+            startWave();
+        } else if (gameState === 'shop') {
+            nextWaveBtn.style.display = 'block';
+            updateShopDisplay();
+        } else if (gameState === 'statSelect') {
+            showStatBuffs();
+        }
+        
+        updateUI();
+        updateWeaponDisplay();
+        updateShopDisplay();
+        updateConsumablesDisplay();
+        
+        queueMessage('Game loaded!');
+        return true;
+    } catch (e) {
+        console.error('Failed to load game:', e);
+        queueMessage('Failed to load save file!');
+        return false;
+    }
+}
+
+function clearSave() {
+    localStorage.removeItem('gameSave');
+    queueMessage('Save file cleared!');
+}
+
+function checkForSave() {
+    const saved = localStorage.getItem('gameSave');
+    if (saved) {
+        const continueBtn = document.createElement('button');
+        continueBtn.id = 'continueGameBtn';
+        continueBtn.textContent = 'Continue Game';
+        continueBtn.style.marginTop = '10px';
+        continueBtn.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+        
+        continueBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadGame();
+            startScreen.style.display = 'none';
+        });
+        
+        continueBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            loadGame();
+            startScreen.style.display = 'none';
+        });
+        
+        if (!document.getElementById('continueGameBtn')) {
+            startScreen.appendChild(continueBtn);
+        }
+    }
 }
 
 // ============================================
@@ -1251,13 +1271,16 @@ function initGame() {
         health: GAME_DATA.PLAYER_START.health,
         maxHealth: GAME_DATA.PLAYER_START.maxHealth,
         baseDamage: GAME_DATA.PLAYER_START.damage,
+        damageMultiplier: 1.0,
         speed: GAME_DATA.PLAYER_START.speed,
         baseSpeed: GAME_DATA.PLAYER_START.speed,
+        speedMultiplier: 1.0,
         color: '#ff6b6b',
         lifeSteal: 0,
         criticalChance: 0,
         goldMultiplier: 0,
         healthRegen: 0,
+        healthRegenPercent: 0,
         damageReduction: 0,
         lastRegen: Date.now(),
         weapons: [],
@@ -1441,7 +1464,7 @@ function startWave() {
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
-    player.speed = player.baseSpeed;
+    player.speed = player.baseSpeed * (player.speedMultiplier || 1);
     
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
@@ -1590,13 +1613,12 @@ function startWave() {
                             else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
                             else monsterType = MONSTER_TYPES.GUNNER;
                         } else {
-                            // After wave 10, include Splitter and Dasher
                             if (rand < 0.15) monsterType = MONSTER_TYPES.NORMAL;
                             else if (rand < 0.3) monsterType = MONSTER_TYPES.FAST;
                             else if (rand < 0.45) monsterType = MONSTER_TYPES.TANK;
                             else if (rand < 0.6) monsterType = MONSTER_TYPES.EXPLOSIVE;
                             else if (rand < 0.75) monsterType = MONSTER_TYPES.GUNNER;
-                            else if (rand < 0.85) monsterType = MONSTER_TYPES.SPLITTER;
+                            else if (rand < 0.875) monsterType = MONSTER_TYPES.SPLITTER;
                             else monsterType = MONSTER_TYPES.DASHER;
                         }
                         
@@ -1752,11 +1774,9 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
         isDasher: monsterType.isDasher || false,
         lifeSteal: monsterType.lifeSteal || 0,
         
-        // Splitter properties
         splitCount: monsterType.splitCount || 0,
         splitHealthPercent: monsterType.splitHealthPercent || 0.5,
         
-        // Dasher properties
         dashSpeed: monsterType.dashSpeed || 1.5,
         dashCooldown: monsterType.dashCooldown || 3000,
         lastDash: 0,
@@ -1808,7 +1828,7 @@ function handleSplitterDeath(monster) {
             health: splitHealth,
             maxHealth: splitHealth,
             radius: monster.radius * 0.7,
-            isSplitter: false, // Don't split again
+            isSplitter: false,
             color: '#aaffaa',
             originalSpeed: monster.originalSpeed * 1.2
         };
@@ -1832,7 +1852,6 @@ function updateDasher(dasher, currentTime) {
     if (!dasher.isDasher) return;
     
     if (dasher.isDashing) {
-        // Continue dash
         const dx = dasher.dashTarget.x - dasher.x;
         const dy = dasher.dashTarget.y - dasher.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1847,12 +1866,11 @@ function updateDasher(dasher, currentTime) {
             dasher.y += moveY;
         }
     } else if (currentTime - dasher.lastDash >= dasher.dashCooldown) {
-        // Start new dash
         const dx = player.x - dasher.x;
         const dy = player.y - dasher.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < 300) { // Only dash if within range
+        if (dist < 300) {
             dasher.isDashing = true;
             dasher.dashTarget = { x: player.x, y: player.y };
             dasher.lastDash = currentTime;
@@ -1875,9 +1893,12 @@ function updateDasher(dasher, currentTime) {
 // ============================================
 
 function updateUI() {
+    const totalDamage = Math.floor(player.baseDamage * (player.damageMultiplier || 1));
+    const totalSpeed = (player.baseSpeed * (player.speedMultiplier || 1)).toFixed(1);
+    
     healthValue.textContent = `${Math.floor(player.health)}/${player.maxHealth}`;
-    damageValue.textContent = Math.floor(player.baseDamage);
-    speedValue.textContent = player.speed.toFixed(1);
+    damageValue.textContent = totalDamage;
+    speedValue.textContent = totalSpeed;
     goldValue.textContent = gold;
     waveValue.textContent = wave;
     killsValue.textContent = kills;
@@ -1940,7 +1961,7 @@ function updateWeaponDisplay() {
                 <div class="weapon-level">${weapon.type === 'melee' ? '⚔️' : '🔫'}</div>
                 <div class="melee-type">${weapon.getTypeDescription()}</div>
                 ${weapon.usesAmmo ? `<div class="ammo-display">${weapon.currentAmmo}/${weapon.magazineSize}</div>` : ''}
-                <div class="weapon-info">${weapon.getDisplayName()}<br>Dmg: ${weapon.baseDamage}<br>Spd: ${(weapon.attackSpeed * player.attackSpeedMultiplier).toFixed(1)}/s</div>
+                <div class="weapon-info">${weapon.getDisplayName()}<br>Dmg: ${Math.floor(weapon.baseDamage * (player.damageMultiplier || 1))}<br>Spd: ${(weapon.attackSpeed * player.attackSpeedMultiplier).toFixed(1)}/s</div>
                 <div class="cooldown-bar">
                     <div class="cooldown-fill" style="width: ${cooldownPercent}%; 
                          ${weapon.isReloading ? 'background: linear-gradient(90deg, #ff0000, #ff8800);' : ''}"></div>
@@ -2007,8 +2028,9 @@ function useConsumable(index) {
     
     switch(consumable.id) {
         case 'health_potion':
-            player.health = Math.min(player.maxHealth, player.health + 20);
-            queueMessage("Used Health Potion! +20 HP");
+            const healAmount = Math.floor(player.maxHealth * 0.25);
+            player.health = Math.min(player.maxHealth, player.health + healAmount);
+            queueMessage(`Used Health Potion! +${healAmount} HP (25%)`);
             break;
         case 'ammo_pack':
             player.weapons.forEach(weapon => {
@@ -2316,15 +2338,19 @@ function purchaseItem(index) {
 function applyPermanentItemEffect(item) {
     switch(item.id) {
         case 'damage_orb':
-            player.baseDamage += 5;
+            player.damageMultiplier = (player.damageMultiplier || 1) + 0.15;
+            queueMessage("Damage increased by 15%!");
             break;
         case 'speed_boots':
-            player.baseSpeed += 2;
-            player.speed += 2;
+            player.speedMultiplier = (player.speedMultiplier || 1) + 0.15;
+            player.speed = player.baseSpeed * player.speedMultiplier;
+            queueMessage("Speed increased by 15%!");
             break;
         case 'health_upgrade':
-            player.maxHealth += 30;
-            player.health += 30;
+            const oldMax = player.maxHealth;
+            player.maxHealth = Math.floor(oldMax * 1.25);
+            player.health += player.maxHealth - oldMax;
+            queueMessage("Max health increased by 25%!");
             break;
         case 'vampire_teeth':
             player.lifeSteal += 0.05;
@@ -2348,28 +2374,25 @@ function applyPermanentItemEffect(item) {
             player.firstHitReduction = true;
             break;
         case 'healing_fountain':
-            player.healthRegen += 2;
+            player.healthRegenPercent += 0.02;
             break;
         case 'guardian_angel':
             player.guardianAngel = true;
             break;
         case 'blood_contract':
-            // Blood Contract logic - stacking
             if (!player.bloodContract) {
                 player.bloodContract = true;
                 player.bloodContractStacks = 1;
-                player.lifeSteal += 0.03; // +3% lifesteal per stack
-                player.healthRegen = 0; // Reset health regen
+                player.lifeSteal += 0.03;
+                player.healthRegen = 0;
+                player.healthRegenPercent = 0;
                 
-                // Clear any existing interval
                 if (player.bloodContractInterval) {
                     clearInterval(player.bloodContractInterval);
                 }
                 
-                // Start health drain (every second) - percentage based
                 player.bloodContractInterval = setInterval(() => {
                     if (gameState === 'wave') {
-                        // Calculate 1% of max health per stack
                         const damagePercent = 0.01 * player.bloodContractStacks;
                         const damageAmount = Math.max(1, Math.floor(player.maxHealth * damagePercent));
                         
@@ -2384,11 +2407,8 @@ function applyPermanentItemEffect(item) {
                     }
                 }, 1000);
             } else {
-                // Stacking additional contracts
                 player.bloodContractStacks++;
-                player.lifeSteal += 0.03; // Additional 3% lifesteal per stack
-                
-                // No extra damage - damage is already per stack in the interval
+                player.lifeSteal += 0.03;
                 queueMessage(`Blood Contract stacked! Now ${player.bloodContractStacks} stacks (${Math.floor(player.lifeSteal * 100)}% lifesteal)`);
             }
             
@@ -2427,24 +2447,23 @@ function showStatBuffs() {
 }
 
 function selectStatBuff(buff) {
-    if (buff.effect.maxHealth) {
-        player.maxHealth += buff.effect.maxHealth;
-        if (buff.effect.health) {
-            player.health += buff.effect.health;
+    if (buff.effect.maxHealthPercent) {
+        const oldMax = player.maxHealth;
+        player.maxHealth = Math.floor(oldMax * (1 + buff.effect.maxHealthPercent));
+        if (buff.effect.healthPercent) {
+            player.health += player.maxHealth - oldMax;
         } else {
-            player.health += buff.effect.maxHealth;
+            player.health += player.maxHealth - oldMax;
         }
     }
     
-    if (buff.effect.damage) {
-        player.baseDamage += buff.effect.damage;
+    if (buff.effect.damagePercent) {
+        player.damageMultiplier = (player.damageMultiplier || 1) + buff.effect.damagePercent;
     }
     
-    if (buff.effect.speed) {
-        player.baseSpeed += buff.effect.speed;
-        if (!player.inSlowField) {
-            player.speed += buff.effect.speed;
-        }
+    if (buff.effect.speedPercent) {
+        player.speedMultiplier = (player.speedMultiplier || 1) + buff.effect.speedPercent;
+        player.speed = player.baseSpeed * player.speedMultiplier;
     }
     
     if (buff.effect.lifeSteal) {
@@ -2459,8 +2478,8 @@ function selectStatBuff(buff) {
         player.goldMultiplier += buff.effect.goldMultiplier;
     }
     
-    if (buff.effect.healthRegen) {
-        player.healthRegen += buff.effect.healthRegen;
+    if (buff.effect.healthRegenPercent) {
+        player.healthRegenPercent += buff.effect.healthRegenPercent;
     }
     
     if (buff.effect.damageReduction) {
@@ -2489,7 +2508,7 @@ function endWave() {
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
-    player.speed = player.baseSpeed;
+    player.speed = player.baseSpeed * (player.speedMultiplier || 1);
     
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -2531,7 +2550,7 @@ function gameOver() {
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
-    player.speed = player.baseSpeed;
+    player.speed = player.baseSpeed * (player.speedMultiplier || 1);
     
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -2594,13 +2613,11 @@ function gameLoop() {
         let moveX = 0;
         let moveY = 0;
         
-        // Keyboard input
         if (keys.w || keys.up) moveY -= 1;
         if (keys.s || keys.down) moveY += 1;
         if (keys.a || keys.left) moveX -= 1;
         if (keys.d || keys.right) moveX += 1;
         
-        // Joystick input
         if (joystickActive) {
             const strength = Math.min(1, Math.sqrt(joystickCurrentX * joystickCurrentX + joystickCurrentY * joystickCurrentY) / joystickMaxDistance);
             moveX += (joystickCurrentX / joystickMaxDistance) * strength;
@@ -3182,7 +3199,6 @@ function drawBossScythe(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(75, 0, 130, 0.7)';
     ctx.shadowBlur = 20 * alpha;
     
-    // Draw scythe using image if loaded, otherwise fallback to drawing
     if (scytheImage.complete && scytheImage.naturalHeight > 0) {
         ctx.save();
         ctx.translate(40, -20);
@@ -3193,13 +3209,11 @@ function drawBossScythe(ctx, attack, angle, progress, distance, alpha) {
         ctx.drawImage(scytheImage, -25, -25, 50, 50);
         ctx.restore();
     } else {
-        // Handle
         ctx.save();
         ctx.fillStyle = '#2F4F4F';
         ctx.fillRect(-5, -attack.radius * 0.8, 10, attack.radius * 1.6);
         ctx.restore();
         
-        // Blade
         ctx.save();
         ctx.translate(0, -attack.radius * 0.6);
         ctx.rotate(-0.5);
@@ -3228,7 +3242,6 @@ function drawBossScythe(ctx, attack, angle, progress, distance, alpha) {
         ctx.restore();
     }
     
-    // Trail
     if (progress > 0.2 && progress < 0.8) {
         ctx.save();
         ctx.rotate(0);
@@ -3241,7 +3254,6 @@ function drawBossScythe(ctx, attack, angle, progress, distance, alpha) {
         ctx.restore();
     }
     
-    // Dash effect
     if (bossAbilities.bossDash) {
         ctx.save();
         ctx.translate(-50, 0);
@@ -3657,7 +3669,6 @@ function drawPlayer() {
         ctx.arc(0, 0, player.radius + 5 + Math.sin(Date.now() * 0.005) * 2, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Show blood contract stacks
         ctx.fillStyle = '#8B0000';
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
@@ -3700,11 +3711,11 @@ function updateGame(deltaTime) {
             player.inSlowField = distToField < bossAbilities.slowField.radius;
             
             if (player.inSlowField) {
-                player.speed = player.baseSpeed * 0.5;
+                player.speed = (player.baseSpeed * (player.speedMultiplier || 1)) * 0.5;
                 
                 if (currentTime - player.lastSlowFieldTick >= 1000) {
                     player.baseSpeed = Math.max(1, player.baseSpeed - 1);
-                    player.speed = player.baseSpeed * 0.5;
+                    player.speed = (player.baseSpeed * (player.speedMultiplier || 1)) * 0.5;
                     player.slowFieldTicks++;
                     player.lastSlowFieldTick = currentTime;
                     
@@ -3712,7 +3723,7 @@ function updateGame(deltaTime) {
                     queueMessage("Speed decreased by 1!");
                 }
             } else if (wasInSlowField) {
-                player.speed = player.baseSpeed;
+                player.speed = player.baseSpeed * (player.speedMultiplier || 1);
             }
         }
     }
@@ -3728,16 +3739,13 @@ function updateGame(deltaTime) {
         }
     }
     
-    // Improved dash for wave 30 boss
     if (wave === 30 && bossAbilities.bossWeapon) {
         const boss = monsters.find(m => m.isBoss);
         if (boss && !bossAbilities.bossDash && currentTime - bossAbilities.bossDashCooldown > 3000) {
-            // Start dash - calculate direction and distance once
             const dx = player.x - boss.x;
             const dy = player.y - boss.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Set dash target beyond the player for a smooth pass-through
             const dashDistance = BOSS_WEAPONS.SCYTHE.dashRange;
             const direction = { x: dx / distance, y: dy / distance };
             
@@ -3750,7 +3758,6 @@ function updateGame(deltaTime) {
                 y: boss.y + direction.y * dashDistance
             };
             
-            // Dash lasts 500ms at high speed
             setTimeout(() => {
                 bossAbilities.bossDash = false;
                 bossAbilities.bossDashCooldown = currentTime;
@@ -3759,15 +3766,12 @@ function updateGame(deltaTime) {
         }
         
         if (bossAbilities.bossDash && bossAbilities.bossDashDirection) {
-            // Smooth continuous dash at high speed
             const dashSpeed = BOSS_WEAPONS.SCYTHE.dashSpeed;
             boss.x += bossAbilities.bossDashDirection.x * dashSpeed;
             boss.y += bossAbilities.bossDashDirection.y * dashSpeed;
             
-            // Update distance traveled
             bossAbilities.bossDashDistance += dashSpeed;
             
-            // Perform scythe attack at start of dash
             if (!bossAbilities.bossWeaponAttack && bossAbilities.bossDashDistance < 100) {
                 const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
                 bossAbilities.bossWeaponAttack = {
@@ -3786,7 +3790,6 @@ function updateGame(deltaTime) {
                 };
             }
             
-            // Check if dash hit player
             const distToPlayer = Math.sqrt(
                 Math.pow(player.x - boss.x, 2) + Math.pow(player.y - boss.y, 2)
             );
@@ -3795,7 +3798,6 @@ function updateGame(deltaTime) {
                 player.health -= damage;
                 createDamageIndicator(player.x, player.y, damage, true);
                 
-                // Life steal for boss
                 const healAmount = damage * BOSS_WEAPONS.SCYTHE.lifeSteal;
                 boss.health = Math.min(boss.maxHealth, boss.health + healAmount);
                 createHealthPopup(boss.x, boss.y, Math.floor(healAmount));
@@ -3803,7 +3805,6 @@ function updateGame(deltaTime) {
         }
     }
     
-    // Boss melee attacks for wave 10 and 20
     if (bossAbilities.bossWeapon && wave !== 30) {
         const boss = monsters.find(m => m.isBoss);
         if (boss) {
@@ -3836,8 +3837,15 @@ function updateGame(deltaTime) {
         }
     }
     
-    if (player.healthRegen > 0 && currentTime - player.lastRegen >= 1000) {
-        player.health = Math.min(player.maxHealth, player.health + player.healthRegen);
+    if ((player.healthRegen > 0 || player.healthRegenPercent > 0) && currentTime - player.lastRegen >= 1000) {
+        let regenAmount = 0;
+        if (player.healthRegen > 0) {
+            regenAmount += player.healthRegen;
+        }
+        if (player.healthRegenPercent > 0) {
+            regenAmount += Math.floor(player.maxHealth * player.healthRegenPercent);
+        }
+        player.health = Math.min(player.maxHealth, player.health + regenAmount);
         player.lastRegen = currentTime;
     }
     
@@ -4155,6 +4163,7 @@ function updateProjectiles() {
                     isCritical = true;
                 }
                 
+                damage = Math.floor(damage * (player.damageMultiplier || 1));
                 damage += player.baseDamage;
                 
                 monster.health -= damage;
@@ -4162,15 +4171,15 @@ function updateProjectiles() {
                 createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
                 
                 if (player.lifeSteal > 0) {
-                    const healAmount = damage * player.lifeSteal;
+                    const healAmount = Math.floor(damage * player.lifeSteal);
                     player.health = Math.min(player.maxHealth, player.health + healAmount);
-                    createHealthPopup(player.x, player.y, Math.floor(healAmount));
+                    createHealthPopup(player.x, player.y, healAmount);
                 }
                 
                 if (monster.isBoss && monster.lifeSteal) {
-                    const bossHeal = damage * monster.lifeSteal;
+                    const bossHeal = Math.floor(damage * monster.lifeSteal);
                     monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                    createHealthPopup(monster.x, monster.y, Math.floor(bossHeal));
+                    createHealthPopup(monster.x, monster.y, bossHeal);
                 }
                 
                 if (projectile.isBoomerang) {
@@ -4193,7 +4202,6 @@ function updateProjectiles() {
                 }
                 
                 if (monster.health <= 0) {
-                    // Handle splitter death before removing monster
                     if (monster.isSplitter) {
                         handleSplitterDeath(monster);
                     }
@@ -4235,7 +4243,6 @@ function updateProjectiles() {
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
                                 if (otherMonster.health <= 0) {
-                                    // Handle splitter death for exploded monsters
                                     if (otherMonster.isSplitter) {
                                         handleSplitterDeath(otherMonster);
                                     }
@@ -4328,6 +4335,7 @@ function updateMeleeAttacks() {
                     isCritical = true;
                 }
                 
+                damage = Math.floor(damage * (player.damageMultiplier || 1));
                 damage += player.baseDamage;
                 
                 monster.health -= damage;
@@ -4335,15 +4343,15 @@ function updateMeleeAttacks() {
                 createDamageIndicator(monster.x, monster.y, Math.floor(damage), isCritical);
                 
                 if (player.lifeSteal > 0) {
-                    const healAmount = damage * player.lifeSteal;
+                    const healAmount = Math.floor(damage * player.lifeSteal);
                     player.health = Math.min(player.maxHealth, player.health + healAmount);
-                    createHealthPopup(player.x, player.y, Math.floor(healAmount));
+                    createHealthPopup(player.x, player.y, healAmount);
                 }
                 
                 if (monster.isBoss && monster.lifeSteal) {
-                    const bossHeal = damage * monster.lifeSteal;
+                    const bossHeal = Math.floor(damage * monster.lifeSteal);
                     monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                    createHealthPopup(monster.x, monster.y, Math.floor(bossHeal));
+                    createHealthPopup(monster.x, monster.y, bossHeal);
                 }
                 
                 hits++;
@@ -4353,7 +4361,6 @@ function updateMeleeAttacks() {
                 }
                 
                 if (monster.health <= 0) {
-                    // Handle splitter death before removing monster
                     if (monster.isSplitter) {
                         handleSplitterDeath(monster);
                     }
@@ -4395,7 +4402,6 @@ function updateMeleeAttacks() {
                                 createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
                                 
                                 if (otherMonster.health <= 0) {
-                                    // Handle splitter death for exploded monsters
                                     if (otherMonster.isSplitter) {
                                         handleSplitterDeath(otherMonster);
                                     }
@@ -4460,7 +4466,6 @@ function updateMeleeAttacks() {
 }
 
 function updateMonsters(currentTime) {
-    // Update dashers
     dashers = monsters.filter(m => m.isDasher);
     dashers.forEach(dasher => updateDasher(dasher, currentTime));
     
@@ -4483,7 +4488,6 @@ function updateMonsters(currentTime) {
             return;
         }
         
-        // Don't move while dashing - dasher movement handled separately
         if (monster.isDasher && monster.isDashing) {
             return;
         }
@@ -4530,9 +4534,9 @@ function updateMonsters(currentTime) {
                 monster.lastAttack = currentTime;
                 
                 if (player.thornsDamage > 0) {
-                    const thornsDamage = actualDamage * player.thornsDamage;
+                    const thornsDamage = Math.floor(actualDamage * player.thornsDamage);
                     monster.health -= thornsDamage;
-                    createDamageIndicator(monster.x, monster.y, Math.floor(thornsDamage), false);
+                    createDamageIndicator(monster.x, monster.y, thornsDamage, false);
                 }
                 
                 createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
@@ -4750,7 +4754,6 @@ function drawMonsters() {
         ctx.save();
         ctx.translate(monster.x, monster.y);
         
-        // Draw monster
         ctx.fillStyle = monster.color;
         ctx.shadowColor = monster.color;
         ctx.shadowBlur = monster.isBoss ? 20 : 10;
@@ -4758,7 +4761,6 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Status effects
         if (monster.stunned && monster.stunnedUntil > currentTime) {
             ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
             ctx.beginPath();
@@ -4773,7 +4775,6 @@ function drawMonsters() {
             ctx.fill();
         }
         
-        // Dash indicator for dashers
         if (monster.isDasher && monster.isDashing) {
             ctx.strokeStyle = '#00ffff';
             ctx.lineWidth = 3;
@@ -4784,7 +4785,6 @@ function drawMonsters() {
             ctx.stroke();
         }
         
-        // Outline
         ctx.shadowBlur = 0;
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
@@ -4792,7 +4792,6 @@ function drawMonsters() {
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Icon
         if (monster.monsterType && monster.monsterType.icon) {
             ctx.fillStyle = 'white';
             ctx.font = `${monster.radius}px Arial`;
@@ -4801,7 +4800,6 @@ function drawMonsters() {
             ctx.fillText(monster.monsterType.icon, 0, 0);
         }
         
-        // Eyes
         const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
         const eyeRadius = monster.radius * 0.2;
         
@@ -4828,7 +4826,6 @@ function drawMonsters() {
                 eyeRadius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Health bar
         const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
         const barWidth = monster.radius * 2;
         const barHeight = 4;
@@ -4921,6 +4918,93 @@ function createStatsButton() {
     
     document.body.appendChild(button);
 }
+
+// ============================================
+// KEYBOARD CONTROLS
+// ============================================
+
+document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    
+    if (key === 'w' || key === 'arrowup') {
+        keys.w = true;
+        keys.up = true;
+        e.preventDefault();
+    }
+    if (key === 's' || key === 'arrowdown') {
+        keys.s = true;
+        keys.down = true;
+        e.preventDefault();
+    }
+    if (key === 'a' || key === 'arrowleft') {
+        keys.a = true;
+        keys.left = true;
+        e.preventDefault();
+    }
+    if (key === 'd' || key === 'arrowright') {
+        keys.d = true;
+        keys.right = true;
+        e.preventDefault();
+    }
+    
+    if (key === ' ') {
+        if (gameState === 'shop') {
+            keys.space = true;
+            nextWaveBtn.click();
+        }
+        e.preventDefault();
+    }
+    
+    if (key === 'r') {
+        if (gameState === 'shop') {
+            player.weapons.forEach(weapon => {
+                if (weapon.usesAmmo && !weapon.isReloading) {
+                    weapon.startReload();
+                }
+            });
+        }
+        e.preventDefault();
+    }
+    
+    if (key === 's' && e.ctrlKey) {
+        e.preventDefault();
+        saveGame();
+    }
+    
+    if (key === 'l' && e.ctrlKey) {
+        e.preventDefault();
+        loadGame();
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    
+    if (key === 'w' || key === 'arrowup') {
+        keys.w = false;
+        keys.up = false;
+        e.preventDefault();
+    }
+    if (key === 's' || key === 'arrowdown') {
+        keys.s = false;
+        keys.down = false;
+        e.preventDefault();
+    }
+    if (key === 'a' || key === 'arrowleft') {
+        keys.a = false;
+        keys.left = false;
+        e.preventDefault();
+    }
+    if (key === 'd' || key === 'arrowright') {
+        keys.d = false;
+        keys.right = false;
+        e.preventDefault();
+    }
+    if (key === ' ') {
+        keys.space = false;
+        e.preventDefault();
+    }
+});
 
 // ============================================
 // TOUCH EVENT HANDLERS
@@ -5040,6 +5124,10 @@ restartBtn.addEventListener('touchstart', (e) => {
     clearSave();
     initGame();
 });
+
+// ============================================
+// CSS STYLES
+// ============================================
 
 const style = document.createElement('style');
 style.textContent = `
@@ -5429,24 +5517,19 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Add control hint
+// ============================================
+// INITIALIZATION
+// ============================================
+
 const controlHint = document.createElement('div');
 controlHint.className = 'control-hint';
-controlHint.innerHTML = 'Joystick | WASD | 📊 Stats | Space: Next Wave | R: Reload';
+controlHint.innerHTML = 'Joystick | WASD | Space: Next Wave | 📊 Stats | R: Reload | Ctrl+S: Save | Ctrl+L: Load';
 document.body.appendChild(controlHint);
 
-// Create message container
 createMessageContainer();
-
-// Create joystick
 createJoystick();
-
-// Create stats panel and button
 createStatsPanel();
 createStatsButton();
-
-// Check for existing save on startup
 checkForSave();
 
-// Start game loop
 gameLoop();
