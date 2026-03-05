@@ -42,7 +42,7 @@ const MONSTER_TYPES = {
         sizeMultiplier: 1,
         icon: '💥',
         explosive: true,
-        explosionRadius: 100,
+        explosionRadius: 75,
         explosionDamage: 2.0,
         goldDrop: { min: 10, max: 25 }
     },
