@@ -42,8 +42,8 @@ const MONSTER_TYPES = {
         sizeMultiplier: 1,
         icon: '💥',
         explosive: true,
-        explosionRadius: 75,
-        explosionDamage: 2.0,
+        explosionRadius: 100,
+        explosionDamage: 3.0,
         goldDrop: { min: 10, max: 25 }
     },
     GUNNER: {
@@ -420,11 +420,15 @@ class WeaponInstance {
                 };
             } else if (this.id === 'throwing_knives') {
                 const angle = Math.atan2(targetY - playerY, targetX - playerX);
+                // Add slight spread for throwing knives
+                const spreadAmount = (Math.random() - 0.5) * this.spread;
+                const finalAngle = angle + spreadAmount;
+                
                 return {
                     type: 'ranged',
                     x: playerX,
                     y: playerY,
-                    angle: angle,
+                    angle: finalAngle,
                     speed: this.projectileSpeed,
                     range: this.range,
                     damage: this.baseDamage,
@@ -434,7 +438,7 @@ class WeaponInstance {
                     isThrowable: true,
                     startTime: currentTime,
                     size: this.projectileSize || 6,
-                    spinSpeed: this.spinSpeed || 0.2,
+                    spinSpeed: this.spinSpeed || 0,
                     rotation: 0
                 };
             } else {
@@ -711,6 +715,7 @@ const player = {
     thornsDamage: 0,
     attackSpeedMultiplier: 1,
     firstHitReduction: false,
+    firstHitActive: false, // Tracks if the first hit reduction is still available this wave
     voidCrystalChance: 0,
     guardianAngelUsed: false,
     
@@ -977,6 +982,11 @@ function useExpScroll() {
     weapon.tier++;
     weapon.applyTierBonuses();
     
+    // Reset ammo for throwable weapons after upgrade
+    if (weapon.resetEachRound) {
+        weapon.resetAmmo();
+    }
+    
     addVisualEffect({
         type: 'upgrade',
         x: player.x,
@@ -1198,6 +1208,10 @@ function createStatsPanel() {
                 <span class="stat-value" id="stat-landmines">0/5</span>
             </div>
             <div class="stat-row">
+                <span class="stat-label">🔰 Runic Plate:</span>
+                <span class="stat-value" id="stat-runic">No</span>
+            </div>
+            <div class="stat-row">
                 <span class="stat-label">📜 Blood Contract:</span>
                 <span class="stat-value" id="stat-bloodcontract">No (0)</span>
             </div>
@@ -1241,6 +1255,7 @@ function updateStatsPanel() {
     document.getElementById('stat-kills').textContent = kills;
     document.getElementById('stat-wave').textContent = wave;
     document.getElementById('stat-landmines').textContent = `${playerTowers.landmines.count}/${playerTowers.landmines.max}`;
+    document.getElementById('stat-runic').textContent = player.firstHitReduction ? 'Yes' : 'No';
     
     document.getElementById('stat-lifesteal').textContent = Math.floor(player.lifeSteal * 100) + '%';
     document.getElementById('stat-critical').textContent = Math.floor(player.criticalChance * 100) + '%';
@@ -1290,6 +1305,7 @@ function saveGame() {
             thornsDamage: player.thornsDamage,
             attackSpeedMultiplier: player.attackSpeedMultiplier,
             firstHitReduction: player.firstHitReduction,
+            firstHitActive: player.firstHitActive,
             guardianAngel: player.guardianAngel,
             guardianAngelUsed: player.guardianAngelUsed,
             bloodContract: player.bloodContract,
@@ -1594,6 +1610,7 @@ function initGame() {
         thornsDamage: 0,
         attackSpeedMultiplier: 1,
         firstHitReduction: false,
+        firstHitActive: false,
         voidCrystalChance: 0,
         guardianAngelUsed: false,
         
@@ -1767,6 +1784,11 @@ function startWave() {
     waveActive = true;
     waveStartTime = Date.now();
     
+    // Reset Runic Plate for new wave
+    if (player.firstHitReduction) {
+        player.firstHitActive = true;
+    }
+    
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
@@ -1826,10 +1848,6 @@ function startWave() {
     monsterProjectiles = [];
     dashers = [];
     splitterTracking = [];
-    
-    if (player.firstHitReduction) {
-        player.firstHitReduction = false;
-    }
     
     scrapWeaponBtn.style.display = 'none';
     mergeWeaponBtn.style.display = 'none';
@@ -2392,18 +2410,6 @@ function useConsumable(index) {
         case 'exp_scroll':
             useExpScroll();
             break;
-            
-        case 'explosive_trap':
-            activeTraps.push({
-                x: player.x,
-                y: player.y,
-                active: true,
-                damage: 100,
-                radius: 80,
-                startTime: Date.now()
-            });
-            queueMessage("Placed Explosive Trap!");
-            break;
     }
     
     if (consumable.count && consumable.count > 1) {
@@ -2726,30 +2732,36 @@ function applyPermanentItemEffect(item) {
             break;
         case 'vampire_teeth':
             player.lifeSteal += 0.05;
+            queueMessage(`Life steal increased by 5%! Now ${Math.floor(player.lifeSteal * 100)}%`);
             break;
         case 'berserker_ring':
             player.berserkerRing = true;
+            queueMessage("Berserker Ring equipped! Damage increases as health decreases");
             break;
         case 'ninja_scroll':
             player.dodgeChance += 0.15;
+            queueMessage(`Dodge chance increased by 15%! Now ${Math.floor(player.dodgeChance * 100)}%`);
             break;
         case 'alchemist_stone':
             player.goldMultiplier += 0.2;
+            queueMessage(`Gold multiplier increased by 20%! Now +${Math.floor(player.goldMultiplier * 100)}% gold`);
             break;
         case 'thorns_armor':
             player.thornsDamage = 0.25;
+            queueMessage("Thorns Armor equipped! Reflect 25% of damage back to attackers");
             break;
         case 'wind_charm':
             player.attackSpeedMultiplier += 0.15;
+            queueMessage(`Attack speed increased by 15%! Now ${player.attackSpeedMultiplier.toFixed(1)}x`);
             break;
         case 'runic_plate':
             player.firstHitReduction = true;
-            break;
-        case 'healing_fountain':
-            player.healthRegenPercent += 0.02;
+            player.firstHitActive = true;
+            queueMessage("Runic Plate equipped! First hit each wave deals 50% less damage");
             break;
         case 'guardian_angel':
             player.guardianAngel = true;
+            queueMessage("Guardian Angel equipped! Once per game, survive fatal damage with 50% health");
             break;
         case 'blood_contract':
             if (!player.bloodContract) {
@@ -2778,13 +2790,12 @@ function applyPermanentItemEffect(item) {
                         createDamageIndicator(player.x, player.y, damageAmount, false);
                     }
                 }, 1000);
+                queueMessage(`Blood Contract activated! +3% lifesteal, lose ${player.bloodContractStacks}% HP per second`);
             } else {
                 player.bloodContractStacks++;
                 player.lifeSteal += 0.03;
-                queueMessage(`Blood Contract stacked! Now ${player.bloodContractStacks} stacks (${Math.floor(player.lifeSteal * 100)}% lifesteal)`);
+                queueMessage(`Blood Contract stacked! Now ${player.bloodContractStacks} stacks (${Math.floor(player.lifeSteal * 100)}% lifesteal, lose ${player.bloodContractStacks}% HP per second)`);
             }
-            
-            queueMessage(`Blood Contract activated! +3% lifesteal per stack, but lose ${player.bloodContractStacks}% HP per second`);
             break;
     }
 }
@@ -2880,6 +2891,8 @@ function endWave() {
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
+    
+    // Don't reset firstHitActive here - it's reset at the start of each wave
     
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -3263,7 +3276,7 @@ function drawProjectiles() {
 
 function drawThrowingKnife(ctx, projectile, currentTime) {
     // Update rotation for spinning
-    projectile.rotation = (projectile.rotation || 0) + (projectile.spinSpeed || 0.2);
+    projectile.rotation = (projectile.rotation || 0) + (projectile.spinSpeed || 0);
     
     ctx.save();
     ctx.translate(projectile.x, projectile.y);
@@ -4194,6 +4207,17 @@ function drawPlayer() {
     ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
     ctx.fill();
     
+    // Runic Plate visual indicator
+    if (player.firstHitReduction && player.firstHitActive) {
+        ctx.shadowColor = '#00FFFF';
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = '#00FFFF';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 10, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
     if (player.bloodContract) {
         ctx.shadowColor = '#8B0000';
         ctx.shadowBlur = 20;
@@ -4496,6 +4520,13 @@ function updateMonsterProjectiles(currentTime) {
         if (distance < player.radius + proj.radius) {
             let damage = proj.damage;
             
+            // Runic Plate effect - reduce first hit damage
+            if (player.firstHitActive) {
+                damage *= 0.5;
+                player.firstHitActive = false;
+                queueMessage("Runic Plate absorbed 50% damage!");
+            }
+            
             if (player.damageReduction > 0) {
                 damage *= (1 - player.damageReduction);
             }
@@ -4535,6 +4566,13 @@ function updateBossProjectiles(currentTime) {
         
         if (distance < player.radius + proj.radius) {
             let damage = proj.damage;
+            
+            // Runic Plate effect - reduce first hit damage
+            if (player.firstHitActive) {
+                damage *= 0.5;
+                player.firstHitActive = false;
+                queueMessage("Runic Plate absorbed 50% damage!");
+            }
             
             if (player.damageReduction > 0) {
                 damage *= (1 - player.damageReduction);
@@ -5072,9 +5110,11 @@ function updateMonsters(currentTime) {
                     return;
                 }
                 
-                if (player.firstHitReduction) {
+                // Runic Plate effect - reduce first hit damage
+                if (player.firstHitActive) {
                     actualDamage *= 0.5;
-                    player.firstHitReduction = false;
+                    player.firstHitActive = false;
+                    queueMessage("Runic Plate absorbed 50% damage!");
                 }
                 
                 if (player.damageReduction > 0) {
