@@ -260,7 +260,7 @@ const GAME_DATA = {
             attackSpeed: 2.0,
             range: 250,
             projectileSpeed: 12,
-            cost: 85,
+            cost: 15,
             description: 'Limited knives per round, higher tier = more knives',
             projectileColor: '#C0C0C0',
             animation: 'knife',
