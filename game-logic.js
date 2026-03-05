@@ -38,12 +38,12 @@ const MONSTER_TYPES = {
         color: '#ff0000',
         speed: 1,
         healthMultiplier: 0.8,
-        damageMultiplier: 1.5,
+        damageMultiplier: 1.25,
         sizeMultiplier: 1,
         icon: '💥',
         explosive: true,
-        explosionRadius: 100,
-        explosionDamage: 3.0,
+        explosionRadius: 75,
+        explosionDamage: 2.0,
         goldDrop: { min: 10, max: 25 }
     },
     GUNNER: {
