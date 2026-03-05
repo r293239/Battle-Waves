@@ -171,7 +171,7 @@ const BOSS_WEAPONS = {
         sparkleColor: '#FF69B4',
         dashRange: 500,
         dashSpeed: 15,
-        lifeSteal: 0.15
+        lifeSteal: 1
     }
 };
 
