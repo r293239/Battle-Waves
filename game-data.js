@@ -341,7 +341,7 @@ const GAME_DATA = {
             name: 'Dual Daggers',
             icon: '🗡️🗡️',
             type: 'melee',
-            meleeType: 'dual',
+            meleeType: 'single',
             baseDamage: 5,
             attackSpeed: 3.0,
             range: 60,
