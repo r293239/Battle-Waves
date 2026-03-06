@@ -330,7 +330,7 @@ const GAME_DATA = {
             tierMultipliers: {
                 damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5],
                 attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                range: [1, 1.1, 1.2, 1.3, 1.3, 1.3],
                 shockwaveIntensity: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
             }
         },
@@ -360,7 +360,7 @@ const GAME_DATA = {
             tierMultipliers: {
                 damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
                 attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                range: [1, 1.05, 1.1, 1.15, 1.2, 1.25]
+                range: [1, 1.05, 1.1, 1.15, 1.2, 1.2]
             }
         },
         {
