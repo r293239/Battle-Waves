@@ -38,12 +38,12 @@ const MONSTER_TYPES = {
         color: '#ff0000',
         speed: 1,
         healthMultiplier: 0.8,
-        damageMultiplier: 1.25,
+        damageMultiplier: 1.5,
         sizeMultiplier: 1,
         icon: '💥',
         explosive: true,
-        explosionRadius: 75,
-        explosionDamage: 2.0,
+        explosionRadius: 100,
+        explosionDamage: 3.0,
         goldDrop: { min: 10, max: 25 }
     },
     GUNNER: {
@@ -171,7 +171,7 @@ const BOSS_WEAPONS = {
         sparkleColor: '#FF69B4',
         dashRange: 500,
         dashSpeed: 15,
-        lifeSteal: 1
+        lifeSteal: 0.15
     }
 };
 
@@ -715,7 +715,7 @@ const player = {
     thornsDamage: 0,
     attackSpeedMultiplier: 1,
     firstHitReduction: false,
-    firstHitActive: false, // Tracks if the first hit reduction is still available this wave
+    firstHitActive: false,
     voidCrystalChance: 0,
     guardianAngelUsed: false,
     
@@ -748,6 +748,7 @@ let voidZones = [];
 let activeTraps = [];
 let bossProjectiles = [];
 let monsterProjectiles = [];
+let placedBombs = []; // For bombs with delay
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -902,38 +903,109 @@ function explodeLandmine(mine, index) {
 }
 
 // ============================================
-// CONSUMABLE FUNCTIONS
+// BOMB FUNCTIONS
 // ============================================
 
-function useBomb() {
+function placeBomb() {
+    const bombX = player.x;
+    const bombY = player.y;
+    const explosionRadius = 150;
+    const explosionDamage = 100;
+    const fuseTime = 2000; // 2 seconds
+    
+    const bomb = {
+        x: bombX,
+        y: bombY,
+        radius: 20,
+        damage: explosionDamage,
+        explosionRadius: explosionRadius,
+        active: true,
+        startTime: Date.now(),
+        detonateTime: Date.now() + fuseTime,
+        color: '#FF0000'
+    };
+    
+    placedBombs.push(bomb);
+    
+    // Visual bomb placement indicator
+    addVisualEffect({
+        type: 'bombPlaced',
+        x: bombX,
+        y: bombY,
+        radius: 20,
+        color: '#FF0000',
+        startTime: Date.now(),
+        duration: fuseTime
+    });
+    
+    queueMessage("Bomb placed! 2 second fuse...");
+    
+    // Schedule explosion
+    setTimeout(() => {
+        detonateBomb(bomb);
+    }, fuseTime);
+}
+
+function detonateBomb(bomb) {
+    if (!bomb.active) return;
+    
+    let monstersHit = 0;
+    
     for (let i = monsters.length - 1; i >= 0; i--) {
         const monster = monsters[i];
-        monster.health -= 100;
-        createDamageIndicator(monster.x, monster.y, 100, true);
+        const dx = monster.x - bomb.x;
+        const dy = monster.y - bomb.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (monster.health <= 0) {
-            const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
-            const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
-            const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
-            gold += goldEarned;
-            createGoldPopup(monster.x, monster.y, goldEarned);
+        if (distance < bomb.explosionRadius + monster.radius) {
+            monster.health -= bomb.damage;
+            createDamageIndicator(monster.x, monster.y, bomb.damage, true);
+            monstersHit++;
             
-            monsters.splice(i, 1);
-            kills++;
+            if (monster.health <= 0) {
+                const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
+                const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
+                const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
+                gold += goldEarned;
+                createGoldPopup(monster.x, monster.y, goldEarned);
+                
+                monsters.splice(i, 1);
+                kills++;
+            }
         }
     }
     
     addVisualEffect({
-        type: 'screenExplosion',
-        x: canvas.width / 2,
-        y: canvas.height / 2,
-        radius: 300,
+        type: 'explosion',
+        x: bomb.x,
+        y: bomb.y,
+        radius: bomb.explosionRadius,
         color: '#FF4500',
         startTime: Date.now(),
-        duration: 500
+        duration: 400
     });
     
-    queueMessage("BOOM! All monsters damaged!");
+    // Remove bomb from array
+    const index = placedBombs.indexOf(bomb);
+    if (index > -1) {
+        placedBombs.splice(index, 1);
+    }
+    
+    bomb.active = false;
+    
+    if (monstersHit > 0) {
+        queueMessage(`Boom! Hit ${monstersHit} monsters!`);
+    } else {
+        queueMessage("Bomb exploded but missed everything!");
+    }
+}
+
+// ============================================
+// CONSUMABLE FUNCTIONS
+// ============================================
+
+function useBomb() {
+    placeBomb();
 }
 
 function activateRagePotion() {
@@ -1633,6 +1705,7 @@ function initGame() {
     // Reset towers
     playerTowers.landmines.count = 0;
     playerTowers.landmines.active = [];
+    placedBombs = [];
     
     const handgun = getWeaponById('handgun');
     player.weapons.push(new WeaponInstance(handgun));
@@ -2887,12 +2960,11 @@ function endWave() {
     
     // Clear active landmines at end of wave
     playerTowers.landmines.active = [];
+    placedBombs = []; // Clear any undetonated bombs
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
-    
-    // Don't reset firstHitActive here - it's reset at the start of each wave
     
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -3031,6 +3103,7 @@ function gameLoop() {
     
     drawSpawnIndicators();
     drawTowers();
+    drawBombs();
     drawMonsters();
     drawProjectiles();
     drawBossProjectiles();
@@ -3066,6 +3139,60 @@ function drawGrid() {
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
     }
+}
+
+function drawBombs() {
+    placedBombs.forEach(bomb => {
+        if (!bomb.active) return;
+        
+        ctx.save();
+        ctx.translate(bomb.x, bomb.y);
+        
+        const timeLeft = bomb.detonateTime - Date.now();
+        const progress = Math.max(0, Math.min(1, timeLeft / 2000));
+        
+        // Pulsing effect
+        const pulse = Math.sin(Date.now() * 0.01) * 0.2 + 0.8;
+        
+        ctx.shadowColor = '#FF0000';
+        ctx.shadowBlur = 20;
+        
+        // Outer ring (fuse indicator)
+        ctx.strokeStyle = '#FFA500';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, bomb.radius * (1 + (1 - progress)), 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Bomb body
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(0, 0, bomb.radius * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Fuse
+        ctx.fillStyle = '#FFA500';
+        ctx.beginPath();
+        ctx.arc(0, -bomb.radius, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Spark
+        if (progress < 0.2) {
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(0, -bomb.radius - 5, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Timer text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${Math.ceil(timeLeft / 1000)}s`, 0, bomb.radius + 15);
+        
+        ctx.restore();
+    });
 }
 
 function drawTowers() {
@@ -4762,14 +4889,19 @@ function updateProjectiles() {
                 
                 if (player.lifeSteal > 0) {
                     const healAmount = Math.floor(damage * player.lifeSteal);
-                    player.health = Math.min(player.maxHealth, player.health + healAmount);
-                    createHealthPopup(player.x, player.y, healAmount);
+                    // Fix: Ensure heal amount is at least 1 if damage is significant
+                    if (healAmount > 0) {
+                        player.health = Math.min(player.maxHealth, player.health + healAmount);
+                        createHealthPopup(player.x, player.y, healAmount);
+                    }
                 }
                 
                 if (monster.isBoss && monster.lifeSteal) {
                     const bossHeal = Math.floor(damage * monster.lifeSteal);
-                    monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                    createHealthPopup(monster.x, monster.y, bossHeal);
+                    if (bossHeal > 0) {
+                        monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
+                        createHealthPopup(monster.x, monster.y, bossHeal);
+                    }
                 }
                 
                 if (projectile.isBoomerang) {
@@ -4933,14 +5065,19 @@ function updateMeleeAttacks() {
                 
                 if (player.lifeSteal > 0) {
                     const healAmount = Math.floor(damage * player.lifeSteal);
-                    player.health = Math.min(player.maxHealth, player.health + healAmount);
-                    createHealthPopup(player.x, player.y, healAmount);
+                    // Fix: Ensure heal amount is at least 1 if damage is significant
+                    if (healAmount > 0) {
+                        player.health = Math.min(player.maxHealth, player.health + healAmount);
+                        createHealthPopup(player.x, player.y, healAmount);
+                    }
                 }
                 
                 if (monster.isBoss && monster.lifeSteal) {
                     const bossHeal = Math.floor(damage * monster.lifeSteal);
-                    monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                    createHealthPopup(monster.x, monster.y, bossHeal);
+                    if (bossHeal > 0) {
+                        monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
+                        createHealthPopup(monster.x, monster.y, bossHeal);
+                    }
                 }
                 
                 hits++;
@@ -5126,8 +5263,10 @@ function updateMonsters(currentTime) {
                 
                 if (player.thornsDamage > 0) {
                     const thornsDamage = Math.floor(actualDamage * player.thornsDamage);
-                    monster.health -= thornsDamage;
-                    createDamageIndicator(monster.x, monster.y, thornsDamage, false);
+                    if (thornsDamage > 0) {
+                        monster.health -= thornsDamage;
+                        createDamageIndicator(monster.x, monster.y, thornsDamage, false);
+                    }
                 }
                 
                 createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
@@ -5300,6 +5439,23 @@ function drawVisualEffects() {
                 ctx.shadowBlur = 15 * alpha;
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'bombPlaced':
+                ctx.strokeStyle = effect.color;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = effect.color;
+                ctx.shadowBlur = 20 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner pulsing circle
+                ctx.strokeStyle = '#FFA500';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * 0.7, 0, Math.PI * 2);
                 ctx.stroke();
                 break;
                 
