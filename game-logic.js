@@ -180,6 +180,12 @@ const scytheImage = new Image();
 scytheImage.src = 'assets/scythe.png';
 
 // ============================================
+// FLOATING HEALING STORAGE
+// ============================================
+
+let pendingHealing = 0; // Store fractional healing amounts
+
+// ============================================
 // WEAPON INSTANCE CLASS
 // ============================================
 
@@ -748,7 +754,7 @@ let voidZones = [];
 let activeTraps = [];
 let bossProjectiles = [];
 let monsterProjectiles = [];
-let placedBombs = []; // For bombs with delay
+let placedBombs = [];
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -793,6 +799,29 @@ player.updateHealthDisplay = function() {
         healthFill.style.width = `${percent}%`;
     }
 };
+
+// ============================================
+// HEALING FUNCTIONS
+// ============================================
+
+function applyHealing(amount) {
+    if (player.health >= player.maxHealth) return;
+    
+    // Add to pending healing
+    pendingHealing += amount;
+    
+    // If we have at least 1 HP of healing, apply it
+    if (pendingHealing >= 1) {
+        const healToApply = Math.floor(pendingHealing);
+        player.health = Math.min(player.maxHealth, player.health + healToApply);
+        pendingHealing -= healToApply;
+        
+        // Show healing popup if we actually healed
+        if (healToApply > 0) {
+            createHealthPopup(player.x, player.y, healToApply);
+        }
+    }
+}
 
 // ============================================
 // TOWER FUNCTIONS
@@ -911,7 +940,7 @@ function placeBomb() {
     const bombY = player.y;
     const explosionRadius = 150;
     const explosionDamage = 100;
-    const fuseTime = 2000; // 2 seconds
+    const fuseTime = 2000;
     
     const bomb = {
         x: bombX,
@@ -927,7 +956,6 @@ function placeBomb() {
     
     placedBombs.push(bomb);
     
-    // Visual bomb placement indicator
     addVisualEffect({
         type: 'bombPlaced',
         x: bombX,
@@ -940,7 +968,6 @@ function placeBomb() {
     
     queueMessage("Bomb placed! 2 second fuse...");
     
-    // Schedule explosion
     setTimeout(() => {
         detonateBomb(bomb);
     }, fuseTime);
@@ -985,7 +1012,6 @@ function detonateBomb(bomb) {
         duration: 400
     });
     
-    // Remove bomb from array
     const index = placedBombs.indexOf(bomb);
     if (index > -1) {
         placedBombs.splice(index, 1);
@@ -1054,7 +1080,6 @@ function useExpScroll() {
     weapon.tier++;
     weapon.applyTierBonuses();
     
-    // Reset ammo for throwable weapons after upgrade
     if (weapon.resetEachRound) {
         weapon.resetAmmo();
     }
@@ -1388,6 +1413,7 @@ function saveGame() {
             enchantersInk: player.enchantersInk,
             consumables: player.consumables
         },
+        pendingHealing: pendingHealing,
         towers: {
             landmines: {
                 count: playerTowers.landmines.count,
@@ -1427,6 +1453,7 @@ function loadGame() {
         refreshCost = gameData.refreshCost || 5;
         
         Object.assign(player, gameData.player);
+        pendingHealing = gameData.pendingHealing || 0;
         
         if (gameData.towers) {
             playerTowers.landmines.count = gameData.towers.landmines.count || 0;
@@ -1654,6 +1681,8 @@ function initGame() {
         clearInterval(minionSpawnInterval);
         minionSpawnInterval = null;
     }
+    
+    pendingHealing = 0;
     
     Object.assign(player, {
         x: 400,
@@ -2960,7 +2989,7 @@ function endWave() {
     
     // Clear active landmines at end of wave
     playerTowers.landmines.active = [];
-    placedBombs = []; // Clear any undetonated bombs
+    placedBombs = [];
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
@@ -3032,13 +3061,27 @@ function gameOver() {
     
     clearSave();
     
-    if (player.guardianAngel && !player.guardianAngelUsed) {
+    // Guardian Angel check - if health <= 0 and Guardian Angel is available
+    if (player.guardianAngel && !player.guardianAngelUsed && player.health <= 0) {
         player.guardianAngelUsed = true;
-        player.health = player.maxHealth * 0.5;
+        player.health = Math.max(1, Math.floor(player.maxHealth * 0.5)); // Survive with 50% health, minimum 1
         gameState = 'wave';
         waveActive = true;
-        queueMessage("GUARDIAN ANGEL SAVED YOU!");
-        return;
+        queueMessage("GUARDIAN ANGEL SAVED YOU! 50% health restored.");
+        
+        // Add visual effect
+        addVisualEffect({
+            type: 'guardianAngel',
+            x: player.x,
+            y: player.y,
+            radius: 50,
+            color: '#FFFF00',
+            startTime: Date.now(),
+            duration: 1000
+        });
+        
+        updateUI();
+        return; // Don't show game over
     }
     
     gameOverText.textContent = `You survived ${wave} waves with ${kills} kills.`;
@@ -4497,8 +4540,8 @@ function updateGame(deltaTime) {
                 createDamageIndicator(player.x, player.y, damage, true);
                 
                 const healAmount = damage * BOSS_WEAPONS.SCYTHE.lifeSteal;
-                boss.health = Math.min(boss.maxHealth, boss.health + healAmount);
-                createHealthPopup(boss.x, boss.y, Math.floor(healAmount));
+                monster.health = Math.min(monster.maxHealth, monster.health + healAmount);
+                createHealthPopup(monster.x, monster.y, Math.floor(healAmount));
             }
         }
     }
@@ -4535,6 +4578,7 @@ function updateGame(deltaTime) {
         }
     }
     
+    // Health Regen with pending healing accumulation
     if ((player.healthRegen > 0 || player.healthRegenPercent > 0) && currentTime - player.lastRegen >= 1000) {
         let regenAmount = 0;
         if (player.healthRegen > 0) {
@@ -4543,7 +4587,12 @@ function updateGame(deltaTime) {
         if (player.healthRegenPercent > 0) {
             regenAmount += Math.floor(player.maxHealth * player.healthRegenPercent);
         }
-        player.health = Math.min(player.maxHealth, player.health + regenAmount);
+        
+        // Apply healing through the pending healing system
+        if (regenAmount > 0 && player.health < player.maxHealth) {
+            applyHealing(regenAmount);
+        }
+        
         player.lastRegen = currentTime;
     }
     
@@ -4888,12 +4937,8 @@ function updateProjectiles() {
                 createDamageIndicator(monster.x, monster.y, damage, isCritical);
                 
                 if (player.lifeSteal > 0) {
-                    const healAmount = Math.floor(damage * player.lifeSteal);
-                    // Fix: Ensure heal amount is at least 1 if damage is significant
-                    if (healAmount > 0) {
-                        player.health = Math.min(player.maxHealth, player.health + healAmount);
-                        createHealthPopup(player.x, player.y, healAmount);
-                    }
+                    const healAmount = damage * player.lifeSteal;
+                    applyHealing(healAmount);
                 }
                 
                 if (monster.isBoss && monster.lifeSteal) {
@@ -5064,12 +5109,8 @@ function updateMeleeAttacks() {
                 createDamageIndicator(monster.x, monster.y, damage, isCritical);
                 
                 if (player.lifeSteal > 0) {
-                    const healAmount = Math.floor(damage * player.lifeSteal);
-                    // Fix: Ensure heal amount is at least 1 if damage is significant
-                    if (healAmount > 0) {
-                        player.health = Math.min(player.maxHealth, player.health + healAmount);
-                        createHealthPopup(player.x, player.y, healAmount);
-                    }
+                    const healAmount = damage * player.lifeSteal;
+                    applyHealing(healAmount);
                 }
                 
                 if (monster.isBoss && monster.lifeSteal) {
@@ -5457,6 +5498,15 @@ function drawVisualEffects() {
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, effect.radius * 0.7, 0, Math.PI * 2);
                 ctx.stroke();
+                break;
+                
+            case 'guardianAngel':
+                ctx.fillStyle = `rgba(255, 255, 0, ${alpha * 0.3})`;
+                ctx.shadowColor = '#FFFF00';
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.fill();
                 break;
                 
             case 'screenExplosion':
