@@ -59,7 +59,7 @@
             flex: 1;
             display: flex;
             gap: 20px;
-            min-height: 0; /* Important for flex children to scroll */
+            min-height: 0;
         }
 
         /* Left column - Game Arena (Scrollable) */
@@ -230,7 +230,7 @@
             width: 100%;
         }
 
-        /* Fixed Weapon Slots - Clean and Properly Contained */
+        /* Fixed Weapon Slots - Stats on Hover */
         .weapons-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -276,9 +276,10 @@
             line-height: 1;
             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
             z-index: 2;
+            transition: all 0.2s ease;
         }
 
-        /* Weapon Badges - Properly Positioned */
+        /* Only show tier badge and cooldown bar by default */
         .tier-badge {
             position: absolute;
             top: 6px;
@@ -295,34 +296,6 @@
             font-size: 0.8rem;
             border: 2px solid #fff;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            z-index: 3;
-        }
-
-        .weapon-level {
-            position: absolute;
-            bottom: 6px;
-            right: 6px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #ffcc00;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            border: 1px solid #ffcc00;
-            z-index: 3;
-        }
-
-        .ammo-display {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #00ffff;
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: bold;
-            border: 1px solid #00ffff;
             z-index: 3;
         }
 
@@ -343,16 +316,97 @@
             transition: width 0.1s linear;
         }
 
-        .weapon-type-indicator {
+        /* Hide all other stats by default */
+        .weapon-level,
+        .ammo-display,
+        .weapon-type-indicator,
+        .weapon-damage,
+        .weapon-speed {
+            display: none;
+        }
+
+        /* Show stats on hover with a beautiful tooltip */
+        .weapon-slot.occupied:hover::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid rgba(30, 30, 60, 0.95);
+            z-index: 100;
+        }
+
+        .weapon-slot.occupied:hover::after {
+            content: attr(data-stats);
+            position: absolute;
+            top: -120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 60, 0.95);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            border: 2px solid #ffcc00;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            z-index: 99;
+            pointer-events: none;
+            text-align: left;
+            line-height: 1.6;
+            font-family: monospace;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Different positions for slots in different rows */
+        .weapon-slot.occupied:hover::after {
+            top: -140px;
+        }
+
+        /* For slots in the bottom row, show tooltip above */
+        .weapons-grid .weapon-slot:nth-child(n+4).occupied:hover::after {
+            top: auto;
+            bottom: -140px;
+        }
+
+        .weapons-grid .weapon-slot:nth-child(n+4).occupied:hover::before {
+            top: auto;
+            bottom: -8px;
+            border-bottom: none;
+            border-top: 8px solid rgba(30, 30, 60, 0.95);
+        }
+
+        /* Format the stats tooltip content */
+        .weapon-slot.occupied[data-stats] {
+            position: relative;
+        }
+
+        /* Show weapon level and ammo in a cleaner way on the slot */
+        .weapon-level-mini {
             position: absolute;
             bottom: 6px;
-            left: 6px;
-            font-size: 0.7rem;
-            color: #aaaaff;
-            background: rgba(0, 0, 0, 0.6);
+            right: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #ffcc00;
             padding: 2px 6px;
             border-radius: 10px;
-            border: 1px solid #5555aa;
+            font-size: 0.7rem;
+            border: 1px solid #ffcc00;
+            z-index: 3;
+        }
+
+        .ammo-mini {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #00ffff;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            border: 1px solid #00ffff;
             z-index: 3;
         }
 
@@ -370,7 +424,7 @@
             font-size: 2rem;
         }
 
-        /* Shop and other styles remain the same */
+        /* Shop styles */
         .shop-header {
             display: flex;
             justify-content: space-between;
@@ -927,6 +981,11 @@
             .game-area, .ui-panels {
                 overflow-y: visible;
             }
+
+            /* Adjust tooltip for mobile */
+            .weapon-slot.occupied:hover::after {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -999,7 +1058,7 @@
                     </button>
                     <div class="instructions">
                         Click a weapon to select it. Click another same-type weapon to merge (Tier 1-5).<br>
-                        Merging improves damage, attack speed, and special effects.
+                        Merging improves damage, attack speed, and special effects. Hover over weapons to see stats.
                     </div>
                 </div>
 
@@ -1072,7 +1131,7 @@
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🔄</div>
-                    <div class="feature-text">Weapon Merging System (Tier 1-5)</div>
+                    <div class="feature-text">Weapon Merging System (Tier 1-5) - Hover to see stats</div>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">📊</div>
