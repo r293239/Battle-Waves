@@ -183,7 +183,7 @@ scytheImage.src = 'assets/scythe.png';
 // FLOATING HEALING STORAGE
 // ============================================
 
-let pendingHealing = 0; // Store fractional healing amounts
+let pendingHealing = 0;
 
 // ============================================
 // WEAPON INSTANCE CLASS
@@ -214,6 +214,9 @@ class WeaponInstance {
         this.resetEachRound = weaponData.resetEachRound || false;
         this.projectileSize = weaponData.projectileSize || 4;
         this.spinSpeed = weaponData.spinSpeed || 0;
+        
+        // Track knives used on each monster for return mechanic
+        this.knivesUsed = new Map(); // monster -> count of knives hit
         
         if (this.usesAmmo) {
             this.magazineSize = weaponData.magazineSize;
@@ -358,7 +361,30 @@ class WeaponInstance {
         if (this.resetEachRound) {
             this.currentAmmo = this.magazineSize;
             this.isReloading = false;
+            this.knivesUsed.clear(); // Clear tracking at start of wave
         }
+    }
+
+    // Track knife hit on monster
+    trackKnifeHit(monster) {
+        if (!this.isThrowable) return;
+        
+        const currentCount = this.knivesUsed.get(monster) || 0;
+        this.knivesUsed.set(monster, currentCount + 1);
+    }
+
+    // Return knives when monster dies
+    returnKnives(monster) {
+        if (!this.isThrowable) return 0;
+        
+        const knivesHit = this.knivesUsed.get(monster) || 0;
+        if (knivesHit > 0) {
+            this.knivesUsed.delete(monster);
+            // Add back the knives
+            this.currentAmmo = Math.min(this.magazineSize, this.currentAmmo + knivesHit);
+            return knivesHit;
+        }
+        return 0;
     }
 
     attack(playerX, playerY, targetX, targetY) {
@@ -393,7 +419,8 @@ class WeaponInstance {
                         animation: this.animation,
                         isPellet: true,
                         startTime: currentTime,
-                        size: 3
+                        size: 3,
+                        weaponRef: this // Add reference to weapon for tracking
                     });
                 }
                 return attacks;
@@ -422,7 +449,8 @@ class WeaponInstance {
                     rotation: 0,
                     startTime: currentTime,
                     hitThisFrame: false,
-                    size: 4
+                    size: 4,
+                    weaponRef: this
                 };
             } else if (this.id === 'throwing_knives') {
                 const angle = Math.atan2(targetY - playerY, targetX - playerX);
@@ -445,7 +473,8 @@ class WeaponInstance {
                     startTime: currentTime,
                     size: this.projectileSize || 6,
                     spinSpeed: this.spinSpeed || 0,
-                    rotation: 0
+                    rotation: 0,
+                    weaponRef: this // Add reference to weapon for tracking
                 };
             } else {
                 const baseAngle = Math.atan2(targetY - playerY, targetX - playerX);
@@ -467,7 +496,8 @@ class WeaponInstance {
                     bounceRange: this.bounceRange,
                     targetsHit: [],
                     startTime: currentTime,
-                    size: 4
+                    size: 4,
+                    weaponRef: this
                 };
             }
         } else {
@@ -810,16 +840,11 @@ function applyHealing(amount) {
     // Add to pending healing
     pendingHealing += amount;
     
-    // If we have at least 1 HP of healing, apply it
-    if (pendingHealing >= 1) {
-        const healToApply = Math.floor(pendingHealing);
-        player.health = Math.min(player.maxHealth, player.health + healToApply);
-        pendingHealing -= healToApply;
-        
-        // Show healing popup if we actually healed
-        if (healToApply > 0) {
-            createHealthPopup(player.x, player.y, healToApply);
-        }
+    // Always heal at least 1 HP if there's any healing and health isn't full
+    while (pendingHealing >= 1) {
+        player.health = Math.min(player.maxHealth, player.health + 1);
+        pendingHealing -= 1;
+        createHealthPopup(player.x, player.y, 1);
     }
 }
 
@@ -906,14 +931,7 @@ function explodeLandmine(mine, index) {
             createDamageIndicator(monster.x, monster.y, mine.damage, true);
             
             if (monster.health <= 0) {
-                const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
-                const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
-                const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
-                gold += goldEarned;
-                createGoldPopup(monster.x, monster.y, goldEarned);
-                
-                monsters.splice(i, 1);
-                kills++;
+                handleMonsterDeath(monster, i);
             }
         }
     }
@@ -990,14 +1008,7 @@ function detonateBomb(bomb) {
             monstersHit++;
             
             if (monster.health <= 0) {
-                const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
-                const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
-                const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
-                gold += goldEarned;
-                createGoldPopup(monster.x, monster.y, goldEarned);
-                
-                monsters.splice(i, 1);
-                kills++;
+                handleMonsterDeath(monster, i);
             }
         }
     }
@@ -1080,6 +1091,7 @@ function useExpScroll() {
     weapon.tier++;
     weapon.applyTierBonuses();
     
+    // Reset ammo for throwable weapons after upgrade
     if (weapon.resetEachRound) {
         weapon.resetAmmo();
     }
@@ -2144,14 +2156,7 @@ function spawnAsteroid() {
                 createDamageIndicator(monster.x, monster.y, 75, true);
                 
                 if (monster.health <= 0) {
-                    monsters.splice(i, 1);
-                    kills++;
-                    
-                    const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
-                    const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
-                    const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
-                    gold += goldEarned;
-                    createGoldPopup(monster.x, monster.y, goldEarned);
+                    handleMonsterDeath(monster, i);
                 }
             }
         }
@@ -2400,12 +2405,11 @@ function updateWeaponDisplay() {
             let ammoDisplay = '';
             if (weapon.usesAmmo) {
                 if (weapon.isThrowable) {
-                    // Show as knife icons or count
-                    const ammoPercent = (weapon.currentAmmo / weapon.magazineSize) * 100;
+                    // Smaller ammo display
                     ammoDisplay = `
-                        <div class="throwable-ammo">
-                            ${'🔪'.repeat(Math.min(weapon.currentAmmo, 5))}
-                            <span>${weapon.currentAmmo}/${weapon.magazineSize}</span>
+                        <div class="throwable-ammo-small">
+                            <span class="ammo-count">${weapon.currentAmmo}</span>
+                            <span class="ammo-max">/${weapon.magazineSize}</span>
                         </div>
                     `;
                 } else {
@@ -2487,7 +2491,7 @@ function useConsumable(index) {
     switch(consumable.id) {
         case 'health_potion':
             const healAmount = Math.floor(player.maxHealth * 0.25);
-            player.health = Math.min(player.maxHealth, player.health + healAmount);
+            applyHealing(healAmount);
             queueMessage(`Used Health Potion! +${healAmount} HP (25%)`);
             break;
             
@@ -2989,7 +2993,7 @@ function endWave() {
     
     // Clear active landmines at end of wave
     playerTowers.landmines.active = [];
-    placedBombs = [];
+    placedBombs = []; // Clear any undetonated bombs
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
@@ -4540,8 +4544,8 @@ function updateGame(deltaTime) {
                 createDamageIndicator(player.x, player.y, damage, true);
                 
                 const healAmount = damage * BOSS_WEAPONS.SCYTHE.lifeSteal;
-                monster.health = Math.min(monster.maxHealth, monster.health + healAmount);
-                createHealthPopup(monster.x, monster.y, Math.floor(healAmount));
+                boss.health = Math.min(boss.maxHealth, boss.health + healAmount);
+                createHealthPopup(boss.x, boss.y, Math.floor(healAmount));
             }
         }
     }
@@ -4578,7 +4582,7 @@ function updateGame(deltaTime) {
         }
     }
     
-    // Health Regen with pending healing accumulation
+    // Health Regen with pending healing accumulation - ALWAYS HEAL AT LEAST 1 HP
     if ((player.healthRegen > 0 || player.healthRegenPercent > 0) && currentTime - player.lastRegen >= 1000) {
         let regenAmount = 0;
         if (player.healthRegen > 0) {
@@ -4588,9 +4592,10 @@ function updateGame(deltaTime) {
             regenAmount += Math.floor(player.maxHealth * player.healthRegenPercent);
         }
         
-        // Apply healing through the pending healing system
+        // Always heal at least 1 HP if health isn't full
         if (regenAmount > 0 && player.health < player.maxHealth) {
-            applyHealing(regenAmount);
+            // Apply at least 1 HP healing
+            applyHealing(Math.max(1, regenAmount));
         }
         
         player.lastRegen = currentTime;
@@ -4934,6 +4939,11 @@ function updateProjectiles() {
                 
                 monster.health -= damage;
                 
+                // Track knife hit for throwable weapons
+                if (projectile.weaponRef && projectile.weaponRef.isThrowable) {
+                    projectile.weaponRef.trackKnifeHit(monster);
+                }
+                
                 createDamageIndicator(monster.x, monster.y, damage, isCritical);
                 
                 if (player.lifeSteal > 0) {
@@ -4969,102 +4979,7 @@ function updateProjectiles() {
                 }
                 
                 if (monster.health <= 0) {
-                    if (monster.isSplitter) {
-                        handleSplitterDeath(monster);
-                    }
-                    
-                    const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
-                    const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
-                    const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
-                    gold += goldEarned;
-                    createGoldPopup(monster.x, monster.y, goldEarned);
-                    
-                    if (monster.monsterType && monster.monsterType.explosive) {
-                        const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
-                        const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
-                        
-                        const dxToPlayer = player.x - monster.x;
-                        const dyToPlayer = player.y - monster.y;
-                        const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
-                        
-                        if (distanceToPlayer < explosionRadius + player.radius) {
-                            player.health -= explosionDamage;
-                            createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
-                            
-                            if (player.health <= 0) {
-                                gameOver();
-                            }
-                        }
-                        
-                        for (let k = monsters.length - 1; k >= 0; k--) {
-                            const otherMonster = monsters[k];
-                            
-                            if (otherMonster === monster) continue;
-                            
-                            const dx = otherMonster.x - monster.x;
-                            const dy = otherMonster.y - monster.y;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-                            
-                            if (distance < explosionRadius + otherMonster.radius) {
-                                otherMonster.health -= explosionDamage;
-                                createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
-                                
-                                if (otherMonster.health <= 0) {
-                                    if (otherMonster.isSplitter) {
-                                        handleSplitterDeath(otherMonster);
-                                    }
-                                    
-                                    monsters.splice(k, 1);
-                                    kills++;
-                                    
-                                    const otherGoldRange = otherMonster.monsterType.goldDrop || { min: 5, max: 15 };
-                                    const otherGoldDrop = Math.floor(Math.random() * (otherGoldRange.max - otherGoldRange.min + 1)) + otherGoldRange.min;
-                                    const otherGoldEarned = Math.floor(otherGoldDrop * (1 + player.goldMultiplier));
-                                    gold += otherGoldEarned;
-                                    createGoldPopup(otherMonster.x, otherMonster.y, otherGoldEarned);
-                                    
-                                    addVisualEffect({
-                                        type: 'death',
-                                        x: otherMonster.x,
-                                        y: otherMonster.y,
-                                        color: otherMonster.color,
-                                        startTime: Date.now(),
-                                        duration: 300
-                                    });
-                                }
-                            }
-                        }
-                        
-                        addVisualEffect({
-                            type: 'explosion',
-                            x: monster.x,
-                            y: monster.y,
-                            radius: explosionRadius,
-                            startTime: Date.now(),
-                            duration: 500
-                        });
-                        
-                        addVisualEffect({
-                            type: 'shockwave',
-                            x: monster.x,
-                            y: monster.y,
-                            radius: explosionRadius * 2,
-                            startTime: Date.now(),
-                            duration: 300
-                        });
-                    }
-                    
-                    addVisualEffect({
-                        type: 'death',
-                        x: monster.x,
-                        y: monster.y,
-                        color: monster.color,
-                        startTime: Date.now(),
-                        duration: 300
-                    });
-                    
-                    monsters.splice(j, 1);
-                    kills++;
+                    handleMonsterDeath(monster, j);
                 }
                 
                 break;
@@ -5128,103 +5043,7 @@ function updateMeleeAttacks() {
                 }
                 
                 if (monster.health <= 0) {
-                    if (monster.isSplitter) {
-                        handleSplitterDeath(monster);
-                    }
-                    
-                    const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
-                    const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
-                    const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
-                    gold += goldEarned;
-                    createGoldPopup(monster.x, monster.y, goldEarned);
-                    
-                    if (monster.monsterType && monster.monsterType.explosive) {
-                        const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
-                        const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
-                        
-                        const dxToPlayer = player.x - monster.x;
-                        const dyToPlayer = player.y - monster.y;
-                        const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
-                        
-                        if (distanceToPlayer < explosionRadius + player.radius) {
-                            player.health -= explosionDamage;
-                            createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
-                            
-                            if (player.health <= 0) {
-                                gameOver();
-                            }
-                        }
-                        
-                        for (let k = monsters.length - 1; k >= 0; k--) {
-                            const otherMonster = monsters[k];
-                            
-                            if (otherMonster === monster) continue;
-                            
-                            const dx = otherMonster.x - monster.x;
-                            const dy = otherMonster.y - monster.y;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-                            
-                            if (distance < explosionRadius + otherMonster.radius) {
-                                otherMonster.health -= explosionDamage;
-                                createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
-                                
-                                if (otherMonster.health <= 0) {
-                                    if (otherMonster.isSplitter) {
-                                        handleSplitterDeath(otherMonster);
-                                    }
-                                    
-                                    monsters.splice(k, 1);
-                                    kills++;
-                                    
-                                    const otherGoldRange = otherMonster.monsterType.goldDrop || { min: 5, max: 15 };
-                                    const otherGoldDrop = Math.floor(Math.random() * (otherGoldRange.max - otherGoldRange.min + 1)) + otherGoldRange.min;
-                                    const otherGoldEarned = Math.floor(otherGoldDrop * (1 + player.goldMultiplier));
-                                    gold += otherGoldEarned;
-                                    createGoldPopup(otherMonster.x, otherMonster.y, otherGoldEarned);
-                                    
-                                    addVisualEffect({
-                                        type: 'death',
-                                        x: otherMonster.x,
-                                        y: otherMonster.y,
-                                        color: otherMonster.color,
-                                        startTime: Date.now(),
-                                        duration: 300
-                                    });
-                                }
-                            }
-                        }
-                        
-                        addVisualEffect({
-                            type: 'explosion',
-                            x: monster.x,
-                            y: monster.y,
-                            radius: explosionRadius,
-                            startTime: Date.now(),
-                            duration: 500
-                        });
-                        
-                        addVisualEffect({
-                            type: 'shockwave',
-                            x: monster.x,
-                            y: monster.y,
-                            radius: explosionRadius * 2,
-                            startTime: Date.now(),
-                            duration: 300
-                        });
-                    }
-                    
-                    addVisualEffect({
-                        type: 'death',
-                        x: monster.x,
-                        y: monster.y,
-                        color: monster.color,
-                        startTime: Date.now(),
-                        duration: 300
-                    });
-                    
-                    monsters.splice(j, 1);
-                    kills++;
-                    
+                    handleMonsterDeath(monster, j);
                     j--;
                 }
             }
@@ -6355,10 +6174,30 @@ style.textContent = `
         z-index: 100;
     }
 
-    .throwable-ammo {
+    .throwable-ammo-small {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 8px;
+        padding: 2px 4px;
+        font-size: 0.65rem;
+        font-weight: bold;
+        color: #ffaa00;
+        border: 1px solid #ffaa00;
         display: flex;
-        gap: 2px;
-        font-size: 0.8rem;
+        align-items: center;
+        gap: 1px;
+    }
+    
+    .throwable-ammo-small .ammo-count {
+        color: #ffffff;
+        font-size: 0.7rem;
+    }
+    
+    .throwable-ammo-small .ammo-max {
+        color: #888888;
+        font-size: 0.55rem;
     }
 `;
 document.head.appendChild(style);
