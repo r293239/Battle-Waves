@@ -1518,24 +1518,16 @@ function showNextMessage() {
 // JOYSTICK - FIXED VERSION
 // ============================================
 
-function createJoystick() {
-    // Remove existing joystick if any
-    const oldJoystick = document.getElementById('joystickContainer');
-    if (oldJoystick) oldJoystick.remove();
-    
-    const joystickContainer = document.createElement('div');
-    joystickContainer.id = 'joystickContainer';
-    joystickContainer.className = 'joystick-container';
-    joystickContainer.innerHTML = `
-        <div id="joystickBase" class="joystick-base">
-            <div id="joystickHandle" class="joystick-handle"></div>
-        </div>
-    `;
-    
-    document.body.appendChild(joystickContainer);
-    
+// ============================================
+// JOYSTICK - USING HTML ELEMENT
+// ============================================
+
+function initJoystick() {
     const joystickBase = document.getElementById('joystickBase');
     const joystickHandle = document.getElementById('joystickHandle');
+    
+    // If joystick elements don't exist, don't initialize
+    if (!joystickBase || !joystickHandle) return;
     
     function getJoystickPosition(e) {
         const touch = e.touches[0];
@@ -6082,7 +6074,7 @@ createMessageContainer();
 
 // Create joystick for mobile
 if ('ontouchstart' in window) {
-    createJoystick();
+    initJoystick();
 }
 
 // Create stats panel
