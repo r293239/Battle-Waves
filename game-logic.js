@@ -1,4 +1,8 @@
 // ============================================
+// COMPLETE FIXED GAME-LOGIC.JS
+// ============================================
+
+// ============================================
 // MONSTER TYPES
 // ============================================
 
@@ -1073,7 +1077,6 @@ function applyHealing(amount) {
         createHealthPopup(player.x, player.y, 1);
     }
 }
-
 // ============================================
 // TOWER FUNCTIONS
 // ============================================
@@ -1340,6 +1343,7 @@ function useExpScroll() {
     queueMessage(`${weapon.name} upgraded from Tier ${oldTier} to Tier ${weapon.tier}!`);
     updateWeaponDisplay();
 }
+
 // ============================================
 // MONSTER DEATH HANDLER - FIXED VERSION
 // ============================================
@@ -1463,6 +1467,7 @@ function handleMonsterDeath(monster, index) {
         updateUI();
     }
 }
+
 // ============================================
 // MESSAGE QUEUE SYSTEM
 // ============================================
@@ -1510,10 +1515,14 @@ function showNextMessage() {
 }
 
 // ============================================
-// JOYSTICK
+// JOYSTICK - FIXED VERSION
 // ============================================
 
 function createJoystick() {
+    // Remove existing joystick if any
+    const oldJoystick = document.getElementById('joystickContainer');
+    if (oldJoystick) oldJoystick.remove();
+    
     const joystickContainer = document.createElement('div');
     joystickContainer.id = 'joystickContainer';
     joystickContainer.className = 'joystick-container';
@@ -2033,7 +2042,7 @@ function generateStatBuffs() {
 }
 
 // ============================================
-// INITIALIZATION
+// INITIALIZATION - FIXED VERSION
 // ============================================
 
 function initGame() {
@@ -2109,7 +2118,7 @@ function initGame() {
     gold = GAME_DATA.PLAYER_START.gold;
     kills = 0;
     gameState = 'wave';
-    waveActive = false;
+    waveActive = false; // Start with wave inactive
     
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
@@ -2139,6 +2148,7 @@ function initGame() {
     bossAbilities.bossDashDirection = { x: 0, y: 0 };
     bossAbilities.bossDashDistance = 0;
     bossAbilities.minionSpawnTimer = 0;
+    
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -2163,16 +2173,19 @@ function initGame() {
     mergeInfo.style.display = 'none';
     reloadIndicator.style.display = 'none';
     
-    updateConsumablesDisplay();
-    startWave();
+    // Show next wave button since wave is not active
+    nextWaveBtn.style.display = 'block';
     
+    updateConsumablesDisplay();
     updateUI();
     updateWeaponDisplay();
     updateShopDisplay();
+    
+    // Start the first wave automatically
+    startWave();
 }
-
 // ============================================
-// WAVE MANAGEMENT
+// WAVE MANAGEMENT - FIXED VERSION
 // ============================================
 
 function showSpawnIndicators() {
@@ -2266,9 +2279,15 @@ function startMinionSpawning(boss) {
 }
 
 function startWave() {
+    // Don't start if already in wave
+    if (waveActive) return;
+    
     gameState = 'wave';
     waveActive = true;
     waveStartTime = Date.now();
+    
+    // Hide next wave button during wave
+    nextWaveBtn.style.display = 'none';
     
     // Reset Runic Plate for new wave
     if (player.firstHitReduction) {
@@ -2286,6 +2305,14 @@ function startWave() {
         }
     });
     
+    // Clear existing monsters and effects
+    monsters = [];
+    player.projectiles = [];
+    player.meleeAttacks = [];
+    bossProjectiles = [];
+    monsterProjectiles = [];
+    visualEffects = [];
+    
     bossAbilities.asteroids = [];
     bossAbilities.slowField = null;
     bossAbilities.enraged = false;
@@ -2298,6 +2325,7 @@ function startWave() {
     bossAbilities.bossDashDirection = { x: 0, y: 0 };
     bossAbilities.bossDashDistance = 0;
     bossAbilities.minionSpawnTimer = 0;
+    
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -2327,15 +2355,6 @@ function startWave() {
     }
     
     waveDisplay.style.opacity = 1;
-    
-    monsters = [];
-    player.projectiles = [];
-    player.meleeAttacks = [];
-    visualEffects = [];
-    bossProjectiles = [];
-    monsterProjectiles = [];
-    dashers = [];
-    splitterTracking = [];
     
     scrapWeaponBtn.style.display = 'none';
     mergeWeaponBtn.style.display = 'none';
@@ -2420,7 +2439,7 @@ function startWave() {
             
             for (let i = 0; i < monsterCount; i++) {
                 setTimeout(() => {
-                    if (gameState === 'wave') {
+                    if (gameState === 'wave' && waveActive) {
                         let monsterType;
                         const rand = Math.random();
                         
@@ -2487,6 +2506,9 @@ function startWave() {
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
     }, 2500);
+    
+    // Update UI
+    updateUI();
 }
 
 function spawnAsteroid() {
@@ -3105,7 +3127,6 @@ function scrapWeapon() {
     updateUI();
     updateWeaponDisplay();
 }
-
 function updateShopDisplay() {
     shopItemsContainer.innerHTML = '';
     
@@ -4082,7 +4103,6 @@ function drawMachinegunProjectile(ctx, projectile, currentTime) {
         ctx.fill();
     }
 }
-
 // ============================================
 // MELEE WEAPON ANIMATIONS
 // ============================================
@@ -4852,12 +4872,16 @@ function drawPlayer() {
     
     ctx.restore();
 }
+// ============================================
+// UPDATE GAME FUNCTION - COMPLETE
+// ============================================
 
 function updateGame(deltaTime) {
     const currentTime = Date.now();
     
     checkLandmineTriggers();
     
+    // Slow field effect (Wave 30 boss)
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
         const boss = monsters.find(m => m.isBoss && wave === 30);
         if (boss) {
@@ -4885,7 +4909,8 @@ function updateGame(deltaTime) {
             }
         }
     }
-        // Boss enrage (Wave 20 boss)
+    
+    // Boss enrage (Wave 20 boss)
     if (wave === 20 && !bossAbilities.enraged) {
         const boss = monsters.find(m => m.isBoss);
         if (boss && boss.health <= boss.maxHealth / 2) {
@@ -5763,9 +5788,8 @@ function drawMonsters() {
         ctx.restore();
     });
 }
-
 // ============================================
-// EVENT LISTENERS
+// EVENT LISTENERS - COMPLETE
 // ============================================
 
 function setupEventListeners() {
@@ -5785,6 +5809,17 @@ function setupEventListeners() {
                 e.preventDefault();
                 if (gameState === 'wave') {
                     attack();
+                }
+                break;
+            case 'r':
+                e.preventDefault();
+                if (gameState === 'wave') {
+                    // Manual reload for all ranged weapons
+                    player.weapons.forEach(weapon => {
+                        if (weapon.usesAmmo && !weapon.isThrowable) {
+                            weapon.startReload();
+                        }
+                    });
                 }
                 break;
         }
@@ -5814,6 +5849,7 @@ function setupEventListeners() {
         mouseY = (e.clientY - rect.top) * scaleY;
     });
     
+    // Touch movement for aiming (mobile)
     canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
@@ -5965,6 +6001,22 @@ function setupEventListeners() {
         buttonContainer.appendChild(saveBtn);
         buttonContainer.appendChild(loadBtn);
         buttonContainer.appendChild(clearSaveBtn);
+    } else {
+        // Create button container if it doesn't exist
+        const newButtonContainer = document.createElement('div');
+        newButtonContainer.className = 'button-container';
+        newButtonContainer.style.display = 'flex';
+        newButtonContainer.style.gap = '10px';
+        newButtonContainer.style.marginTop = '10px';
+        newButtonContainer.appendChild(saveBtn);
+        newButtonContainer.appendChild(loadBtn);
+        newButtonContainer.appendChild(clearSaveBtn);
+        
+        // Append to ui-panel
+        const uiPanel = document.querySelector('.ui-panel');
+        if (uiPanel) {
+            uiPanel.appendChild(newButtonContainer);
+        }
     }
     
     // Stats panel toggle
@@ -5983,6 +6035,11 @@ function setupEventListeners() {
     
     if (buttonContainer) {
         buttonContainer.insertBefore(statsBtn, buttonContainer.firstChild);
+    } else {
+        const newButtonContainer = document.querySelector('.button-container');
+        if (newButtonContainer) {
+            newButtonContainer.insertBefore(statsBtn, newButtonContainer.firstChild);
+        }
     }
 }
 
@@ -6045,3 +6102,225 @@ gameLoop();
 startScreen.style.display = 'flex';
 waveCompleteOverlay.style.display = 'none';
 gameOverOverlay.style.display = 'none';
+
+// ============================================
+// ADD MISSING CSS FOR JOYSTICK AND MESSAGES
+// ============================================
+
+// Add these styles to your existing CSS or inject them
+const style = document.createElement('style');
+style.textContent = `
+    .joystick-container {
+        position: fixed;
+        bottom: 30px;
+        left: 30px;
+        width: 120px;
+        height: 120px;
+        z-index: 1000;
+        display: none;
+    }
+    
+    @media (max-width: 768px) {
+        .joystick-container {
+            display: block;
+        }
+    }
+    
+    .joystick-base {
+        width: 100%;
+        height: 100%;
+        background: rgba(50, 50, 100, 0.5);
+        border: 3px solid #4a4a9a;
+        border-radius: 50%;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+    }
+    
+    .joystick-base.active {
+        background: rgba(70, 70, 140, 0.7);
+        border-color: #ff6b6b;
+    }
+    
+    .joystick-handle {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #ff6b6b, #ffa726);
+        border-radius: 50%;
+        position: absolute;
+        transition: transform 0.05s;
+        box-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+    }
+    
+    .message-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+        max-width: 300px;
+    }
+    
+    .message-item {
+        background: rgba(0, 0, 0, 0.8);
+        color: #ffcc00;
+        padding: 12px 20px;
+        border-radius: 10px;
+        border-left: 5px solid #ff6b6b;
+        font-weight: bold;
+        transform: translateX(100%);
+        opacity: 0;
+        transition: all 0.3s;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+    }
+    
+    .message-item.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .message-item.hide {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    
+    .stats-panel-hidden {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        background: rgba(30, 30, 60, 0.95);
+        border: 3px solid #ffcc00;
+        border-radius: 15px;
+        padding: 20px;
+        z-index: 1500;
+        width: 350px;
+        max-width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        transition: transform 0.3s;
+        box-shadow: 0 0 50px rgba(255, 204, 0, 0.3);
+        backdrop-filter: blur(10px);
+    }
+    
+    .stats-panel-visible {
+        transform: translate(-50%, -50%) scale(1);
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        background: rgba(30, 30, 60, 0.95);
+        border: 3px solid #ffcc00;
+        border-radius: 15px;
+        padding: 20px;
+        z-index: 1500;
+        width: 350px;
+        max-width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 0 50px rgba(255, 204, 0, 0.3);
+        backdrop-filter: blur(10px);
+    }
+    
+    .stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #4a4a9a;
+    }
+    
+    .stats-header h3 {
+        color: #ffcc00;
+        font-size: 1.3rem;
+        margin: 0;
+    }
+    
+    .stats-header button {
+        background: none;
+        border: none;
+        color: #aaaaff;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 5px;
+    }
+    
+    .stats-header button:hover {
+        color: #ffcc00;
+    }
+    
+    .stats-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 10px;
+        background: rgba(50, 50, 100, 0.3);
+        border-radius: 5px;
+    }
+    
+    .stat-label {
+        color: #aaaaff;
+        font-size: 0.9rem;
+    }
+    
+    .stat-value {
+        color: #ffcc00;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    
+    .stat-divider {
+        height: 2px;
+        background: #4a4a9a;
+        margin: 10px 0;
+    }
+    
+    .throwable-ammo-small {
+        position: absolute;
+        bottom: 5px;
+        left: 5px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #ffcc00;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+    }
+    
+    .tower-tag {
+        background: rgba(139, 69, 19, 0.2);
+        color: #8B4513;
+        border: 1px solid #8B4513;
+    }
+    
+    .boomerang-tag {
+        background: rgba(139, 69, 19, 0.2);
+        color: #8B4513;
+        border: 1px solid #8B4513;
+    }
+    
+    .throwing-tag {
+        background: rgba(192, 192, 192, 0.2);
+        color: #C0C0C0;
+        border: 1px solid #C0C0C0;
+    }
+    
+    .dual-tag {
+        background: rgba(70, 130, 180, 0.2);
+        color: #4682B4;
+        border: 1px solid #4682B4;
+    }
+`;
+
+document.head.appendChild(style);
