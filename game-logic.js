@@ -1340,20 +1340,24 @@ function useExpScroll() {
     queueMessage(`${weapon.name} upgraded from Tier ${oldTier} to Tier ${weapon.tier}!`);
     updateWeaponDisplay();
 }
-
 // ============================================
-// MONSTER DEATH HANDLER
+// MONSTER DEATH HANDLER - FIXED VERSION
 // ============================================
 
 function handleMonsterDeath(monster, index) {
+    // Safety check - make sure monster exists
+    if (!monster) return;
+    
     // Return any throwing knives that hit this monster
     let knivesReturned = 0;
-    player.weapons.forEach(weapon => {
-        if (weapon.isThrowable) {
-            const returned = weapon.returnKnives(monster);
-            knivesReturned += returned;
-        }
-    });
+    if (player && player.weapons) {
+        player.weapons.forEach(weapon => {
+            if (weapon && weapon.isThrowable) {
+                const returned = weapon.returnKnives(monster);
+                knivesReturned += returned;
+            }
+        });
+    }
     
     if (knivesReturned > 0) {
         queueMessage(`+${knivesReturned} knife${knivesReturned > 1 ? 's' : ''} returned!`);
@@ -1361,51 +1365,60 @@ function handleMonsterDeath(monster, index) {
     }
     
     // Remove monster's path
-    monsterPaths.delete(monster);
+    if (monsterPaths) {
+        monsterPaths.delete(monster);
+    }
     
     if (monster.isSplitter) {
         handleSplitterDeath(monster);
     }
     
-    const goldRange = monster.monsterType.goldDrop || { min: 5, max: 15 };
+    const goldRange = (monster.monsterType && monster.monsterType.goldDrop) || { min: 5, max: 15 };
     const goldDrop = Math.floor(Math.random() * (goldRange.max - goldRange.min + 1)) + goldRange.min;
-    const goldEarned = Math.floor(goldDrop * (1 + player.goldMultiplier));
+    const goldEarned = Math.floor(goldDrop * (1 + (player.goldMultiplier || 0)));
     gold += goldEarned;
     createGoldPopup(monster.x, monster.y, goldEarned);
     
+    // Handle explosive monster death chain reaction
     if (monster.monsterType && monster.monsterType.explosive) {
         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
-        const explosionDamage = monster.damage * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
+        const explosionDamage = (monster.damage || 1) * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
         
-        const dxToPlayer = player.x - monster.x;
-        const dyToPlayer = player.y - monster.y;
-        const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
-        
-        if (distanceToPlayer < explosionRadius + player.radius) {
-            player.health -= explosionDamage;
-            createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
+        // Damage player if in range
+        if (player) {
+            const dxToPlayer = player.x - monster.x;
+            const dyToPlayer = player.y - monster.y;
+            const distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
             
-            if (player.health <= 0) {
-                gameOver();
-                return;
+            if (distanceToPlayer < explosionRadius + player.radius) {
+                player.health -= explosionDamage;
+                createDamageIndicator(player.x, player.y, Math.floor(explosionDamage), true);
+                
+                if (player.health <= 0) {
+                    gameOver();
+                    return;
+                }
             }
         }
         
-        for (let k = monsters.length - 1; k >= 0; k--) {
-            const otherMonster = monsters[k];
-            
-            if (otherMonster === monster) continue;
-            
-            const dx = otherMonster.x - monster.x;
-            const dy = otherMonster.y - monster.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < explosionRadius + otherMonster.radius) {
-                otherMonster.health -= explosionDamage;
-                createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
+        // Damage other monsters
+        if (monsters && monsters.length > 0) {
+            for (let k = monsters.length - 1; k >= 0; k--) {
+                const otherMonster = monsters[k];
                 
-                if (otherMonster.health <= 0) {
-                    handleMonsterDeath(otherMonster, k);
+                if (otherMonster === monster || !otherMonster) continue;
+                
+                const dx = otherMonster.x - monster.x;
+                const dy = otherMonster.y - monster.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < explosionRadius + otherMonster.radius) {
+                    otherMonster.health -= explosionDamage;
+                    createDamageIndicator(otherMonster.x, otherMonster.y, Math.floor(explosionDamage), true);
+                    
+                    if (otherMonster.health <= 0) {
+                        handleMonsterDeath(otherMonster, k);
+                    }
                 }
             }
         }
@@ -1433,18 +1446,23 @@ function handleMonsterDeath(monster, index) {
         type: 'death',
         x: monster.x,
         y: monster.y,
-        color: monster.color,
+        color: monster.color || '#FFFFFF',
         startTime: Date.now(),
         duration: 300
     });
     
     // Check if index is valid before splicing
-    if (index >= 0 && index < monsters.length) {
+    if (monsters && index >= 0 && index < monsters.length) {
         monsters.splice(index, 1);
     }
-    kills++;
+    
+    kills = (kills || 0) + 1;
+    
+    // Force UI update
+    if (typeof updateUI === 'function') {
+        updateUI();
+    }
 }
-
 // ============================================
 // MESSAGE QUEUE SYSTEM
 // ============================================
