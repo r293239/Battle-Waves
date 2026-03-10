@@ -191,40 +191,26 @@ const ARENA = {
     width: 800,
     height: 600,
     walls: [
-        // Top-left corner obstacles
         { x: 150, y: 150, width: 50, height: 50 },
         { x: 250, y: 200, width: 40, height: 40 },
-        
-        // Top-right corner obstacles
         { x: 600, y: 120, width: 60, height: 40 },
         { x: 700, y: 180, width: 40, height: 60 },
-        
-        // Bottom-left obstacles
         { x: 120, y: 450, width: 50, height: 40 },
         { x: 220, y: 400, width: 40, height: 50 },
-        
-        // Bottom-right obstacles
         { x: 550, y: 500, width: 50, height: 40 },
         { x: 650, y: 450, width: 40, height: 50 },
-        
-        // Center obstacles
         { x: 350, y: 250, width: 40, height: 80 },
         { x: 450, y: 350, width: 60, height: 40 },
-        
-        // Maze-like walls
         { x: 300, y: 100, width: 200, height: 20 },
         { x: 300, y: 480, width: 200, height: 20 },
         { x: 100, y: 300, width: 20, height: 200 },
         { x: 680, y: 300, width: 20, height: 200 }
     ],
     
-    // Pathfinding grid cell size
     cellSize: 20,
     
-    // Check if a point collides with any wall
     checkCollision: function(x, y, radius) {
         for (let wall of this.walls) {
-            // Simple rectangle-circle collision
             const closestX = Math.max(wall.x, Math.min(x, wall.x + wall.width));
             const closestY = Math.max(wall.y, Math.min(y, wall.y + wall.height));
             const dx = x - closestX;
@@ -238,7 +224,6 @@ const ARENA = {
         return false;
     },
     
-    // Get grid position for pathfinding
     getGridPosition: function(x, y) {
         return {
             gridX: Math.floor(x / this.cellSize),
@@ -246,7 +231,6 @@ const ARENA = {
         };
     },
     
-    // Check if grid cell is walkable
     isCellWalkable: function(gridX, gridY) {
         const x = gridX * this.cellSize + this.cellSize / 2;
         const y = gridY * this.cellSize + this.cellSize / 2;
@@ -290,8 +274,7 @@ class WeaponInstance {
         this.projectileSize = weaponData.projectileSize || 4;
         this.spinSpeed = weaponData.spinSpeed || 0;
         
-        // Track knives used on each monster for return mechanic
-        this.knivesUsed = new Map(); // monster -> count of knives hit
+        this.knivesUsed = new Map();
         
         if (this.usesAmmo) {
             this.magazineSize = weaponData.magazineSize;
@@ -311,7 +294,6 @@ class WeaponInstance {
         this.imagePath = weaponData.imagePath || null;
         this.pierceCount = weaponData.pierceCount || 1;
         
-        // Dual daggers special property
         this.dualStrike = weaponData.dualStrike || false;
         
         this.bladeColor = weaponData.bladeColor || weaponData.swingColor;
@@ -707,11 +689,11 @@ class Pathfinder {
         this.gridWidth = Math.ceil(ARENA.width / ARENA.cellSize);
         this.gridHeight = Math.ceil(ARENA.height / ARENA.cellSize);
         this.directions = [
-            { x: 0, y: -1, cost: 1 }, // up
-            { x: 1, y: 0, cost: 1 },  // right
-            { x: 0, y: 1, cost: 1 },  // down
-            { x: -1, y: 0, cost: 1 }, // left
-            { x: 1, y: -1, cost: 1.4 }, // diagonal
+            { x: 0, y: -1, cost: 1 },
+            { x: 1, y: 0, cost: 1 },
+            { x: 0, y: 1, cost: 1 },
+            { x: -1, y: 0, cost: 1 },
+            { x: 1, y: -1, cost: 1.4 },
             { x: 1, y: 1, cost: 1.4 },
             { x: -1, y: 1, cost: 1.4 },
             { x: -1, y: -1, cost: 1.4 }
@@ -719,7 +701,6 @@ class Pathfinder {
     }
 
     heuristic(a, b) {
-        // Manhattan distance
         return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
     }
 
@@ -727,9 +708,7 @@ class Pathfinder {
         const start = ARENA.getGridPosition(startX, startY);
         const target = ARENA.getGridPosition(targetX, targetY);
         
-        // Check if start or target is walkable
         if (!ARENA.isCellWalkable(target.gridX, target.gridY)) {
-            // Target is on a wall, find nearest walkable cell
             return this.findPathToNearestWalkable(start, target);
         }
         
@@ -752,7 +731,6 @@ class Pathfinder {
         while (openSet.length > 0 && iterations < maxIterations) {
             iterations++;
             
-            // Find node with lowest fScore
             let current = openSet[0];
             let currentIndex = 0;
             const currentKey = `${current.x},${current.y}`;
@@ -765,7 +743,6 @@ class Pathfinder {
                 }
             }
             
-            // Check if we reached target
             if (current.x === target.gridX && current.y === target.gridY) {
                 return this.reconstructPath(cameFrom, current, start);
             }
@@ -773,7 +750,6 @@ class Pathfinder {
             openSet.splice(currentIndex, 1);
             closedSet.add(currentKey);
             
-            // Check neighbors
             for (let dir of this.directions) {
                 const neighbor = {
                     x: current.x + dir.x,
@@ -782,13 +758,11 @@ class Pathfinder {
                 
                 const neighborKey = `${neighbor.x},${neighbor.y}`;
                 
-                // Check bounds
                 if (neighbor.x < 0 || neighbor.x >= this.gridWidth ||
                     neighbor.y < 0 || neighbor.y >= this.gridHeight) {
                     continue;
                 }
                 
-                // Check if walkable
                 if (!ARENA.isCellWalkable(neighbor.x, neighbor.y)) {
                     continue;
                 }
@@ -811,12 +785,10 @@ class Pathfinder {
             }
         }
         
-        // No path found, return direct movement
         return null;
     }
 
     findPathToNearestWalkable(start, target) {
-        // Try to find a walkable cell near the target
         for (let radius = 1; radius < 10; radius++) {
             for (let dx = -radius; dx <= radius; dx++) {
                 for (let dy = -radius; dy <= radius; dy++) {
@@ -863,9 +835,8 @@ class Pathfinder {
 }
 
 const pathfinder = new Pathfinder();
-
 // ============================================
-// GAME LOGIC
+// GAME LOGIC VARIABLES
 // ============================================
 
 let gameState = 'start';
@@ -938,8 +909,7 @@ let touchMoved = false;
 let lastTouchX = 0;
 let lastTouchY = 0;
 
-// Add monster pathfinding targets
-let monsterPaths = new Map(); // monster -> path array
+let monsterPaths = new Map();
 
 let keys = {
     w: false,
@@ -1077,6 +1047,7 @@ function applyHealing(amount) {
         createHealthPopup(player.x, player.y, 1);
     }
 }
+
 // ============================================
 // TOWER FUNCTIONS
 // ============================================
@@ -1093,7 +1064,6 @@ function spawnRandomLandmine() {
         x = 50 + Math.random() * (canvas.width - 100);
         y = 50 + Math.random() * (canvas.height - 100);
         
-        // Check if position collides with walls
         if (ARENA.checkCollision(x, y, 15)) {
             attempts++;
             continue;
@@ -1345,14 +1315,12 @@ function useExpScroll() {
 }
 
 // ============================================
-// MONSTER DEATH HANDLER - FIXED VERSION
+// MONSTER DEATH HANDLER - FIXED
 // ============================================
 
 function handleMonsterDeath(monster, index) {
-    // Safety check - make sure monster exists
     if (!monster) return;
     
-    // Return any throwing knives that hit this monster
     let knivesReturned = 0;
     if (player && player.weapons) {
         player.weapons.forEach(weapon => {
@@ -1368,7 +1336,6 @@ function handleMonsterDeath(monster, index) {
         updateWeaponDisplay();
     }
     
-    // Remove monster's path
     if (monsterPaths) {
         monsterPaths.delete(monster);
     }
@@ -1383,12 +1350,10 @@ function handleMonsterDeath(monster, index) {
     gold += goldEarned;
     createGoldPopup(monster.x, monster.y, goldEarned);
     
-    // Handle explosive monster death chain reaction
     if (monster.monsterType && monster.monsterType.explosive) {
         const explosionRadius = MONSTER_TYPES.EXPLOSIVE.explosionRadius;
         const explosionDamage = (monster.damage || 1) * MONSTER_TYPES.EXPLOSIVE.explosionDamage;
         
-        // Damage player if in range
         if (player) {
             const dxToPlayer = player.x - monster.x;
             const dyToPlayer = player.y - monster.y;
@@ -1405,7 +1370,6 @@ function handleMonsterDeath(monster, index) {
             }
         }
         
-        // Damage other monsters
         if (monsters && monsters.length > 0) {
             for (let k = monsters.length - 1; k >= 0; k--) {
                 const otherMonster = monsters[k];
@@ -1455,14 +1419,12 @@ function handleMonsterDeath(monster, index) {
         duration: 300
     });
     
-    // Check if index is valid before splicing
     if (monsters && index >= 0 && index < monsters.length) {
         monsters.splice(index, 1);
     }
     
     kills = (kills || 0) + 1;
     
-    // Force UI update
     if (typeof updateUI === 'function') {
         updateUI();
     }
@@ -1515,18 +1477,13 @@ function showNextMessage() {
 }
 
 // ============================================
-// JOYSTICK - FIXED VERSION
-// ============================================
-
-// ============================================
-// JOYSTICK - USING HTML ELEMENT
+// JOYSTICK - FIXED (USES HTML ELEMENT)
 // ============================================
 
 function initJoystick() {
     const joystickBase = document.getElementById('joystickBase');
     const joystickHandle = document.getElementById('joystickHandle');
     
-    // If joystick elements don't exist, don't initialize
     if (!joystickBase || !joystickHandle) return;
     
     function getJoystickPosition(e) {
@@ -1592,6 +1549,18 @@ function initJoystick() {
         joystickHandle.style.transform = 'translate(0px, 0px)';
         joystickBase.classList.remove('active');
     });
+}
+
+// ============================================
+// FORCE JOYSTICK VISIBLE
+// ============================================
+
+function forceJoystickVisible() {
+    const joystickContainer = document.getElementById('joystickContainer');
+    if (joystickContainer && 'ontouchstart' in window) {
+        joystickContainer.style.display = 'block';
+        console.log('Joystick visible');
+    }
 }
 
 // ============================================
@@ -1941,7 +1910,7 @@ function getWaveConfig(waveNumber) {
             goldReward: waveData.goldReward,
             isBoss: waveData.isBoss || false,
             minions: waveData.minions || 0,
-            spawnDelay: waveData.spawnDelay || 150
+            spawnDelay: 200
         };
     } else {
         const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
@@ -2032,9 +2001,8 @@ function generateStatBuffs() {
     
     return selectedBuffs;
 }
-
 // ============================================
-// INITIALIZATION - FIXED VERSION
+// INITIALIZATION - FIXED
 // ============================================
 
 function initGame() {
@@ -2098,7 +2066,6 @@ function initGame() {
         lastSlowFieldTick: 0
     });
     
-    // Reset towers
     playerTowers.landmines.count = 0;
     playerTowers.landmines.active = [];
     placedBombs = [];
@@ -2110,7 +2077,7 @@ function initGame() {
     gold = GAME_DATA.PLAYER_START.gold;
     kills = 0;
     gameState = 'wave';
-    waveActive = false; // Start with wave inactive
+    waveActive = false;
     
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
@@ -2165,7 +2132,6 @@ function initGame() {
     mergeInfo.style.display = 'none';
     reloadIndicator.style.display = 'none';
     
-    // Show next wave button since wave is not active
     nextWaveBtn.style.display = 'block';
     
     updateConsumablesDisplay();
@@ -2173,11 +2139,13 @@ function initGame() {
     updateWeaponDisplay();
     updateShopDisplay();
     
-    // Start the first wave automatically
+    forceJoystickVisible();
+    
     startWave();
 }
+
 // ============================================
-// WAVE MANAGEMENT - FIXED VERSION
+// WAVE MANAGEMENT - FIXED (MONSTERS WILL SPAWN)
 // ============================================
 
 function showSpawnIndicators() {
@@ -2211,7 +2179,6 @@ function showSpawnIndicators() {
                     case 3: x = Math.random() * (canvas.width - 60) + 30; y = canvas.height - 30 - Math.random() * 100; break;
                 }
                 
-                // Check if spawn point collides with walls
                 if (!ARENA.checkCollision(x, y, 20)) {
                     validPosition = true;
                 }
@@ -2237,7 +2204,6 @@ function spawnMinions(count, centerX, centerY) {
         const x = centerX + Math.cos(angle) * distance;
         const y = centerY + Math.sin(angle) * distance;
         
-        // Check if spawn point collides with walls
         if (ARENA.checkCollision(x, y, 15)) continue;
         
         const minion = createMonster(MONSTER_TYPES.MINION, false, x, y);
@@ -2246,7 +2212,6 @@ function spawnMinions(count, centerX, centerY) {
             minion.health = minion.maxHealth * 0.5;
             monsters.push(minion);
             
-            // Calculate path for minion
             const path = pathfinder.getPath(minion.x, minion.y, player.x, player.y);
             if (path) monsterPaths.set(minion, path);
         }
@@ -2271,17 +2236,18 @@ function startMinionSpawning(boss) {
 }
 
 function startWave() {
-    // Don't start if already in wave
-    if (waveActive) return;
+    if (waveActive) {
+        console.log("Wave already active");
+        return;
+    }
     
+    console.log("Starting wave", wave);
     gameState = 'wave';
     waveActive = true;
     waveStartTime = Date.now();
     
-    // Hide next wave button during wave
     nextWaveBtn.style.display = 'none';
     
-    // Reset Runic Plate for new wave
     if (player.firstHitReduction) {
         player.firstHitActive = true;
     }
@@ -2290,14 +2256,12 @@ function startWave() {
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
     
-    // Reset throwable weapon ammo
     player.weapons.forEach(weapon => {
         if (weapon.resetEachRound) {
             weapon.resetAmmo();
         }
     });
     
-    // Clear existing monsters and effects
     monsters = [];
     player.projectiles = [];
     player.meleeAttacks = [];
@@ -2330,6 +2294,8 @@ function startWave() {
     monsterPaths.clear();
     
     const waveConfig = getWaveConfig(wave);
+    console.log("Wave config:", waveConfig);
+    
     waveDisplay.textContent = `Wave ${wave}`;
     waveDisplay.classList.remove('boss-wave');
     
@@ -2355,7 +2321,6 @@ function startWave() {
     
     showSpawnIndicators();
     
-    // Spawn a landmine if player has any
     setTimeout(() => {
         if (playerTowers.landmines.count > 0) {
             spawnRandomLandmine();
@@ -2363,10 +2328,13 @@ function startWave() {
     }, 500);
     
     setTimeout(() => {
-        const monsterCount = waveConfig.monsters;
-        const spawnDelay = waveConfig.spawnDelay || 200;
+        if (!waveActive) {
+            console.log("Wave no longer active, aborting spawn");
+            return;
+        }
         
         if (waveConfig.isBoss) {
+            console.log("Spawning boss");
             const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
             if (boss) {
                 boss.lifeSteal = 0.1;
@@ -2427,9 +2395,10 @@ function startWave() {
             }
             spawnIndicators = [];
         } else {
+            console.log("Spawning", waveConfig.monsters, "regular monsters");
             let spawnedCount = 0;
             
-            for (let i = 0; i < monsterCount; i++) {
+            for (let i = 0; i < waveConfig.monsters; i++) {
                 setTimeout(() => {
                     if (gameState === 'wave' && waveActive) {
                         let monsterType;
@@ -2458,16 +2427,16 @@ function startWave() {
                             else monsterType = MONSTER_TYPES.DASHER;
                         }
                         
-                        if (spawnIndicators.length > i) {
+                        if (spawnIndicators && spawnIndicators.length > i && spawnIndicators[i]) {
                             const indicator = spawnIndicators[i];
                             const monster = createMonster(monsterType, false, indicator.x, indicator.y);
                             if (monster) {
                                 monsters.push(monster);
+                                console.log("Spawned monster", monster.type);
                                 if (monsterType === MONSTER_TYPES.DASHER) {
                                     dashers.push(monster);
                                 }
                                 
-                                // Calculate initial path for monster
                                 const path = pathfinder.getPath(monster.x, monster.y, player.x, player.y);
                                 if (path) monsterPaths.set(monster, path);
                             }
@@ -2475,22 +2444,23 @@ function startWave() {
                             const monster = createMonster(monsterType, false);
                             if (monster) {
                                 monsters.push(monster);
+                                console.log("Spawned monster at edge");
                                 if (monsterType === MONSTER_TYPES.DASHER) {
                                     dashers.push(monster);
                                 }
                                 
-                                // Calculate initial path for monster
                                 const path = pathfinder.getPath(monster.x, monster.y, player.x, player.y);
                                 if (path) monsterPaths.set(monster, path);
                             }
                         }
                         spawnedCount++;
                         
-                        if (spawnedCount >= monsterCount) {
+                        if (spawnedCount >= waveConfig.monsters) {
                             spawnIndicators = [];
+                            console.log("All monsters spawned for wave", wave);
                         }
                     }
-                }, i * spawnDelay);
+                }, i * (waveConfig.spawnDelay || 200));
             }
         }
     }, 2000);
@@ -2499,8 +2469,9 @@ function startWave() {
         waveDisplay.style.opacity = 0.5;
     }, 2500);
     
-    // Update UI
+    forceJoystickVisible();
     updateUI();
+    console.log("Wave started, monsters array length:", monsters.length);
 }
 
 function spawnAsteroid() {
@@ -2659,7 +2630,6 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
     return monster;
 }
 
-// Splitter death handler
 function handleSplitterDeath(monster) {
     if (!monster.isSplitter) return;
     
@@ -2672,7 +2642,6 @@ function handleSplitterDeath(monster) {
         const x = monster.x + Math.cos(angle) * distance;
         const y = monster.y + Math.sin(angle) * distance;
         
-        // Check if split position collides with walls
         if (ARENA.checkCollision(x, y, monster.radius * 0.7)) continue;
         
         const splitMonster = {
@@ -2688,7 +2657,6 @@ function handleSplitterDeath(monster) {
         
         monsters.push(splitMonster);
         
-        // Calculate path for split monster
         const path = pathfinder.getPath(x, y, player.x, player.y);
         if (path) monsterPaths.set(splitMonster, path);
     }
@@ -2704,7 +2672,6 @@ function handleSplitterDeath(monster) {
     });
 }
 
-// Dasher AI update
 function updateDasher(dasher, currentTime) {
     if (!dasher.isDasher) return;
     
@@ -2720,7 +2687,6 @@ function updateDasher(dasher, currentTime) {
             const moveX = (dx / dist) * dasher.dashSpeed;
             const moveY = (dy / dist) * dasher.dashSpeed;
             
-            // Check for wall collisions during dash
             if (!ARENA.checkCollision(dasher.x + moveX, dasher.y + moveY, dasher.radius)) {
                 dasher.x += moveX;
                 dasher.y += moveY;
@@ -2757,11 +2723,9 @@ function updateDasher(dasher, currentTime) {
 // ============================================
 
 function drawArena() {
-    // Draw floor pattern
     ctx.fillStyle = '#2a2a3a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw grid lines
     ctx.strokeStyle = '#3a3a4a';
     ctx.lineWidth = 1;
     for (let x = 0; x < canvas.width; x += 50) {
@@ -2778,19 +2742,16 @@ function drawArena() {
         ctx.stroke();
     }
     
-    // Draw walls
     ARENA.walls.forEach(wall => {
         ctx.fillStyle = '#5a5a7a';
         ctx.shadowColor = '#000000';
         ctx.shadowBlur = 10;
         ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
         
-        // Add highlight
         ctx.fillStyle = '#7a7a9a';
         ctx.shadowBlur = 5;
         ctx.fillRect(wall.x + 2, wall.y + 2, wall.width - 4, 2);
         
-        // Add border
         ctx.strokeStyle = '#3a3a5a';
         ctx.lineWidth = 2;
         ctx.shadowBlur = 0;
@@ -3119,6 +3080,7 @@ function scrapWeapon() {
     updateUI();
     updateWeaponDisplay();
 }
+
 function updateShopDisplay() {
     shopItemsContainer.innerHTML = '';
     
@@ -3211,7 +3173,6 @@ function updateShopDisplay() {
         shopItemsContainer.appendChild(itemElement);
     }
 }
-
 function purchaseItem(index) {
     if (index >= shopItems.length || !shopItems[index]) return;
     
@@ -3594,7 +3555,6 @@ function gameLoop() {
             moveX = moveX / length * player.speed;
             moveY = moveY / length * player.speed;
             
-            // Check for wall collisions before moving
             const newX = player.x + moveX;
             const newY = player.y + moveY;
             
@@ -3798,7 +3758,7 @@ function drawSpawnIndicators() {
         }
         
         ctx.restore();
-    }
+    });
 }
 
 function drawSlowField() {
@@ -4095,6 +4055,7 @@ function drawMachinegunProjectile(ctx, projectile, currentTime) {
         ctx.fill();
     }
 }
+
 // ============================================
 // MELEE WEAPON ANIMATIONS
 // ============================================
@@ -4142,7 +4103,6 @@ function drawMeleeAttacks() {
 }
 
 function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
-    // First dagger
     ctx.save();
     ctx.rotate(angle - 0.2);
     ctx.translate(distance * 0.8, 0);
@@ -4169,7 +4129,6 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
     
-    // Second dagger (offset)
     ctx.save();
     ctx.rotate(angle + 0.2);
     ctx.translate(distance * 0.8, 0);
@@ -4196,7 +4155,6 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
     
-    // Trail effect
     if (progress < 0.5) {
         ctx.save();
         ctx.rotate(angle);
@@ -4807,7 +4765,6 @@ function drawPlayer() {
     ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
     ctx.fill();
     
-    // Runic Plate visual indicator
     if (player.firstHitReduction && player.firstHitActive) {
         ctx.shadowColor = '#00FFFF';
         ctx.shadowBlur = 20;
@@ -4926,7 +4883,6 @@ function updateGame(deltaTime) {
     
     // Update monster paths
     monsters.forEach(monster => {
-        // Update path if needed
         if (!monsterPaths.has(monster) || Math.random() < 0.01) {
             const path = pathfinder.getPath(monster.x, monster.y, player.x, player.y);
             if (path) {
@@ -4934,7 +4890,6 @@ function updateGame(deltaTime) {
             }
         }
         
-        // Apply status effects
         if (monster.slowed && currentTime > monster.slowUntil) {
             monster.slowed = false;
             monster.speed = monster.originalSpeed;
@@ -4947,7 +4902,6 @@ function updateGame(deltaTime) {
             monster.stunned = false;
         }
         
-        // Check gunner attack
         if (monster.isGunner && !monster.stunned) {
             const dx = player.x - monster.x;
             const dy = player.y - monster.y;
@@ -4969,7 +4923,6 @@ function updateGame(deltaTime) {
             }
         }
         
-        // Update dasher behavior
         if (monster.isDasher) {
             updateDasher(monster, currentTime);
         }
@@ -4996,14 +4949,12 @@ function updateGame(deltaTime) {
                 const moveX = (dx / dist) * currentSpeed;
                 const moveY = (dy / dist) * currentSpeed;
                 
-                // Check wall collision
                 if (!ARENA.checkCollision(monster.x + moveX, monster.y + moveY, monster.radius)) {
                     monster.x += moveX;
                     monster.y += moveY;
                 }
             }
         } else {
-            // Direct movement to player
             const dx = player.x - monster.x;
             const dy = player.y - monster.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -5016,7 +4967,6 @@ function updateGame(deltaTime) {
                 const moveX = (dx / dist) * currentSpeed;
                 const moveY = (dy / dist) * currentSpeed;
                 
-                // Check wall collision
                 if (!ARENA.checkCollision(monster.x + moveX, monster.y + moveY, monster.radius)) {
                     monster.x += moveX;
                     monster.y += moveY;
@@ -5024,54 +4974,45 @@ function updateGame(deltaTime) {
             }
         }
         
-        // Check collision with player
         const dx = player.x - monster.x;
         const dy = player.y - monster.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
         if (dist < player.radius + monster.radius && !monster.stunned) {
-            // Apply thorns damage
             if (player.thornsDamage > 0) {
                 monster.health -= Math.floor(monster.damage * player.thornsDamage);
                 createDamageIndicator(monster.x, monster.y, Math.floor(monster.damage * player.thornsDamage), true);
             }
             
-            // Player takes damage
             let damageToPlayer = monster.damage;
             
-            // Apply damage reduction
             if (player.damageReduction > 0) {
                 damageToPlayer = Math.floor(damageToPlayer * (1 - player.damageReduction));
             }
             
-            // Apply first hit reduction (Runic Plate)
             if (player.firstHitReduction && player.firstHitActive) {
                 damageToPlayer = Math.floor(damageToPlayer * 0.5);
                 player.firstHitActive = false;
                 queueMessage("Runic Plate protected you!");
             }
             
-            // Check dodge
             if (Math.random() < player.dodgeChance) {
                 createDamageIndicator(player.x, player.y, 'DODGE', false);
             } else {
                 player.health -= damageToPlayer;
                 createDamageIndicator(player.x, player.y, damageToPlayer, false);
                 
-                // Life steal from monster hit
                 if (player.lifeSteal > 0) {
                     const healAmount = Math.max(1, Math.floor(damageToPlayer * player.lifeSteal));
                     applyHealing(healAmount);
                 }
             }
             
-            // Check for player death
             if (player.health <= 0) {
                 gameOver();
                 return;
             }
             
-            // Check for monster death from thorns
             if (monster.health <= 0) {
                 const index = monsters.indexOf(monster);
                 if (index !== -1) {
@@ -5087,15 +5028,12 @@ function updateGame(deltaTime) {
     for (let i = player.projectiles.length - 1; i >= 0; i--) {
         const proj = player.projectiles[i];
         
-        // Handle different projectile types
         if (proj.isBoomerang) {
             updateBoomerang(proj, i);
         } else {
-            // Standard projectile movement
             proj.x += Math.cos(proj.angle) * proj.speed;
             proj.y += Math.sin(proj.angle) * proj.speed;
             
-            // Check distance traveled
             const dx = proj.x - proj.startX;
             const dy = proj.y - proj.startY;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -5105,13 +5043,11 @@ function updateGame(deltaTime) {
                 continue;
             }
             
-            // Check wall collision
             if (ARENA.checkCollision(proj.x, proj.y, 5)) {
                 player.projectiles.splice(i, 1);
                 continue;
             }
             
-            // Check monster collision
             let hit = false;
             for (let j = 0; j < monsters.length; j++) {
                 const monster = monsters[j];
@@ -5120,7 +5056,6 @@ function updateGame(deltaTime) {
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < monster.radius + 5) {
-                    // Calculate damage with critical chance
                     let damage = proj.damage * player.damageMultiplier;
                     const isCritical = Math.random() < player.criticalChance;
                     if (isCritical) {
@@ -5132,27 +5067,22 @@ function updateGame(deltaTime) {
                     
                     monster.health -= damage;
                     
-                    // Life steal
                     if (player.lifeSteal > 0) {
                         const healAmount = Math.max(1, Math.floor(damage * player.lifeSteal));
                         applyHealing(healAmount);
                     }
                     
-                    // Track knife hits for throwable weapons
                     if (proj.isThrowable && proj.weaponRef) {
                         proj.weaponRef.trackKnifeHit(monster);
                     }
                     
-                    // Check if monster dies
                     if (monster.health <= 0) {
                         handleMonsterDeath(monster, j);
                     }
                     
-                    // Handle bounce
                     if (proj.bounceCount > 0 && proj.bounceCount > (proj.bounces || 0)) {
                         proj.bounces = (proj.bounces || 0) + 1;
                         
-                        // Find new target
                         let closestMonster = null;
                         let closestDist = proj.bounceRange;
                         
@@ -5199,19 +5129,16 @@ function updateGame(deltaTime) {
         proj.x += proj.vx;
         proj.y += proj.vy;
         
-        // Check bounds
         if (proj.x < 0 || proj.x > canvas.width || proj.y < 0 || proj.y > canvas.height) {
             monsterProjectiles.splice(i, 1);
             continue;
         }
         
-        // Check wall collision
         if (ARENA.checkCollision(proj.x, proj.y, proj.radius)) {
             monsterProjectiles.splice(i, 1);
             continue;
         }
         
-        // Check player collision
         const dx = player.x - proj.x;
         const dy = player.y - proj.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -5219,18 +5146,15 @@ function updateGame(deltaTime) {
         if (dist < player.radius + proj.radius) {
             let damage = proj.damage;
             
-            // Apply damage reduction
             if (player.damageReduction > 0) {
                 damage = Math.floor(damage * (1 - player.damageReduction));
             }
             
-            // Apply first hit reduction
             if (player.firstHitReduction && player.firstHitActive) {
                 damage = Math.floor(damage * 0.5);
                 player.firstHitActive = false;
             }
             
-            // Check dodge
             if (Math.random() < player.dodgeChance) {
                 createDamageIndicator(player.x, player.y, 'DODGE', false);
             } else {
@@ -5257,14 +5181,12 @@ function updateGame(deltaTime) {
             continue;
         }
         
-        // Check hits if not already hit
         if (!attack.hitDone) {
             let hitsRemaining = attack.pierceCount || 1;
             
             for (let j = 0; j < monsters.length && hitsRemaining > 0; j++) {
                 const monster = monsters[j];
                 
-                // Skip if already hit this attack (for pierce weapons)
                 if (attack.hitMonsters && attack.hitMonsters.has(monster)) continue;
                 
                 const dx = monster.x - attack.x;
@@ -5276,7 +5198,6 @@ function updateGame(deltaTime) {
                 const normalizedDiff = Math.min(Math.abs(angleDiff), Math.abs(angleDiff - Math.PI * 2));
                 
                 if (dist < attack.radius && normalizedDiff < (attack.swingAngle * Math.PI / 180) / 2) {
-                    // Calculate damage
                     let damage = attack.damage * player.damageMultiplier;
                     const isCritical = Math.random() < player.criticalChance;
                     if (isCritical) {
@@ -5288,22 +5209,19 @@ function updateGame(deltaTime) {
                     
                     monster.health -= damage;
                     
-                    // Life steal
                     if (player.lifeSteal > 0) {
                         const healAmount = Math.max(1, Math.floor(damage * player.lifeSteal));
                         applyHealing(healAmount);
                     }
                     
-                    // Track hit for pierce
                     if (!attack.hitMonsters) {
                         attack.hitMonsters = new Set();
                     }
                     attack.hitMonsters.add(monster);
                     
-                    // Check if monster dies
                     if (monster.health <= 0) {
                         handleMonsterDeath(monster, j);
-                        j--; // Adjust index after removal
+                        j--;
                     }
                     
                     hitsRemaining--;
@@ -5322,7 +5240,6 @@ function updateGame(deltaTime) {
         if (progress >= 1) {
             bossAbilities.bossWeaponAttack = null;
         } else if (!attack.hitDone) {
-            // Check hit against player
             const dx = player.x - attack.x;
             const dy = player.y - attack.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -5334,25 +5251,21 @@ function updateGame(deltaTime) {
             if (dist < attack.radius && normalizedDiff < (attack.swingAngle * Math.PI / 180) / 2) {
                 let damage = attack.damage;
                 
-                // Apply damage reduction
                 if (player.damageReduction > 0) {
                     damage = Math.floor(damage * (1 - player.damageReduction));
                 }
                 
-                // Apply first hit reduction
                 if (player.firstHitReduction && player.firstHitActive) {
                     damage = Math.floor(damage * 0.5);
                     player.firstHitActive = false;
                 }
                 
-                // Check dodge
                 if (Math.random() < player.dodgeChance) {
                     createDamageIndicator(player.x, player.y, 'DODGE', false);
                 } else {
                     player.health -= damage;
                     createDamageIndicator(player.x, player.y, damage, false);
                     
-                    // Boss life steal
                     const boss = monsters.find(m => m.isBoss);
                     if (boss && boss.lifeSteal > 0) {
                         const healAmount = Math.floor(damage * boss.lifeSteal);
@@ -5374,7 +5287,6 @@ function updateGame(deltaTime) {
     if (wave === 10) {
         const boss = monsters.find(m => m.isBoss);
         if (boss && bossAbilities.shotgun) {
-            // Boss shotgun attack
             if (currentTime - (bossAbilities.bossWeapon?.lastAttack || 0) > 3000) {
                 for (let i = 0; i < 5; i++) {
                     const angle = (i / 5) * Math.PI * 2;
@@ -5422,7 +5334,6 @@ function updateGame(deltaTime) {
         endWave();
     }
     
-    // Update UI
     updateUI();
 }
 
@@ -5457,7 +5368,6 @@ function updateBoomerang(proj, index) {
         }
     }
     
-    // Check wall collision
     if (ARENA.checkCollision(proj.x, proj.y, 10)) {
         if (proj.state === 'outgoing') {
             proj.state = 'returning';
@@ -5468,7 +5378,6 @@ function updateBoomerang(proj, index) {
         return;
     }
     
-    // Check monster collision
     for (let j = 0; j < monsters.length; j++) {
         const monster = monsters[j];
         
@@ -5490,25 +5399,21 @@ function updateBoomerang(proj, index) {
             
             monster.health -= damage;
             
-            // Life steal
             if (player.lifeSteal > 0) {
                 const healAmount = Math.max(1, Math.floor(damage * player.lifeSteal));
                 applyHealing(healAmount);
             }
             
-            // Track hit
             if (!proj.targetsHit) {
                 proj.targetsHit = [];
             }
             proj.targetsHit.push(monster);
             
-            // Check if monster dies
             if (monster.health <= 0) {
                 handleMonsterDeath(monster, j);
                 j--;
             }
             
-            // Start returning if max targets reached
             if (proj.targetsHit.length >= proj.maxTargets) {
                 proj.state = 'returning';
                 proj.angle = Math.atan2(proj.startY - proj.y, proj.startX - proj.x);
@@ -5711,20 +5616,16 @@ function drawMonsters() {
         ctx.save();
         ctx.translate(monster.x, monster.y);
         
-        // Draw monster
         const healthPercent = monster.health / monster.maxHealth;
         
-        // Shadow
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
         ctx.shadowBlur = 10;
         
-        // Body
         ctx.fillStyle = monster.color;
         ctx.beginPath();
         ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Status effects
         if (monster.slowed) {
             ctx.strokeStyle = '#00FFFF';
             ctx.lineWidth = 3;
@@ -5762,14 +5663,12 @@ function drawMonsters() {
             ctx.fillText('⚡', -10, -monster.radius - 10);
         }
         
-        // Health bar
         ctx.shadowBlur = 5;
         ctx.fillStyle = '#FF0000';
         ctx.fillRect(-monster.radius, -monster.radius - 10, monster.radius * 2, 5);
         ctx.fillStyle = '#00FF00';
         ctx.fillRect(-monster.radius, -monster.radius - 10, monster.radius * 2 * healthPercent, 5);
         
-        // Icon
         ctx.shadowBlur = 10;
         ctx.font = `${monster.radius}px Arial`;
         ctx.fillStyle = '#FFFFFF';
@@ -5780,12 +5679,12 @@ function drawMonsters() {
         ctx.restore();
     });
 }
+
 // ============================================
 // EVENT LISTENERS - COMPLETE
 // ============================================
 
 function setupEventListeners() {
-    // Keyboard controls
     window.addEventListener('keydown', (e) => {
         switch(e.key.toLowerCase()) {
             case 'w': keys.w = true; e.preventDefault(); break;
@@ -5806,7 +5705,6 @@ function setupEventListeners() {
             case 'r':
                 e.preventDefault();
                 if (gameState === 'wave') {
-                    // Manual reload for all ranged weapons
                     player.weapons.forEach(weapon => {
                         if (weapon.usesAmmo && !weapon.isThrowable) {
                             weapon.startReload();
@@ -5831,7 +5729,6 @@ function setupEventListeners() {
         }
     });
     
-    // Mouse movement for aiming
     canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -5841,7 +5738,6 @@ function setupEventListeners() {
         mouseY = (e.clientY - rect.top) * scaleY;
     });
     
-    // Touch movement for aiming (mobile)
     canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
@@ -5876,14 +5772,12 @@ function setupEventListeners() {
         }
     }, { passive: false });
     
-    // Canvas click for attacking
     canvas.addEventListener('click', () => {
         if (gameState === 'wave') {
             attack();
         }
     });
     
-    // Button listeners
     startGameBtn.addEventListener('click', (e) => {
         e.preventDefault();
         initGame();
@@ -5950,7 +5844,6 @@ function setupEventListeners() {
         refreshShop();
     });
     
-    // Save/Load buttons
     const saveBtn = document.createElement('button');
     saveBtn.id = 'saveGameBtn';
     saveBtn.textContent = 'Save Game';
@@ -5994,7 +5887,6 @@ function setupEventListeners() {
         buttonContainer.appendChild(loadBtn);
         buttonContainer.appendChild(clearSaveBtn);
     } else {
-        // Create button container if it doesn't exist
         const newButtonContainer = document.createElement('div');
         newButtonContainer.className = 'button-container';
         newButtonContainer.style.display = 'flex';
@@ -6004,14 +5896,12 @@ function setupEventListeners() {
         newButtonContainer.appendChild(loadBtn);
         newButtonContainer.appendChild(clearSaveBtn);
         
-        // Append to ui-panel
         const uiPanel = document.querySelector('.ui-panel');
         if (uiPanel) {
             uiPanel.appendChild(newButtonContainer);
         }
     }
     
-    // Stats panel toggle
     const statsBtn = document.createElement('button');
     statsBtn.id = 'statsToggleBtn';
     statsBtn.textContent = 'Stats';
@@ -6069,37 +5959,30 @@ function attack() {
 // INITIALIZATION
 // ============================================
 
-// Create message container
 createMessageContainer();
 
-// Create joystick for mobile
 if ('ontouchstart' in window) {
-    initJoystick();
+    setTimeout(() => {
+        initJoystick();
+        forceJoystickVisible();
+    }, 100);
 }
 
-// Create stats panel
 createStatsPanel();
-
-// Setup event listeners
 setupEventListeners();
-
-// Check for saved game
 checkForSave();
 
-// Start game loop
 lastFrameTime = Date.now();
 gameLoop();
 
-// Show start screen
 startScreen.style.display = 'flex';
 waveCompleteOverlay.style.display = 'none';
 gameOverOverlay.style.display = 'none';
 
 // ============================================
-// ADD MISSING CSS FOR JOYSTICK AND MESSAGES
+// ADD MISSING CSS
 // ============================================
 
-// Add these styles to your existing CSS or inject them
 const style = document.createElement('style');
 style.textContent = `
     .joystick-container {
