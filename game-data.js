@@ -506,7 +506,16 @@ const GAME_DATA = {
             maxPerGame: 5,
             description: 'Place a landmine. One spawns randomly each wave, max 5 total. Deals 80 damage in an area when triggered.'
         },
-        
+       {
+            id: 'healing_tower',
+            name: 'Healing Tower',
+            icon: '🏥',
+            type: 'tower',
+            category: 'tower',
+            cost: 50,
+            maxPerGame: 3,
+            description: 'Place a tower that heals you for 1 HP every 2 seconds. Enemies will target it. Has 30 HP.'    
+        },
         // Permanent Items
         {
             id: 'damage_orb',
