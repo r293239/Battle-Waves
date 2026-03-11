@@ -15,17 +15,18 @@
         body {
             background: linear-gradient(135deg, #0f0f1f, #1a1a2e);
             color: #fff;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             padding: 20px;
-            overflow-x: hidden;
         }
 
-        .container {
+        /* NEW: Scrollable layout wrapper */
+        .app-layout {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
             max-width: 1400px;
             margin: 0 auto;
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
         }
 
         .game-header {
@@ -36,6 +37,7 @@
             background: rgba(30, 30, 60, 0.8);
             border-radius: 15px;
             border: 2px solid #4a4a9a;
+            flex-shrink: 0;
         }
 
         .game-title {
@@ -53,10 +55,37 @@
             font-size: 1.2rem;
         }
 
+        /* NEW: Main content with scrollable columns */
+        .main-content {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            min-height: 0;
+        }
+
         .game-area {
             flex: 2;
             min-width: 300px;
             position: relative;
+            overflow-y: auto;
+            padding-right: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #ff6b6b #1a1a2e;
+        }
+
+        /* NEW: Scrollbar styling */
+        .game-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .game-area::-webkit-scrollbar-track {
+            background: #1a1a2e;
+            border-radius: 10px;
+        }
+
+        .game-area::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #ff6b6b, #ffa726);
+            border-radius: 10px;
         }
 
         .canvas-container {
@@ -112,6 +141,25 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            overflow-y: auto;
+            padding-right: 15px;
+            scrollbar-width: thin;
+            scrollbar-color: #ff6b6b #1a1a2e;
+        }
+
+        /* NEW: Scrollbar styling for right panel */
+        .ui-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .ui-panel::-webkit-scrollbar-track {
+            background: #1a1a2e;
+            border-radius: 10px;
+        }
+
+        .ui-panel::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #ff6b6b, #ffa726);
+            border-radius: 10px;
         }
 
         .panel-section {
@@ -519,7 +567,7 @@
         }
 
         @media (max-width: 768px) {
-            .container {
+            .main-content {
                 flex-direction: column;
             }
             
@@ -550,6 +598,16 @@
             
             .feature-list {
                 grid-template-columns: 1fr;
+            }
+            
+            /* Disable scrolling on mobile */
+            .game-area, .ui-panel {
+                overflow-y: visible;
+            }
+            
+            body {
+                height: auto;
+                overflow-y: auto;
             }
         }
 
@@ -982,99 +1040,103 @@
     <div class="merge-info" id="mergeInfo"></div>
     <div class="reload-indicator" id="reloadIndicator">RELOADING...</div>
     
-    <div class="container">
+    <!-- NEW: Wrapper div for scrollable layout -->
+    <div class="app-layout">
         <div class="game-header">
             <h1 class="game-title">Battle Waves</h1>
             <p class="game-subtitle">Survive waves of monsters, upgrade your stats, and buy powerful weapons!</p>
         </div>
 
-        <div class="game-area">
-            <div class="canvas-container">
-                <div class="wave-display" id="waveDisplay">Wave 1</div>
-                <div class="monster-count" id="monsterCount">Monsters: 0</div>
-                <canvas id="gameCanvas" width="800" height="600"></canvas>
-            </div>
-        </div>
-
-        <div class="ui-panel">
-            <div class="panel-section">
-                <h3 class="section-title">Player Stats</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-label">Health</div>
-                        <div class="stat-value" id="healthValue">20/20</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Damage</div>
-                        <div class="stat-value" id="damageValue">5</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Speed</div>
-                        <div class="stat-value" id="speedValue">3.0</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Gold</div>
-                        <div class="stat-value" id="goldValue">50</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Wave</div>
-                        <div class="stat-value" id="waveValue">1</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Kills</div>
-                        <div class="stat-value" id="killsValue">0</div>
-                    </div>
-                </div>
-                <div class="health-container">
-                    <div class="stat-label">Health Bar</div>
-                    <div class="health-bar">
-                        <div class="health-fill" id="healthFill" style="width: 100%;"></div>
-                    </div>
+        <!-- NEW: Main content wrapper for side-by-side columns -->
+        <div class="main-content">
+            <div class="game-area">
+                <div class="canvas-container">
+                    <div class="wave-display" id="waveDisplay">Wave 1</div>
+                    <div class="monster-count" id="monsterCount">Monsters: 0</div>
+                    <canvas id="gameCanvas" width="800" height="600"></canvas>
                 </div>
             </div>
 
-            <div class="panel-section">
-                <h3 class="section-title">Weapons (6 Slots)</h3>
-                <div class="weapons-grid" id="weaponsGrid"></div>
-                <button class="btn btn-danger scrap-weapon-btn" id="scrapWeaponBtn" style="display: none;">
-                    <span class="icon">🗑️</span> Scrap Selected Weapon
-                </button>
-                <button class="btn btn-success merge-weapon-btn" id="mergeWeaponBtn" style="display: none;">
-                    <span class="icon">🔄</span> Merge With Selected Weapon
-                </button>
-                <div class="instructions">
-                    Click a weapon to select it. Click another same-type weapon to merge (Tier 1-5).<br>
-                    Merging improves damage, attack speed, and special effects.
+            <div class="ui-panel">
+                <div class="panel-section">
+                    <h3 class="section-title">Player Stats</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Health</div>
+                            <div class="stat-value" id="healthValue">20/20</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Damage</div>
+                            <div class="stat-value" id="damageValue">5</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Speed</div>
+                            <div class="stat-value" id="speedValue">3.0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Gold</div>
+                            <div class="stat-value" id="goldValue">50</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Wave</div>
+                            <div class="stat-value" id="waveValue">1</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Kills</div>
+                            <div class="stat-value" id="killsValue">0</div>
+                        </div>
+                    </div>
+                    <div class="health-container">
+                        <div class="stat-label">Health Bar</div>
+                        <div class="health-bar">
+                            <div class="health-fill" id="healthFill" style="width: 100%;"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Consumables Section -->
-            <div class="consumables-container">
-                <h4>Consumables</h4>
-                <div class="consumables-grid" id="consumablesGrid"></div>
-            </div>
+                <div class="panel-section">
+                    <h3 class="section-title">Weapons (6 Slots)</h3>
+                    <div class="weapons-grid" id="weaponsGrid"></div>
+                    <button class="btn btn-danger scrap-weapon-btn" id="scrapWeaponBtn" style="display: none;">
+                        <span class="icon">🗑️</span> Scrap Selected Weapon
+                    </button>
+                    <button class="btn btn-success merge-weapon-btn" id="mergeWeaponBtn" style="display: none;">
+                        <span class="icon">🔄</span> Merge With Selected Weapon
+                    </button>
+                    <div class="instructions">
+                        Click a weapon to select it. Click another same-type weapon to merge (Tier 1-5).<br>
+                        Merging improves damage, attack speed, and special effects.
+                    </div>
+                </div>
 
-            <!-- Start Wave Button moved above shop -->
-            <div class="wave-button-container">
-                <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
-                    <span class="icon">⚔️</span> Start Next Wave
-                </button>
-            </div>
+                <!-- Consumables Section -->
+                <div class="consumables-container">
+                    <h4>Consumables</h4>
+                    <div class="consumables-grid" id="consumablesGrid"></div>
+                </div>
 
-            <div class="panel-section">
-                <div class="shop-header">
-                    <h3 class="section-title" style="margin-bottom: 0;">Shop (4 Items)</h3>
-                    <button class="refresh-btn" id="refreshShopBtn">
-                        <span class="icon">🔄</span>
-                        Refresh
-                        <span class="refresh-cost" id="refreshCost">5g</span>
+                <!-- Start Wave Button moved above shop -->
+                <div class="wave-button-container">
+                    <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
+                        <span class="icon">⚔️</span> Start Next Wave
                     </button>
                 </div>
-                <div class="shop-items" id="shopItems"></div>
-                <div class="refresh-counter" id="refreshCounter">Refreshes: 0</div>
-                <div class="instructions">
-                    Buy items to fill empty slots. Refresh shop for 5g (cost increases with each refresh).<br>
-                    Press SPACE to start wave | Press R to manually reload
+
+                <div class="panel-section">
+                    <div class="shop-header">
+                        <h3 class="section-title" style="margin-bottom: 0;">Shop (4 Items)</h3>
+                        <button class="refresh-btn" id="refreshShopBtn">
+                            <span class="icon">🔄</span>
+                            Refresh
+                            <span class="refresh-cost" id="refreshCost">5g</span>
+                        </button>
+                    </div>
+                    <div class="shop-items" id="shopItems"></div>
+                    <div class="refresh-counter" id="refreshCounter">Refreshes: 0</div>
+                    <div class="instructions">
+                        Buy items to fill empty slots. Refresh shop for 5g (cost increases with each refresh).<br>
+                        Press SPACE to start wave | Press R to manually reload
+                    </div>
                 </div>
             </div>
         </div>
