@@ -980,7 +980,7 @@ function explodeLandmine(mine, index) {
     });
 
     playerTowers.landmines.active.splice(index, 1);
-
+}
 // ============================================
 // BOMB FUNCTIONS
 // ============================================
