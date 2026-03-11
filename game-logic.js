@@ -852,26 +852,60 @@ function applyHealing(amount) {
 // TOWER FUNCTIONS
 // ============================================
 
+// ============================================
+// TOWER FUNCTIONS
+// ============================================
+
 function spawnRandomLandmine() {
     if (playerTowers.landmines.count <= 0) return;
     
+    // Check if we already have max active landmines
+    if (playerTowers.landmines.active.length >= playerTowers.landmines.count) {
+        return; // Don't spawn if we already have the maximum number active
+    }
+    
     let x, y;
     const minDistanceFromPlayer = 100;
+    const minDistanceFromOtherMines = 50;
     let attempts = 0;
     let validPosition = false;
     
-    while (!validPosition && attempts < 50) {
+    while (!validPosition && attempts < 100) {
         x = 50 + Math.random() * (canvas.width - 100);
         y = 50 + Math.random() * (canvas.height - 100);
         
+        // Check distance from player
         const dx = x - player.x;
         const dy = y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance > minDistanceFromPlayer) {
+        if (distanceFromPlayer < minDistanceFromPlayer) {
+            attempts++;
+            continue;
+        }
+        
+        // Check distance from other landmines
+        let tooCloseToOtherMine = false;
+        for (let mine of playerTowers.landmines.active) {
+            const dx = x - mine.x;
+            const dy = y - mine.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < minDistanceFromOtherMines + mine.radius) {
+                tooCloseToOtherMine = true;
+                break;
+            }
+        }
+        
+        if (!tooCloseToOtherMine) {
             validPosition = true;
         }
         attempts++;
+    }
+    
+    // If we couldn't find a valid position, just place it somewhere
+    if (!validPosition) {
+        x = 100 + Math.random() * (canvas.width - 200);
+        y = 100 + Math.random() * (canvas.height - 200);
     }
     
     const landmine = {
@@ -898,19 +932,18 @@ function spawnRandomLandmine() {
         duration: 500
     });
     
-    queueMessage("Landmine deployed!");
+    queueMessage(`Landmine deployed! (${playerTowers.landmines.active.length}/${playerTowers.landmines.count})`);
 }
-
 function checkLandmineTriggers() {
     for (let i = playerTowers.landmines.active.length - 1; i >= 0; i--) {
         const mine = playerTowers.landmines.active[i];
-        
+
         for (let j = 0; j < monsters.length; j++) {
             const monster = monsters[j];
             const dx = monster.x - mine.x;
             const dy = monster.y - mine.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (distance < mine.radius + monster.radius) {
                 explodeLandmine(mine, i);
                 break;
@@ -925,17 +958,17 @@ function explodeLandmine(mine, index) {
         const dx = monster.x - mine.x;
         const dy = monster.y - mine.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distance < mine.explosionRadius + monster.radius) {
             monster.health -= mine.damage;
             createDamageIndicator(monster.x, monster.y, mine.damage, true);
-            
+
             if (monster.health <= 0) {
                 handleMonsterDeath(monster, i);
             }
         }
     }
-    
+
     addVisualEffect({
         type: 'explosion',
         x: mine.x,
@@ -945,9 +978,8 @@ function explodeLandmine(mine, index) {
         startTime: Date.now(),
         duration: 400
     });
-    
+
     playerTowers.landmines.active.splice(index, 1);
-}
 
 // ============================================
 // BOMB FUNCTIONS
