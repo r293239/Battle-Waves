@@ -2005,7 +2005,20 @@ function generateStatBuffs() {
 // INITIALIZATION - FIXED
 // ============================================
 
+// ============================================
+// INITIALIZATION - FIXED
+// ============================================
+
 function initGame() {
+    console.log("Initializing game...");
+    
+    // Check if GAME_DATA exists
+    if (typeof GAME_DATA === 'undefined') {
+        console.error("GAME_DATA not loaded! Check game-data.js");
+        queueMessage("Error: Game data not loaded!");
+        return;
+    }
+    
     if (player.bloodContractInterval) {
         clearInterval(player.bloodContractInterval);
         player.bloodContractInterval = null;
@@ -2017,61 +2030,63 @@ function initGame() {
     }
     
     pendingHealing = 0;
-    monsterPaths.clear();
+    if (monsterPaths) monsterPaths.clear();
     
-    Object.assign(player, {
-        x: 400,
-        y: 300,
-        radius: 20,
-        health: GAME_DATA.PLAYER_START.health,
-        maxHealth: GAME_DATA.PLAYER_START.maxHealth,
-        damageMultiplier: 1.0,
-        speed: GAME_DATA.PLAYER_START.speed,
-        baseSpeed: GAME_DATA.PLAYER_START.speed,
-        speedMultiplier: 1.0,
-        color: '#ff6b6b',
-        lifeSteal: 0,
-        criticalChance: 0,
-        goldMultiplier: 0,
-        healthRegen: 0,
-        healthRegenPercent: 0,
-        damageReduction: 0,
-        lastRegen: Date.now(),
-        weapons: [],
-        projectiles: [],
-        meleeAttacks: [],
-        ammoPack: false,
-        
-        dodgeChance: 0,
-        thornsDamage: 0,
-        attackSpeedMultiplier: 1,
-        firstHitReduction: false,
-        firstHitActive: false,
-        voidCrystalChance: 0,
-        guardianAngelUsed: false,
-        
-        consumables: [],
-        berserkerRing: false,
-        sharpeningStone: false,
-        sharpeningStoneWave: 0,
-        enchantersInk: false,
-        guardianAngel: false,
-        bloodContract: false,
-        bloodContractStacks: 0,
-        bloodContractInterval: null,
-        lastBloodDamage: 0,
-        
-        inSlowField: false,
-        slowFieldTicks: 0,
-        lastSlowFieldTick: 0
-    });
+    // Reset player with default values
+    player.x = 400;
+    player.y = 300;
+    player.radius = 20;
+    player.health = GAME_DATA.PLAYER_START.health;
+    player.maxHealth = GAME_DATA.PLAYER_START.maxHealth;
+    player.damageMultiplier = 1.0;
+    player.speed = GAME_DATA.PLAYER_START.speed;
+    player.baseSpeed = GAME_DATA.PLAYER_START.speed;
+    player.speedMultiplier = 1.0;
+    player.color = '#ff6b6b';
+    player.lifeSteal = 0;
+    player.criticalChance = 0;
+    player.goldMultiplier = 0;
+    player.healthRegen = 0;
+    player.healthRegenPercent = 0;
+    player.damageReduction = 0;
+    player.lastRegen = Date.now();
+    player.weapons = [];
+    player.projectiles = [];
+    player.meleeAttacks = [];
+    player.ammoPack = false;
+    player.dodgeChance = 0;
+    player.thornsDamage = 0;
+    player.attackSpeedMultiplier = 1;
+    player.firstHitReduction = false;
+    player.firstHitActive = false;
+    player.voidCrystalChance = 0;
+    player.guardianAngelUsed = false;
+    player.consumables = [];
+    player.berserkerRing = false;
+    player.sharpeningStone = false;
+    player.sharpeningStoneWave = 0;
+    player.enchantersInk = false;
+    player.guardianAngel = false;
+    player.bloodContract = false;
+    player.bloodContractStacks = 0;
+    player.bloodContractInterval = null;
+    player.lastBloodDamage = 0;
+    player.inSlowField = false;
+    player.slowFieldTicks = 0;
+    player.lastSlowFieldTick = 0;
     
     playerTowers.landmines.count = 0;
     playerTowers.landmines.active = [];
     placedBombs = [];
     
+    // Add starting weapon
     const handgun = getWeaponById('handgun');
-    player.weapons.push(new WeaponInstance(handgun));
+    if (handgun) {
+        player.weapons.push(new WeaponInstance(handgun));
+        console.log("Added handgun");
+    } else {
+        console.error("Handgun not found in GAME_DATA.WEAPONS");
+    }
     
     wave = 1;
     gold = GAME_DATA.PLAYER_START.gold;
@@ -2084,8 +2099,10 @@ function initGame() {
     visualEffects = [];
     refreshCount = 0;
     refreshCost = 5;
-    refreshCostSpan.textContent = '5g';
-    refreshCounter.textContent = 'Refreshes: 0';
+    
+    // Update UI elements
+    if (refreshCostSpan) refreshCostSpan.textContent = '5g';
+    if (refreshCounter) refreshCounter.textContent = 'Refreshes: 0';
     
     groundFire = [];
     poisonClouds = [];
@@ -2095,18 +2112,21 @@ function initGame() {
     monsterProjectiles = [];
     dashers = [];
     splitterTracking = [];
-    bossAbilities.asteroids = [];
-    bossAbilities.slowField = null;
-    bossAbilities.enraged = false;
-    bossAbilities.bossWeapon = null;
-    bossAbilities.bossWeaponAttack = 0;
-    bossAbilities.bossDash = false;
-    bossAbilities.bossDashTarget = { x: 0, y: 0 };
-    bossAbilities.bossDashStart = 0;
-    bossAbilities.bossDashCooldown = 0;
-    bossAbilities.bossDashDirection = { x: 0, y: 0 };
-    bossAbilities.bossDashDistance = 0;
-    bossAbilities.minionSpawnTimer = 0;
+    bossAbilities = {
+        shotgun: false,
+        asteroids: [],
+        slowField: null,
+        enraged: false,
+        bossWeapon: null,
+        bossWeaponAttack: 0,
+        bossDash: false,
+        bossDashTarget: { x: 0, y: 0 },
+        bossDashStart: 0,
+        bossDashCooldown: 0,
+        bossDashDirection: { x: 0, y: 0 },
+        bossDashDistance: 0,
+        minionSpawnTimer: 0
+    };
     
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
@@ -2124,15 +2144,17 @@ function initGame() {
     
     shopItems = generateShopItems();
     
-    startScreen.style.display = 'none';
-    waveCompleteOverlay.style.display = 'none';
-    gameOverOverlay.style.display = 'none';
-    scrapWeaponBtn.style.display = 'none';
-    mergeWeaponBtn.style.display = 'none';
-    mergeInfo.style.display = 'none';
-    reloadIndicator.style.display = 'none';
+    // Hide all overlays
+    if (startScreen) startScreen.style.display = 'none';
+    if (waveCompleteOverlay) waveCompleteOverlay.style.display = 'none';
+    if (gameOverOverlay) gameOverOverlay.style.display = 'none';
+    if (scrapWeaponBtn) scrapWeaponBtn.style.display = 'none';
+    if (mergeWeaponBtn) mergeWeaponBtn.style.display = 'none';
+    if (mergeInfo) mergeInfo.style.display = 'none';
+    if (reloadIndicator) reloadIndicator.style.display = 'none';
     
-    nextWaveBtn.style.display = 'block';
+    // Show next wave button
+    if (nextWaveBtn) nextWaveBtn.style.display = 'block';
     
     updateConsumablesDisplay();
     updateUI();
@@ -2141,6 +2163,7 @@ function initGame() {
     
     forceJoystickVisible();
     
+    console.log("Game initialized, starting wave 1");
     startWave();
 }
 
