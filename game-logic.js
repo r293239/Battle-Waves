@@ -2331,7 +2331,124 @@ function updateDasher(dasher, currentTime) {
         }
     }
 }
+// Add this function after the createMonster function or anywhere in the game logic section
 
+// ============================================
+// MONSTER DEATH HANDLER
+// ============================================
+
+function handleMonsterDeath(monster, index) {
+    // Remove monster from array
+    monsters.splice(index, 1);
+    
+    // Return any throwable weapons (like throwing knives)
+    player.weapons.forEach(weapon => {
+        if (weapon.isThrowable) {
+            const returned = weapon.returnKnives(monster);
+            if (returned > 0) {
+                createHealthPopup(monster.x, monster.y, returned);
+            }
+        }
+    });
+    
+    // Calculate gold drop
+    let goldDrop = 0;
+    if (monster.monsterType && monster.monsterType.goldDrop) {
+        const baseGold = Math.floor(
+            Math.random() * (monster.monsterType.goldDrop.max - monster.monsterType.goldDrop.min + 1) + 
+            monster.monsterType.goldDrop.min
+        );
+        goldDrop = Math.floor(baseGold * (1 + player.goldMultiplier));
+    } else {
+        goldDrop = Math.floor(5 + Math.random() * 10 * (1 + player.goldMultiplier));
+    }
+    
+    gold += goldDrop;
+    kills++;
+    
+    // Create gold popup
+    createGoldPopup(monster.x, monster.y, goldDrop);
+    
+    // Create death effect
+    addVisualEffect({
+        type: 'death',
+        x: monster.x,
+        y: monster.y,
+        startTime: Date.now(),
+        duration: 300
+    });
+    
+    // Handle explosive monster explosion
+    if (monster.explosive) {
+        const explosionRadius = 100;
+        const explosionDamage = monster.damage * 2;
+        
+        addVisualEffect({
+            type: 'explosion',
+            x: monster.x,
+            y: monster.y,
+            radius: explosionRadius,
+            color: '#FF4500',
+            startTime: Date.now(),
+            duration: 400
+        });
+        
+        // Damage nearby monsters
+        monsters.forEach((otherMonster, otherIndex) => {
+            if (otherMonster === monster) return;
+            
+            const dx = otherMonster.x - monster.x;
+            const dy = otherMonster.y - monster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < explosionRadius + otherMonster.radius) {
+                otherMonster.health -= explosionDamage;
+                createDamageIndicator(otherMonster.x, otherMonster.y, explosionDamage, false);
+                
+                if (otherMonster.health <= 0) {
+                    handleMonsterDeath(otherMonster, otherIndex);
+                }
+            }
+        });
+        
+        // Damage player if too close
+        const dx = player.x - monster.x;
+        const dy = player.y - monster.y;
+        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distanceToPlayer < explosionRadius + player.radius) {
+            player.health -= explosionDamage;
+            createDamageIndicator(player.x, player.y, explosionDamage, false);
+            
+            if (player.health <= 0) {
+                gameOver();
+            }
+        }
+    }
+    
+    // Handle splitter monster splitting
+    if (monster.isSplitter) {
+        handleSplitterDeath(monster);
+    }
+    
+    // Handle dasher removal from tracking
+    if (monster.isDasher) {
+        const dasherIndex = dashers.indexOf(monster);
+        if (dasherIndex > -1) {
+            dashers.splice(dasherIndex, 1);
+        }
+    }
+    
+    // Berserker Ring effect - damage increases as health decreases
+    if (player.berserkerRing) {
+        const healthPercent = player.health / player.maxHealth;
+        const damageBonus = (1 - healthPercent) * 0.5; // Up to 50% bonus at 1 HP
+        player.damageMultiplier = player.baseDamageMultiplier || 1.0;
+        player.damageMultiplier += damageBonus;
+    }
+    
+    updateUI();
+}
 // ============================================
 // UI UPDATE FUNCTIONS
 // ============================================
