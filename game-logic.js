@@ -56,10 +56,10 @@ const MONSTER_TYPES = {
         icon: '🔫',
         ranged: true,
         projectileDamage: 8,
-        projectileSpeed: 6,
-        attackRange: 250,
+        projectileSpeed: 5,
+        attackRange: 270,
         projectileColor: '#ff69b4',
-        attackCooldown: 1500,
+        attackCooldown: 3000,
         goldDrop: { min: 12, max: 30 }
     },
     MINION: {
