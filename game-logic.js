@@ -673,6 +673,9 @@ let playerTowers = {
         count: 0,
         max: 5,
         active: []
+    },
+    healingTowers: {
+        active: [] // Simplified - just track active towers
     }
 };
 
@@ -852,10 +855,6 @@ function applyHealing(amount) {
 // TOWER FUNCTIONS
 // ============================================
 
-// ============================================
-// TOWER FUNCTIONS
-// ============================================
-
 function spawnRandomLandmine() {
     if (playerTowers.landmines.count <= 0) return;
     
@@ -934,6 +933,7 @@ function spawnRandomLandmine() {
     
     queueMessage(`Landmine deployed! (${playerTowers.landmines.active.length}/${playerTowers.landmines.count})`);
 }
+
 function checkLandmineTriggers() {
     for (let i = playerTowers.landmines.active.length - 1; i >= 0; i--) {
         const mine = playerTowers.landmines.active[i];
@@ -981,6 +981,160 @@ function explodeLandmine(mine, index) {
 
     playerTowers.landmines.active.splice(index, 1);
 }
+
+// ============================================
+// HEALING TOWER FUNCTIONS
+// ============================================
+
+function placeHealingTower() {
+    // Check max towers (3)
+    if (playerTowers.healingTowers.active.length >= 3) {
+        queueMessage("Maximum towers reached (3)!");
+        return false;
+    }
+    
+    const tower = {
+        x: player.x,
+        y: player.y,
+        radius: 20,
+        health: 30,
+        healAmount: 1,
+        healTimer: 0,
+        lastHeal: Date.now(),
+        id: Date.now() + Math.random() // unique ID
+    };
+    
+    playerTowers.healingTowers.active.push(tower);
+    
+    // Visual effect
+    addVisualEffect({
+        type: 'towerSpawn',
+        x: tower.x,
+        y: tower.y,
+        radius: 30,
+        color: '#4CAF50',
+        startTime: Date.now(),
+        duration: 500
+    });
+    
+    queueMessage(`Healing Tower placed! (${playerTowers.healingTowers.active.length}/3)`);
+    return true;
+}
+
+function updateHealingTowers(currentTime) {
+    playerTowers.healingTowers.active.forEach(tower => {
+        // Heal player every 2 seconds
+        if (currentTime - tower.lastHeal >= 2000) {
+            if (player.health < player.maxHealth) {
+                player.health = Math.min(player.maxHealth, player.health + tower.healAmount);
+                createHealthPopup(player.x, player.y, tower.healAmount);
+                
+                // Heal effect
+                addVisualEffect({
+                    type: 'heal',
+                    x: player.x,
+                    y: player.y,
+                    radius: 15,
+                    color: '#00FF00',
+                    startTime: currentTime,
+                    duration: 200
+                });
+            }
+            tower.lastHeal = currentTime;
+        }
+    });
+}
+
+function drawHealingTowers() {
+    playerTowers.healingTowers.active.forEach(tower => {
+        ctx.save();
+        ctx.translate(tower.x, tower.y);
+        
+        // Tower base
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(-10, -10, 20, 30);
+        
+        // Healing crystal
+        const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.8;
+        
+        ctx.shadowColor = '#4CAF50';
+        ctx.shadowBlur = 15 * pulse;
+        
+        // Crystal
+        ctx.fillStyle = '#4CAF50';
+        ctx.beginPath();
+        ctx.moveTo(0, -25);
+        ctx.lineTo(12, -10);
+        ctx.lineTo(0, 5);
+        ctx.lineTo(-12, -10);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Health bar
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(-15, -35, 30, 4);
+        
+        const healthPercent = tower.health / 30;
+        ctx.fillStyle = healthPercent > 0.5 ? '#00FF00' : '#FF0000';
+        ctx.fillRect(-15, -35, 30 * healthPercent, 4);
+        
+        // Healing pulse when active
+        if (Date.now() - tower.lastHeal < 500) {
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00FF00';
+            ctx.beginPath();
+            ctx.arc(0, -10, 15 + pulse * 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    });
+}
+
+// ============================================
+// SIMPLE PATHFINDING
+// ============================================
+
+function findPathToTarget(enemy, target) {
+    // Simple direct path with obstacle avoidance
+    const dx = target.x - enemy.x;
+    const dy = target.y - enemy.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance < 5) return { x: 0, y: 0 };
+    
+    // Check if any tower is in the way
+    let moveX = dx / distance;
+    let moveY = dy / distance;
+    
+    // Avoid other towers
+    for (let tower of playerTowers.healingTowers.active) {
+        if (tower === target) continue;
+        
+        const toTowerX = tower.x - enemy.x;
+        const toTowerY = tower.y - enemy.y;
+        const toTowerDist = Math.sqrt(toTowerX * toTowerX + toTowerY * toTowerY);
+        
+        // If too close to another tower, adjust path
+        if (toTowerDist < 50) {
+            const avoidX = (enemy.x - tower.x) / toTowerDist;
+            const avoidY = (enemy.y - tower.y) / toTowerDist;
+            moveX = (moveX + avoidX * 0.5) / 1.5;
+            moveY = (moveY + avoidY * 0.5) / 1.5;
+            
+            // Normalize
+            const newDist = Math.sqrt(moveX * moveX + moveY * moveY);
+            moveX /= newDist;
+            moveY /= newDist;
+        }
+    }
+    
+    return { x: moveX, y: moveY };
+}
+
 // ============================================
 // BOMB FUNCTIONS
 // ============================================
@@ -1349,6 +1503,10 @@ function createStatsPanel() {
                 <span class="stat-value" id="stat-landmines">0/5</span>
             </div>
             <div class="stat-row">
+                <span class="stat-label">🏥 Healing Towers:</span>
+                <span class="stat-value" id="stat-towers">0/3</span>
+            </div>
+            <div class="stat-row">
                 <span class="stat-label">🔰 Runic Plate:</span>
                 <span class="stat-value" id="stat-runic">No</span>
             </div>
@@ -1396,6 +1554,7 @@ function updateStatsPanel() {
     document.getElementById('stat-kills').textContent = kills;
     document.getElementById('stat-wave').textContent = wave;
     document.getElementById('stat-landmines').textContent = `${playerTowers.landmines.count}/${playerTowers.landmines.max}`;
+    document.getElementById('stat-towers').textContent = `${playerTowers.healingTowers.active.length}/3`;
     document.getElementById('stat-runic').textContent = player.firstHitReduction ? 'Yes' : 'No';
     
     document.getElementById('stat-lifesteal').textContent = Math.floor(player.lifeSteal * 100) + '%';
@@ -1462,6 +1621,13 @@ function saveGame() {
             landmines: {
                 count: playerTowers.landmines.count,
                 max: playerTowers.landmines.max
+            },
+            healingTowers: {
+                active: playerTowers.healingTowers.active.map(t => ({
+                    x: t.x,
+                    y: t.y,
+                    health: t.health
+                }))
             }
         },
         weapons: player.weapons.map(w => ({
@@ -1502,6 +1668,15 @@ function loadGame() {
         if (gameData.towers) {
             playerTowers.landmines.count = gameData.towers.landmines.count || 0;
             playerTowers.landmines.max = gameData.towers.landmines.max || 5;
+            
+            if (gameData.towers.healingTowers && gameData.towers.healingTowers.active) {
+                playerTowers.healingTowers.active = gameData.towers.healingTowers.active.map(t => ({
+                    ...t,
+                    radius: 20,
+                    healAmount: 1,
+                    lastHeal: Date.now()
+                }));
+            }
         }
         
         player.weapons = [];
@@ -1778,6 +1953,7 @@ function initGame() {
     // Reset towers
     playerTowers.landmines.count = 0;
     playerTowers.landmines.active = [];
+    playerTowers.healingTowers.active = [];
     placedBombs = [];
     
     const handgun = getWeaponById('handgun');
@@ -2363,7 +2539,6 @@ function updateDasher(dasher, currentTime) {
         }
     }
 }
-// Add this function after the createMonster function or anywhere in the game logic section
 
 // ============================================
 // MONSTER DEATH HANDLER
@@ -2481,6 +2656,7 @@ function handleMonsterDeath(monster, index) {
     
     updateUI();
 }
+
 // ============================================
 // UI UPDATE FUNCTIONS
 // ============================================
@@ -2664,6 +2840,10 @@ function useConsumable(index) {
             
         case 'exp_scroll':
             useExpScroll();
+            break;
+            
+        case 'healing_tower':
+            placeHealingTower();
             break;
     }
     
@@ -2938,6 +3118,27 @@ function purchaseItem(index) {
             
             playerTowers.landmines.count++;
             queueMessage(`Purchased Landmine! (${playerTowers.landmines.count}/${playerTowers.landmines.max})`);
+            
+            // Spawn immediately if we're in a wave
+            if (gameState === 'wave') {
+                setTimeout(() => spawnRandomLandmine(), 100);
+            }
+        }
+        else if (data.id === 'healing_tower') {
+            // Add to consumables
+            const existing = player.consumables.find(c => c.id === 'healing_tower');
+            if (existing) {
+                existing.count = (existing.count || 1) + 1;
+            } else {
+                player.consumables.push({
+                    id: 'healing_tower',
+                    name: 'Healing Tower',
+                    icon: '🏥',
+                    count: 1
+                });
+            }
+            queueMessage(`Added Healing Tower to consumables!`);
+            updateConsumablesDisplay();
         }
         
     } else {
@@ -3142,6 +3343,9 @@ function endWave() {
     
     // Clear active landmines at end of wave
     playerTowers.landmines.active = [];
+    // Keep healing towers? Let's keep them for next wave
+    // playerTowers.healingTowers.active = []; // Uncomment to clear them
+    
     placedBombs = []; // Clear any undetonated bombs
     
     player.inSlowField = false;
@@ -3181,38 +3385,8 @@ function endWave() {
     
     showStatBuffs();
 }
-function revive(){
-    
-    // Guardian Angel check - if health <= 0 and Guardian Angel is available
-    if (player.guardianAngel && !player.guardianAngelUsed && player.health <= 0) {
-        player.guardianAngelUsed = true;
-        player.health = Math.max(1, Math.floor(player.maxHealth * 0.5)); // Survive with 50% health, minimum 1
-        gameState = 'wave';
-        waveActive = true;
-        queueMessage("GUARDIAN ANGEL SAVED YOU! 50% health restored.");
-        
-        // Add visual effect
-        addVisualEffect({
-            type: 'guardianAngel',
-            x: player.x,
-            y: player.y,
-            radius: 50,
-            color: '#FFFF00',
-            startTime: Date.now(),
-            duration: 1000
-        });
-                
-        updateUI();
-        return(revived); // Don't show game over
-    }
-}
+
 function gameOver() {
-
-    var isRevive = revive()
-
-    if(isRevive = revived){
-        break;
-    }
     gameState = 'gameover';
     waveActive = false;
     
@@ -3240,11 +3414,32 @@ function gameOver() {
     if (player.bloodContractInterval) {
         clearInterval(player.bloodContractInterval);
         player.bloodContractInterval = null;
-}
+    }
     
     clearSave();
     
-
+    // Guardian Angel check - if health <= 0 and Guardian Angel is available
+    if (player.guardianAngel && !player.guardianAngelUsed && player.health <= 0) {
+        player.guardianAngelUsed = true;
+        player.health = Math.max(1, Math.floor(player.maxHealth * 0.5)); // Survive with 50% health, minimum 1
+        gameState = 'wave';
+        waveActive = true;
+        queueMessage("GUARDIAN ANGEL SAVED YOU! 50% health restored.");
+        
+        // Add visual effect
+        addVisualEffect({
+            type: 'guardianAngel',
+            x: player.x,
+            y: player.y,
+            radius: 50,
+            color: '#FFFF00',
+            startTime: Date.now(),
+            duration: 1000
+        });
+        
+        updateUI();
+        return; // Don't show game over
+    }
     
     gameOverText.textContent = `You survived ${wave} waves with ${kills} kills.`;
     gameOverOverlay.style.display = 'flex';
@@ -3439,6 +3634,9 @@ function drawTowers() {
         
         ctx.restore();
     });
+    
+    // Draw healing towers
+    drawHealingTowers();
 }
 
 function drawSpawnIndicators() {
@@ -4603,6 +4801,9 @@ function updateGame(deltaTime) {
     // Check landmine triggers
     checkLandmineTriggers();
     
+    // Update healing towers
+    updateHealingTowers(currentTime);
+    
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
         const boss = monsters.find(m => m.isBoss && wave === 30);
         if (boss) {
@@ -5236,62 +5437,130 @@ function updateMonsters(currentTime) {
             return;
         }
         
-        const dx = player.x - monster.x;
-        const dy = player.y - monster.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        // First, find closest healing tower for each monster
+        let targetX = player.x;
+        let targetY = player.y;
+        let targetIsTower = false;
+        let targetTower = null;
         
-        if (distance > 0) {
-            monster.x += (dx / distance) * monster.speed;
-            monster.y += (dy / distance) * monster.speed;
+        // Check if any towers exist and are closer than player
+        if (playerTowers.healingTowers.active.length > 0) {
+            let closestTowerDist = Infinity;
+            let closestTower = null;
+            
+            playerTowers.healingTowers.active.forEach(tower => {
+                const dx = tower.x - monster.x;
+                const dy = tower.y - monster.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < closestTowerDist) {
+                    closestTowerDist = dist;
+                    closestTower = tower;
+                }
+            });
+            
+            // If tower is closer than player, target it
+            const distToPlayer = Math.sqrt(
+                Math.pow(player.x - monster.x, 2) + 
+                Math.pow(player.y - monster.y, 2)
+            );
+            
+            if (closestTower && closestTowerDist < distToPlayer) {
+                targetX = closestTower.x;
+                targetY = closestTower.y;
+                targetIsTower = true;
+                targetTower = closestTower;
+            }
         }
         
+        // Move towards target using pathfinding
+        const moveDir = findPathToTarget(monster, { x: targetX, y: targetY });
+        
+        if (moveDir.x !== 0 || moveDir.y !== 0) {
+            monster.x += moveDir.x * monster.speed;
+            monster.y += moveDir.y * monster.speed;
+        }
+        
+        // Check if monster is a gunner and should shoot
         if (monster.isGunner && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootGunnerProjectile(monster);
             monster.lastAttack = currentTime;
         }
         
+        // Check if monster is boss and should shoot
         if (monster.isBoss && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootBossProjectiles(monster);
             monster.lastAttack = currentTime;
         }
         
-        if (distance < player.radius + monster.radius) {
+        // Attack if close to target
+        const distToTarget = Math.sqrt(
+            Math.pow(targetX - monster.x, 2) + 
+            Math.pow(targetY - monster.y, 2)
+        );
+        
+        if (distToTarget < monster.radius + (targetIsTower ? 20 : player.radius)) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
-                let actualDamage = monster.damage;
-                
-                if (Math.random() < player.dodgeChance) {
-                    queueMessage("DODGE!");
-                    monster.lastAttack = currentTime;
-                    return;
-                }
-                
-                // Runic Plate effect - reduce first hit damage
-                if (player.firstHitActive) {
-                    actualDamage *= 0.5;
-                    player.firstHitActive = false;
-                    queueMessage("Runic Plate absorbed 50% damage!");
-                }
-                
-                if (player.damageReduction > 0) {
-                    actualDamage *= (1 - player.damageReduction);
-                }
-                
-                player.health -= actualDamage;
-                monster.lastAttack = currentTime;
-                
-                if (player.thornsDamage > 0) {
-                    const thornsDamage = Math.floor(actualDamage * player.thornsDamage);
-                    if (thornsDamage > 0) {
-                        monster.health -= thornsDamage;
-                        createDamageIndicator(monster.x, monster.y, thornsDamage, false);
+                if (targetIsTower && targetTower) {
+                    // Attack tower
+                    targetTower.health -= monster.damage;
+                    createDamageIndicator(targetTower.x, targetTower.y, monster.damage, false);
+                    
+                    // Check if tower destroyed
+                    if (targetTower.health <= 0) {
+                        const index = playerTowers.healingTowers.active.indexOf(targetTower);
+                        if (index > -1) {
+                            playerTowers.healingTowers.active.splice(index, 1);
+                            addVisualEffect({
+                                type: 'explosion',
+                                x: targetTower.x,
+                                y: targetTower.y,
+                                radius: 30,
+                                color: '#8B0000',
+                                startTime: currentTime,
+                                duration: 300
+                            });
+                            queueMessage("Healing Tower destroyed!");
+                        }
+                    }
+                } else {
+                    // Attack player
+                    let actualDamage = monster.damage;
+                    
+                    if (Math.random() < player.dodgeChance) {
+                        queueMessage("DODGE!");
+                        monster.lastAttack = currentTime;
+                        return;
+                    }
+                    
+                    // Runic Plate effect - reduce first hit damage
+                    if (player.firstHitActive) {
+                        actualDamage *= 0.5;
+                        player.firstHitActive = false;
+                        queueMessage("Runic Plate absorbed 50% damage!");
+                    }
+                    
+                    if (player.damageReduction > 0) {
+                        actualDamage *= (1 - player.damageReduction);
+                    }
+                    
+                    player.health -= actualDamage;
+                    
+                    if (player.thornsDamage > 0) {
+                        const thornsDamage = Math.floor(actualDamage * player.thornsDamage);
+                        if (thornsDamage > 0) {
+                            monster.health -= thornsDamage;
+                            createDamageIndicator(monster.x, monster.y, thornsDamage, false);
+                        }
+                    }
+                    
+                    createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
+                    
+                    if (player.health <= 0) {
+                        gameOver();
                     }
                 }
-                
-                createDamageIndicator(player.x, player.y, Math.floor(actualDamage), false);
-                
-                if (player.health <= 0) {
-                    gameOver();
-                }
+                monster.lastAttack = currentTime;
             }
         }
     });
@@ -5557,6 +5826,32 @@ function drawVisualEffects() {
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, (effect.radius || 80) * progress, 0, Math.PI * 2);
                 ctx.stroke();
+                break;
+                
+            case 'towerSpawn':
+                ctx.strokeStyle = effect.color;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = effect.color;
+                ctx.shadowBlur = 15 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+                
+            case 'heal':
+                ctx.fillStyle = `rgba(0, 255, 0, ${alpha * 0.3})`;
+                ctx.shadowColor = '#00FF00';
+                ctx.shadowBlur = 15 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case 'hit':
+                ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.5})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
                 break;
         }
         
