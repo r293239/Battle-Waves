@@ -3240,7 +3240,7 @@ function gameOver() {
     if (player.bloodContractInterval) {
         clearInterval(player.bloodContractInterval);
         player.bloodContractInterval = null;
-    }
+}
     
     clearSave();
     
