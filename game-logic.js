@@ -3181,8 +3181,38 @@ function endWave() {
     
     showStatBuffs();
 }
-
+function revive(){
+    
+    // Guardian Angel check - if health <= 0 and Guardian Angel is available
+    if (player.guardianAngel && !player.guardianAngelUsed && player.health <= 0) {
+        player.guardianAngelUsed = true;
+        player.health = Math.max(1, Math.floor(player.maxHealth * 0.5)); // Survive with 50% health, minimum 1
+        gameState = 'wave';
+        waveActive = true;
+        queueMessage("GUARDIAN ANGEL SAVED YOU! 50% health restored.");
+        
+        // Add visual effect
+        addVisualEffect({
+            type: 'guardianAngel',
+            x: player.x,
+            y: player.y,
+            radius: 50,
+            color: '#FFFF00',
+            startTime: Date.now(),
+            duration: 1000
+        });
+                
+        updateUI();
+        return(revived); // Don't show game over
+    }
+}
 function gameOver() {
+
+    var isRevive = revive()
+
+    if(isRevive = revived){
+        break;
+    }
     gameState = 'gameover';
     waveActive = false;
     
@@ -3214,28 +3244,7 @@ function gameOver() {
     
     clearSave();
     
-    // Guardian Angel check - if health <= 0 and Guardian Angel is available
-    if (player.guardianAngel && !player.guardianAngelUsed && player.health <= 0) {
-        player.guardianAngelUsed = true;
-        player.health = Math.max(1, Math.floor(player.maxHealth * 0.5)); // Survive with 50% health, minimum 1
-        gameState = 'wave';
-        waveActive = true;
-        queueMessage("GUARDIAN ANGEL SAVED YOU! 50% health restored.");
-        
-        // Add visual effect
-        addVisualEffect({
-            type: 'guardianAngel',
-            x: player.x,
-            y: player.y,
-            radius: 50,
-            color: '#FFFF00',
-            startTime: Date.now(),
-            duration: 1000
-        });
-        
-        updateUI();
-        return; // Don't show game over
-    }
+
     
     gameOverText.textContent = `You survived ${wave} waves with ${kills} kills.`;
     gameOverOverlay.style.display = 'flex';
