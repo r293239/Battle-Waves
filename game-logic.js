@@ -420,7 +420,7 @@ class WeaponInstance {
                         isPellet: true,
                         startTime: currentTime,
                         size: 3,
-                        weaponRef: this // Add reference to weapon for tracking
+                        weaponRef: this
                     });
                 }
                 return attacks;
@@ -474,7 +474,7 @@ class WeaponInstance {
                     size: this.projectileSize || 6,
                     spinSpeed: this.spinSpeed || 0,
                     rotation: 0,
-                    weaponRef: this // Add reference to weapon for tracking
+                    weaponRef: this
                 };
             } else {
                 const baseAngle = Math.atan2(targetY - playerY, targetX - playerX);
@@ -773,6 +773,9 @@ const player = {
     inSlowField: false,
     slowFieldTicks: 0,
     lastSlowFieldTick: 0,
+    
+    facingAngle: 0, // Direction player is facing
+    lastFacingAngle: 0, // Last facing direction when moving
     
     updateHealthDisplay: null
 };
@@ -1947,7 +1950,10 @@ function initGame() {
         
         inSlowField: false,
         slowFieldTicks: 0,
-        lastSlowFieldTick: 0
+        lastSlowFieldTick: 0,
+        
+        facingAngle: 0,
+        lastFacingAngle: 0
     });
     
     // Reset towers
@@ -3343,7 +3349,7 @@ function endWave() {
     
     // Clear active landmines at end of wave
     playerTowers.landmines.active = [];
-    // Keep healing towers? Let's keep them for next wave
+    // Keep healing towers for next wave
     // playerTowers.healingTowers.active = []; // Uncomment to clear them
     
     placedBombs = []; // Clear any undetonated bombs
@@ -3488,6 +3494,7 @@ function gameLoop() {
             player.x += moveX;
             player.y += moveY;
             
+            // Fixed boundaries - player radius on all sides
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
         }
@@ -4711,9 +4718,42 @@ function drawPlayer() {
     ctx.save();
     ctx.translate(player.x, player.y);
     
+    // Calculate movement direction
+    let moveX = 0;
+    let moveY = 0;
+    
+    if (keys.w || keys.up) moveY -= 1;
+    if (keys.s || keys.down) moveY += 1;
+    if (keys.a || keys.left) moveX -= 1;
+    if (keys.d || keys.right) moveX += 1;
+    
+    if (joystickActive) {
+        const strength = Math.min(1, Math.sqrt(joystickCurrentX * joystickCurrentX + joystickCurrentY * joystickCurrentY) / joystickMaxDistance);
+        moveX += (joystickCurrentX / joystickMaxDistance) * strength;
+        moveY += (joystickCurrentY / joystickMaxDistance) * strength;
+    }
+    
+    // Determine if player is moving
+    const isMoving = moveX !== 0 || moveY !== 0;
+    
+    // Calculate facing angle (direction of movement or last movement)
+    let facingAngle = player.lastFacingAngle || 0;
+    
+    if (isMoving) {
+        facingAngle = Math.atan2(moveY, moveX);
+        player.lastFacingAngle = facingAngle;
+    } else {
+        // If not moving, face mouse direction
+        facingAngle = Math.atan2(mouseY - player.y, mouseX - player.x);
+    }
+    
+    // Save the angle for weapon aiming
+    player.facingAngle = facingAngle;
+    
     ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
     ctx.shadowBlur = 15;
     
+    // Draw player body (circle)
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
@@ -4726,16 +4766,94 @@ function drawPlayer() {
     ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
     ctx.stroke();
     
-    const angle = Math.atan2(mouseY - player.y, mouseX - player.x);
-    const indicatorX = Math.cos(angle) * (player.radius + 5);
-    const indicatorY = Math.sin(angle) * (player.radius + 5);
+    // Draw facing direction indicator (visor/face)
+    ctx.save();
+    ctx.rotate(facingAngle);
     
-    ctx.fillStyle = '#ffcc00';
-    ctx.shadowColor = 'rgba(255, 204, 0, 0.5)';
+    // Eyes (always look forward relative to facing direction)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#FFFFFF';
+    
+    // Left eye
+    ctx.beginPath();
+    ctx.arc(8, -5, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Right eye
+    ctx.beginPath();
+    ctx.arc(8, 5, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Pupils (follow movement/mouse)
+    ctx.fillStyle = '#000000';
+    ctx.shadowBlur = 0;
+    
+    // Calculate pupil offset based on movement/mouse
+    const pupilOffset = 1.5;
+    let pupilX = 8;
+    let pupilY = -5;
+    
+    if (isMoving) {
+        // Pupils look in movement direction
+        pupilX += Math.cos(facingAngle) * pupilOffset;
+        pupilY += Math.sin(facingAngle) * pupilOffset;
+    } else {
+        // Pupils look at mouse
+        const mouseAngle = Math.atan2(mouseY - player.y, mouseX - player.x) - facingAngle;
+        pupilX += Math.cos(mouseAngle) * pupilOffset;
+        pupilY += Math.sin(mouseAngle) * pupilOffset;
+    }
+    
+    ctx.beginPath();
+    ctx.arc(pupilX, pupilY - 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.arc(pupilX, pupilY + 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Mouth/visor line (changes with movement)
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (isMoving) {
+        // Determined expression when moving
+        ctx.moveTo(12, -2);
+        ctx.lineTo(18, 0);
+        ctx.lineTo(12, 2);
+    } else {
+        // Neutral expression when idle
+        ctx.moveTo(12, -1);
+        ctx.lineTo(18, 0);
+        ctx.moveTo(12, 1);
+        ctx.lineTo(18, 0);
+    }
+    ctx.stroke();
+    
+    ctx.restore();
+    
+    // Draw weapon indicator (shows facing direction)
+    ctx.save();
+    ctx.rotate(facingAngle);
+    
+    // Weapon indicator line
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#ffcc00';
     ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
+    ctx.moveTo(player.radius + 2, 0);
+    ctx.lineTo(player.radius + 15, 0);
+    ctx.stroke();
+    
+    // Weapon tip
+    ctx.fillStyle = '#ffcc00';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(player.radius + 18, 0, 4, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
     
     // Runic Plate visual indicator
     if (player.firstHitReduction && player.firstHitActive) {
@@ -4989,22 +5107,55 @@ function updateWeapons() {
         weapon.attackSpeed = originalAttackSpeed;
         
         if (canAttack) {
-            let closestMonster = null;
-            let closestDistance = Infinity;
+            // Find closest monster in front of player
+            let bestMonster = null;
+            let bestScore = -Infinity;
             
             monsters.forEach(monster => {
                 const dx = monster.x - player.x;
                 const dy = monster.y - player.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < closestDistance && distance < weapon.range) {
-                    closestDistance = distance;
-                    closestMonster = monster;
+                if (distance < weapon.range) {
+                    // Calculate angle to monster relative to player's facing direction
+                    const angleToMonster = Math.atan2(dy, dx);
+                    const facingAngle = player.facingAngle || 0;
+                    
+                    // Calculate angle difference (normalized to -PI to PI)
+                    let angleDiff = angleToMonster - facingAngle;
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                    
+                    // Prefer monsters in front (smaller angle difference)
+                    // Score: higher for closer monsters that are more in front
+                    const angleScore = Math.cos(angleDiff); // 1 for directly ahead, -1 for behind
+                    const distanceScore = 1 - (distance / weapon.range);
+                    const totalScore = angleScore * 0.7 + distanceScore * 0.3;
+                    
+                    if (totalScore > bestScore) {
+                        bestScore = totalScore;
+                        bestMonster = monster;
+                    }
                 }
             });
             
-            if (closestMonster) {
-                const attack = weapon.attack(player.x, player.y, closestMonster.x, closestMonster.y);
+            // If no monster in front, just pick closest
+            if (!bestMonster) {
+                let closestDistance = Infinity;
+                monsters.forEach(monster => {
+                    const dx = monster.x - player.x;
+                    const dy = monster.y - player.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < closestDistance && distance < weapon.range) {
+                        closestDistance = distance;
+                        bestMonster = monster;
+                    }
+                });
+            }
+            
+            if (bestMonster) {
+                const attack = weapon.attack(player.x, player.y, bestMonster.x, bestMonster.y);
                 
                 if (weapon.id === 'shotgun') {
                     player.projectiles.push(...attack);
