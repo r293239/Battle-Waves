@@ -215,7 +215,7 @@ const GAME_DATA = {
             usesAmmo: true,
             magazineSize: 15,
             reloadTime: 1800,
-            spread: 0,
+            spread: 0.1,
             tierMultipliers: {
                 damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -241,7 +241,7 @@ const GAME_DATA = {
             maxTargets: 4,
             useImage: true,
             imagePath: 'assets/boomerang.png',
-            spread: 0,
+            spread: 0.1,
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
