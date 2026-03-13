@@ -29,7 +29,7 @@ const GAME_DATA = {
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130, isBoss: false },
         
         // Wave 10: First Boss Wave
-        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 400, isBoss: true },
+        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 400, isBoss: true, minions: 8 },
 
         // Waves 11-19: Regular waves
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140, isBoss: false },
@@ -215,7 +215,7 @@ const GAME_DATA = {
             usesAmmo: true,
             magazineSize: 15,
             reloadTime: 1800,
-            spread: 0.1,
+            spread: 0,
             tierMultipliers: {
                 damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -241,7 +241,7 @@ const GAME_DATA = {
             maxTargets: 4,
             useImage: true,
             imagePath: 'assets/boomerang.png',
-            spread: 0.1,
+            spread: 0,
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -250,7 +250,7 @@ const GAME_DATA = {
             }
         },
         
-        // NEW: Throwing Knives
+        // Throwing Knives
         {
             id: 'throwing_knives',
             name: 'Throwing Knives',
@@ -260,12 +260,12 @@ const GAME_DATA = {
             attackSpeed: 2.0,
             range: 250,
             projectileSpeed: 12,
-            cost: 75,
+            cost: 55,
             description: 'Limited knives per round, higher tier = more knives',
             projectileColor: '#C0C0C0',
             animation: 'knife',
             usesAmmo: true,
-            magazineSize: 13,
+            magazineSize: 7,
             reloadTime: 0,
             isThrowable: true,
             resetEachRound: true,
@@ -277,6 +277,58 @@ const GAME_DATA = {
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
                 magazine: [1, 1.4, 1.8, 2.2, 2.6, 3.0],
                 range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
+            }
+        },
+        
+        // NEW: Sniper Rifle
+        {
+            id: 'sniper',
+            name: 'Sniper Rifle',
+            icon: '🔭',
+            type: 'ranged',
+            baseDamage: 35,
+            attackSpeed: 0.5,
+            range: 500,
+            projectileSpeed: 20,
+            cost: 180,
+            description: 'Long range weapon that targets the highest HP enemy',
+            projectileColor: '#FF4500',
+            animation: 'sniper',
+            usesAmmo: true,
+            magazineSize: 3,
+            reloadTime: 2500,
+            spread: 0,
+            sniper: true, // Special flag for sniper behavior
+            tierMultipliers: {
+                damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                magazine: [1, 1, 1.2, 1.4, 1.6, 1.8]
+            }
+        },
+        
+        // NEW: Crossbow
+        {
+            id: 'crossbow',
+            name: 'Crossbow',
+            icon: '🏹',
+            type: 'ranged',
+            baseDamage: 18,
+            attackSpeed: 1.2,
+            range: 350,
+            projectileSpeed: 15,
+            cost: 120,
+            description: 'Heavy bolt that pierces through enemies',
+            projectileColor: '#8B4513',
+            animation: 'bolt',
+            usesAmmo: true,
+            magazineSize: 1,
+            reloadTime: 1200,
+            spread: 0,
+            pierceCount: 3, // Can pierce through multiple enemies
+            tierMultipliers: {
+                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
+                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
+                pierceCount: [1, 2, 2, 3, 3, 4]
             }
         },
         
@@ -335,7 +387,7 @@ const GAME_DATA = {
             }
         },
         
-        // NEW: Dual Daggers
+        // Dual Daggers
         {
             id: 'dual_daggers',
             name: 'Dual Daggers',
@@ -465,7 +517,7 @@ const GAME_DATA = {
             description: 'Fully reload all ranged weapons (except throwables)'
         },
         
-        // NEW: Rage Potion
+        // Rage Potion
         {
             id: 'rage_potion',
             name: 'Rage Potion',
@@ -475,7 +527,7 @@ const GAME_DATA = {
             description: '+50% damage for 10 seconds'
         },
         
-        // NEW: Bomb
+        // Bomb
         {
             id: 'bomb',
             name: 'Bomb',
@@ -485,7 +537,7 @@ const GAME_DATA = {
             description: 'Large area explosion dealing 100 damage to all enemies'
         },
         
-        // NEW: Experience Scroll
+        // Experience Scroll
         {
             id: 'exp_scroll',
             name: 'Experience Scroll',
@@ -495,7 +547,19 @@ const GAME_DATA = {
             description: 'Instantly upgrade a random weapon by one tier'
         },
         
-        // NEW: Landmine Tower
+        // Healing Tower
+        {
+            id: 'healing_tower',
+            name: 'Healing Tower',
+            icon: '🏥',
+            type: 'tower',
+            category: 'tower',
+            cost: 50,
+            maxPerGame: 3,
+            description: 'Place a tower that heals you for 1 HP every 2 seconds. Enemies will target it. Has 30 HP.'
+        },
+        
+        // Landmine Tower
         {
             id: 'landmine',
             name: 'Landmine',
@@ -506,16 +570,7 @@ const GAME_DATA = {
             maxPerGame: 5,
             description: 'Place a landmine. One spawns randomly each wave, max 5 total. Deals 80 damage in an area when triggered.'
         },
-       {
-            id: 'healing_tower',
-            name: 'Healing Tower',
-            icon: '🏥',
-            type: 'tower',
-            category: 'tower',
-            cost: 50,
-            maxPerGame: 3,
-            description: 'Place a tower that heals you for 1 HP every 2 seconds. Enemies will target it. Has 30 HP.'    
-        },
+        
         // Permanent Items
         {
             id: 'damage_orb',
@@ -624,6 +679,14 @@ const TOWER_DATA = {
         radius: 60,
         triggerRadius: 15,
         color: '#8B4513'
+    },
+    healingTower: {
+        maxPerGame: 3,
+        health: 30,
+        healAmount: 1,
+        healInterval: 2000,
+        radius: 20,
+        color: '#4CAF50'
     }
 };
 
