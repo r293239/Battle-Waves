@@ -56,10 +56,10 @@ const MONSTER_TYPES = {
         icon: '🔫',
         ranged: true,
         projectileDamage: 8,
-        projectileSpeed: 5,
-        attackRange: 270,
+        projectileSpeed: 6,
+        attackRange: 250,
         projectileColor: '#ff69b4',
-        attackCooldown: 3000,
+        attackCooldown: 3000, // Updated to 3000ms
         goldDrop: { min: 12, max: 30 }
     },
     MINION: {
@@ -1858,6 +1858,68 @@ function getWaveConfig(waveNumber) {
     }
 }
 
+// Wave-specific monster compositions - YOU CAN CHANGE THESE NUMBERS
+const WAVE_COMPOSITIONS = {
+    // Format: waveNumber: { normal: X, fast: Y, tank: Z, explosive: W, gunner: V, splitter: U, dasher: T }
+    1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
+    2: { normal: 5, fast: 2, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
+    3: { normal: 6, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
+    4: { normal: 6, fast: 3, tank: 1, explosive: 1, gunner: 0, splitter: 0, dasher: 0 },
+    5: { normal: 7, fast: 3, tank: 2, explosive: 1, gunner: 0, splitter: 0, dasher: 0 },
+    6: { normal: 7, fast: 4, tank: 2, explosive: 1, gunner: 1, splitter: 0, dasher: 0 },
+    7: { normal: 8, fast: 4, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0 },
+    8: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 1, splitter: 0, dasher: 0 },
+    9: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 0, dasher: 0 },
+    10: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 }, // Boss wave
+    11: { normal: 10, fast: 6, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 2 },
+    12: { normal: 11, fast: 6, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 3 },
+    13: { normal: 11, fast: 7, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2 },
+    14: { normal: 12, fast: 7, tank: 5, explosive: 4, gunner: 4, splitter: 2, dasher: 2 },
+    15: { normal: 12, fast: 8, tank: 5, explosive: 4, gunner: 4, splitter: 3, dasher: 2 },
+    16: { normal: 13, fast: 8, tank: 6, explosive: 5, gunner: 4, splitter: 2, dasher: 2 },
+    17: { normal: 13, fast: 9, tank: 6, explosive: 5, gunner: 5, splitter: 2, dasher: 2 },
+    18: { normal: 14, fast: 9, tank: 7, explosive: 5, gunner: 5, splitter: 2, dasher: 2 },
+    19: { normal: 14, fast: 10, tank: 7, explosive: 6, gunner: 5, splitter: 2, dasher: 2 },
+    20: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 }, // Boss wave
+    21: { normal: 15, fast: 10, tank: 8, explosive: 6, gunner: 6, splitter: 4, dasher: 4 },
+    22: { normal: 16, fast: 11, tank: 8, explosive: 7, gunner: 6, splitter: 4, dasher: 4 },
+    23: { normal: 16, fast: 11, tank: 9, explosive: 7, gunner: 7, splitter: 5, dasher: 4 },
+    24: { normal: 17, fast: 12, tank: 9, explosive: 8, gunner: 7, splitter: 5, dasher: 4 },
+    25: { normal: 17, fast: 12, tank: 10, explosive: 8, gunner: 8, splitter: 4, dasher: 4 },
+    26: { normal: 18, fast: 13, tank: 10, explosive: 9, gunner: 8, splitter: 4, dasher: 4 },
+    27: { normal: 18, fast: 13, tank: 11, explosive: 9, gunner: 9, splitter: 4, dasher: 4 },
+    28: { normal: 19, fast: 14, tank: 11, explosive: 10, gunner: 9, splitter: 4, dasher: 4 },
+    29: { normal: 19, fast: 14, tank: 12, explosive: 10, gunner: 10, splitter: 4, dasher: 4 },
+    30: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 }, // Boss wave
+    31: { normal: 20, fast: 15, tank: 13, explosive: 12, gunner: 12, splitter: 8, dasher: 8 }
+};
+
+function getMonsterTypeForWave(waveNumber) {
+    // For boss waves, return boss type
+    if (waveNumber % 10 === 0) {
+        return MONSTER_TYPES.BOSS;
+    }
+    
+    // Use the fixed composition for this wave
+    const comp = WAVE_COMPOSITIONS[waveNumber];
+    if (!comp) {
+        // Fallback for waves beyond 31
+        return MONSTER_TYPES.NORMAL;
+    }
+    
+    // Build an array of monster types based on the composition
+    const types = [];
+    for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL);
+    for (let i = 0; i < comp.fast; i++) types.push(MONSTER_TYPES.FAST);
+    for (let i = 0; i < comp.tank; i++) types.push(MONSTER_TYPES.TANK);
+    for (let i = 0; i < comp.explosive; i++) types.push(MONSTER_TYPES.EXPLOSIVE);
+    for (let i = 0; i < comp.gunner; i++) types.push(MONSTER_TYPES.GUNNER);
+    for (let i = 0; i < comp.splitter; i++) types.push(MONSTER_TYPES.SPLITTER);
+    for (let i = 0; i < comp.dasher; i++) types.push(MONSTER_TYPES.DASHER);
+    
+    return types;
+}
+
 function generateShopItems() {
     const shopItems = [];
     
@@ -2074,7 +2136,7 @@ function initGame() {
 }
 
 // ============================================
-// WAVE MANAGEMENT
+// WAVE MANAGEMENT - UPDATED SPAWN SYSTEM
 // ============================================
 
 function showSpawnIndicators() {
@@ -2089,26 +2151,45 @@ function showSpawnIndicators() {
         }
     }
     
+    // Determine number of spawn clusters (more clusters for larger waves)
+    const numClusters = Math.min(5, Math.max(2, Math.floor(totalMonsters / 8)));
+    const clusterCenters = [];
+    
+    // Generate cluster centers (random positions anywhere on map)
+    for (let c = 0; c < numClusters; c++) {
+        clusterCenters.push({
+            x: 100 + Math.random() * (canvas.width - 200),
+            y: 100 + Math.random() * (canvas.height - 200)
+        });
+    }
+    
+    // Distribute monsters among clusters
     for (let i = 0; i < totalMonsters; i++) {
         let x, y;
         
         if (waveConfig.isBoss && i === 0) {
+            // Boss spawns in center
             x = canvas.width / 2;
             y = canvas.height / 2;
         } else {
-            const side = Math.floor(Math.random() * 4);
-            switch(side) {
-                case 0: x = 30 + Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break;
-                case 1: x = canvas.width - 30 - Math.random() * 100; y = Math.random() * (canvas.height - 60) + 30; break;
-                case 2: x = Math.random() * (canvas.width - 60) + 30; y = 30 + Math.random() * 100; break;
-                case 3: x = Math.random() * (canvas.width - 60) + 30; y = canvas.height - 30 - Math.random() * 100; break;
-            }
+            // Pick a random cluster
+            const cluster = clusterCenters[Math.floor(Math.random() * clusterCenters.length)];
+            
+            // Spawn within cluster radius (30-100 pixels)
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 30 + Math.random() * 70; // Cluster together
+            x = cluster.x + Math.cos(angle) * distance;
+            y = cluster.y + Math.sin(angle) * distance;
+            
+            // Keep within bounds
+            x = Math.max(50, Math.min(canvas.width - 50, x));
+            y = Math.max(50, Math.min(canvas.height - 50, y));
         }
         
         spawnIndicators.push({
             x, y,
-            timer: 2000,
-            startTime: Date.now(),
+            timer: 2000, // 2 seconds
+            startTime: Date.now() + (i * 50), // Stagger start times slightly
             isBoss: waveConfig.isBoss && i === 0,
             isMinion: waveConfig.isBoss && i > 0,
             index: i
@@ -2224,6 +2305,7 @@ function startWave() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     
+    // Show spawn indicators immediately
     showSpawnIndicators();
     
     // Spawn a landmine if player has any
@@ -2233,6 +2315,7 @@ function startWave() {
         }
     }, 500);
     
+    // Spawn monsters after indicators
     setTimeout(() => {
         const monsterCount = waveConfig.monsters;
         const spawnDelay = waveConfig.spawnDelay || 200;
@@ -2298,36 +2381,15 @@ function startWave() {
             }
             spawnIndicators = [];
         } else {
+            // Get the monster types for this wave
+            const monsterTypes = getMonsterTypeForWave(wave);
             let spawnedCount = 0;
             
             for (let i = 0; i < monsterCount; i++) {
                 setTimeout(() => {
                     if (gameState === 'wave') {
-                        let monsterType;
-                        const rand = Math.random();
-                        
-                        if (wave < 3) {
-                            monsterType = MONSTER_TYPES.NORMAL;
-                        } else if (wave < 6) {
-                            if (rand < 0.5) monsterType = MONSTER_TYPES.NORMAL;
-                            else if (rand < 0.7) monsterType = MONSTER_TYPES.FAST;
-                            else if (rand < 0.9) monsterType = MONSTER_TYPES.TANK;
-                            else monsterType = MONSTER_TYPES.EXPLOSIVE;
-                        } else if (wave < 10) {
-                            if (rand < 0.3) monsterType = MONSTER_TYPES.NORMAL;
-                            else if (rand < 0.45) monsterType = MONSTER_TYPES.FAST;
-                            else if (rand < 0.6) monsterType = MONSTER_TYPES.TANK;
-                            else if (rand < 0.75) monsterType = MONSTER_TYPES.EXPLOSIVE;
-                            else monsterType = MONSTER_TYPES.GUNNER;
-                        } else {
-                            if (rand < 0.15) monsterType = MONSTER_TYPES.NORMAL;
-                            else if (rand < 0.3) monsterType = MONSTER_TYPES.FAST;
-                            else if (rand < 0.45) monsterType = MONSTER_TYPES.TANK;
-                            else if (rand < 0.6) monsterType = MONSTER_TYPES.EXPLOSIVE;
-                            else if (rand < 0.75) monsterType = MONSTER_TYPES.GUNNER;
-                            else if (rand < 0.875) monsterType = MONSTER_TYPES.SPLITTER;
-                            else monsterType = MONSTER_TYPES.DASHER;
-                        }
+                        // Get the monster type from our fixed composition
+                        const monsterType = monsterTypes[i] || MONSTER_TYPES.NORMAL;
                         
                         if (spawnIndicators.length > i) {
                             const indicator = spawnIndicators[i];
@@ -2356,7 +2418,7 @@ function startWave() {
                 }, i * spawnDelay);
             }
         }
-    }, 2000);
+    }, 2000); // Wait 2 seconds for indicators
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
@@ -7007,7 +7069,7 @@ style.textContent = `
         position: absolute;
         top: 2px;
         right: 2px;
-        background: rgba(0, 0, 0, 0.0);
+        background: rgba(0, 0, 0, 0.7);
         border-radius: 8px;
         padding: 2px 4px;
         font-size: 0.65rem;
