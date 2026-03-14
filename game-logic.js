@@ -56,10 +56,10 @@ const MONSTER_TYPES = {
         icon: '🔫',
         ranged: true,
         projectileDamage: 8,
-        projectileSpeed: 6,
-        attackRange: 250,
+        projectileSpeed: 5,
+        attackRange: 270,
         projectileColor: '#ff69b4',
-        attackCooldown: 3000, // Updated to 3000ms
+        attackCooldown: 3000,
         goldDrop: { min: 12, max: 30 }
     },
     MINION: {
@@ -1839,7 +1839,7 @@ function getWaveConfig(waveNumber) {
             goldReward: waveData.goldReward,
             isBoss: waveData.isBoss || false,
             minions: waveData.minions || 0,
-            spawnDelay: waveData.spawnDelay || 150
+            spawnDelay: waveData.spawnDelay || 300
         };
     } else {
         const baseWave = GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
@@ -1853,7 +1853,7 @@ function getWaveConfig(waveNumber) {
             goldReward: Math.floor(baseWave.goldReward * scaleFactor),
             isBoss: (waveNumber % 10 === 0),
             minions: (waveNumber % 10 === 0) ? 8 : 0,
-            spawnDelay: Math.max(50, 200 - extraWaves * 5)
+            spawnDelay: Math.max(100, 300 - extraWaves * 10)
         };
     }
 }
@@ -2188,13 +2188,16 @@ function showSpawnIndicators() {
         
         spawnIndicators.push({
             x, y,
-            timer: 2000, // 2 seconds
-            startTime: Date.now() + (i * 50), // Stagger start times slightly
+            timer: 2000 + (i * 50), // Each indicator lasts 2 seconds + small stagger
+            startTime: Date.now(), // All start at same time
             isBoss: waveConfig.isBoss && i === 0,
             isMinion: waveConfig.isBoss && i > 0,
             index: i
         });
     }
+    
+    // Indicators will disappear after their timer
+    // Monsters spawn over time using the positions
 }
 
 function spawnMinions(count, centerX, centerY) {
@@ -2315,110 +2318,135 @@ function startWave() {
         }
     }, 500);
     
-    // Spawn monsters after indicators
-    setTimeout(() => {
+    // Spawn monsters over time - NOT all at once
+    if (!waveConfig.isBoss) {
         const monsterCount = waveConfig.monsters;
-        const spawnDelay = waveConfig.spawnDelay || 200;
+        const monsterTypes = getMonsterTypeForWave(wave);
+        const baseSpawnDelay = waveConfig.spawnDelay || 300; // Base delay between spawns
         
-        if (waveConfig.isBoss) {
-            const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
-            if (boss) {
-                boss.lifeSteal = 0.1;
-                boss.maxHealth = waveConfig.monsterHealth * 15;
-                boss.health = boss.maxHealth;
-                
-                if (wave === 10) {
-                    bossAbilities.bossWeapon = {...BOSS_WEAPONS.DAGGER};
-                    bossAbilities.bossWeapon.lastAttack = 0;
-                    boss.color = '#8B0000';
-                } else if (wave === 20) {
-                    bossAbilities.bossWeapon = {...BOSS_WEAPONS.WAR_HAMMER};
-                    bossAbilities.bossWeapon.lastAttack = 0;
-                    boss.color = '#8B4513';
-                } else if (wave === 30) {
-                    bossAbilities.bossWeapon = {...BOSS_WEAPONS.SCYTHE};
-                    bossAbilities.bossWeapon.lastAttack = 0;
-                    boss.color = '#4B0082';
+        let spawnedCount = 0;
+        
+        // Spawn monsters one by one over time
+        const spawnInterval = setInterval(() => {
+            if (gameState !== 'wave') {
+                clearInterval(spawnInterval);
+                return;
+            }
+            
+            if (spawnedCount >= monsterCount) {
+                clearInterval(spawnInterval);
+                return;
+            }
+            
+            // Get the monster type from our fixed composition
+            const monsterType = monsterTypes[spawnedCount] || MONSTER_TYPES.NORMAL;
+            
+            // Use the spawn indicator position if available
+            if (spawnIndicators.length > spawnedCount) {
+                const indicator = spawnIndicators[spawnedCount];
+                const monster = createMonster(monsterType, false, indicator.x, indicator.y);
+                if (monster) {
+                    monsters.push(monster);
+                    if (monsterType === MONSTER_TYPES.DASHER) {
+                        dashers.push(monster);
+                    }
                 }
-                
-                monsters.push(boss);
-                
-                startMinionSpawning(boss);
-                
-                addVisualEffect({
-                    type: 'bossSpawn',
-                    x: boss.x,
-                    y: boss.y,
-                    radius: 100,
-                    startTime: Date.now(),
-                    duration: 800,
-                    color: boss.color
-                });
-                
-                if (waveConfig.minions > 0) {
-                    spawnMinions(waveConfig.minions, boss.x, boss.y);
-                }
-                
-                if (wave === 10) {
-                    bossAbilities.shotgun = true;
-                } else if (wave === 20) {
-                    asteroidTimer = setInterval(() => {
-                        if (waveActive && monsters.some(m => m.isBoss)) {
-                            for (let i = 0; i < 5; i++) {
-                                setTimeout(() => {
-                                    if (waveActive) spawnAsteroid();
-                                }, i * 200);
-                            }
-                        }
-                    }, 4000);
-                } else if (wave === 30) {
-                    bossAbilities.slowField = {
-                        active: true,
-                        radius: 200,
-                        lastDamage: 0
-                    };
+            } else {
+                // Fallback if indicator missing
+                const monster = createMonster(monsterType, false);
+                if (monster) {
+                    monsters.push(monster);
+                    if (monsterType === MONSTER_TYPES.DASHER) {
+                        dashers.push(monster);
+                    }
                 }
             }
-            spawnIndicators = [];
-        } else {
-            // Get the monster types for this wave
-            const monsterTypes = getMonsterTypeForWave(wave);
-            let spawnedCount = 0;
             
-            for (let i = 0; i < monsterCount; i++) {
-                setTimeout(() => {
-                    if (gameState === 'wave') {
-                        // Get the monster type from our fixed composition
-                        const monsterType = monsterTypes[i] || MONSTER_TYPES.NORMAL;
-                        
-                        if (spawnIndicators.length > i) {
-                            const indicator = spawnIndicators[i];
-                            const monster = createMonster(monsterType, false, indicator.x, indicator.y);
-                            if (monster) {
-                                monsters.push(monster);
-                                if (monsterType === MONSTER_TYPES.DASHER) {
-                                    dashers.push(monster);
-                                }
-                            }
-                        } else {
-                            const monster = createMonster(monsterType, false);
-                            if (monster) {
-                                monsters.push(monster);
-                                if (monsterType === MONSTER_TYPES.DASHER) {
-                                    dashers.push(monster);
-                                }
-                            }
-                        }
-                        spawnedCount++;
-                        
-                        if (spawnedCount >= monsterCount) {
-                            spawnIndicators = [];
+            spawnedCount++;
+            
+            // Clear indicators as monsters spawn
+            if (spawnedCount >= monsterCount) {
+                spawnIndicators = [];
+            }
+        }, baseSpawnDelay);
+        
+    } else {
+        // Boss wave - spawn boss immediately
+        const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
+        if (boss) {
+            boss.lifeSteal = 0.1;
+            boss.maxHealth = waveConfig.monsterHealth * 15;
+            boss.health = boss.maxHealth;
+            
+            if (wave === 10) {
+                bossAbilities.bossWeapon = {...BOSS_WEAPONS.DAGGER};
+                bossAbilities.bossWeapon.lastAttack = 0;
+                boss.color = '#8B0000';
+            } else if (wave === 20) {
+                bossAbilities.bossWeapon = {...BOSS_WEAPONS.WAR_HAMMER};
+                bossAbilities.bossWeapon.lastAttack = 0;
+                boss.color = '#8B4513';
+            } else if (wave === 30) {
+                bossAbilities.bossWeapon = {...BOSS_WEAPONS.SCYTHE};
+                bossAbilities.bossWeapon.lastAttack = 0;
+                boss.color = '#4B0082';
+            }
+            
+            monsters.push(boss);
+            
+            startMinionSpawning(boss);
+            
+            addVisualEffect({
+                type: 'bossSpawn',
+                x: boss.x,
+                y: boss.y,
+                radius: 100,
+                startTime: Date.now(),
+                duration: 800,
+                color: boss.color
+            });
+            
+            if (waveConfig.minions > 0) {
+                // Spawn minions over time
+                let minionCount = 0;
+                const minionInterval = setInterval(() => {
+                    if (gameState !== 'wave' || !boss || boss.health <= 0) {
+                        clearInterval(minionInterval);
+                        return;
+                    }
+                    
+                    if (minionCount >= waveConfig.minions) {
+                        clearInterval(minionInterval);
+                        return;
+                    }
+                    
+                    spawnMinions(1, boss.x, boss.y);
+                    minionCount++;
+                }, 800);
+            }
+            
+            if (wave === 10) {
+                bossAbilities.shotgun = true;
+            } else if (wave === 20) {
+                asteroidTimer = setInterval(() => {
+                    if (waveActive && monsters.some(m => m.isBoss)) {
+                        for (let i = 0; i < 5; i++) {
+                            setTimeout(() => {
+                                if (waveActive) spawnAsteroid();
+                            }, i * 200);
                         }
                     }
-                }, i * spawnDelay);
+                }, 4000);
+            } else if (wave === 30) {
+                bossAbilities.slowField = {
+                    active: true,
+                    radius: 200,
+                    lastDamage: 0
+                };
             }
         }
-    }, 2000); // Wait 2 seconds for indicators
+        spawnIndicators = [];
+    }
     
     setTimeout(() => {
         waveDisplay.style.opacity = 0.5;
