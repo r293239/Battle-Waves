@@ -185,6 +185,11 @@ scytheImage.src = 'assets/scythe.png';
 
 let pendingHealing = 0;
 
+// Add these at the top with other global variables
+let attackedMonsters = new Set(); // Tracks which monsters were attacked in current frame
+let lastWeaponAttackFrame = 0; // Tracks frame for weapon coordination
+let weaponTargets = new Map(); // Tracks which weapon is targeting which monster
+
 // ============================================
 // WEAPON INSTANCE CLASS
 // ============================================
@@ -215,8 +220,9 @@ class WeaponInstance {
         this.projectileSize = weaponData.projectileSize || 4;
         this.spinSpeed = weaponData.spinSpeed || 0;
         
-        // Sniper special property
-        this.sniper = weaponData.sniper || false;
+        // Weapon targeting priority
+        this.targetingPriority = weaponData.targetingPriority || 'normal'; // 'normal', 'highestHP', 'lowestHP', 'closest', 'farthest'
+        this.sniper = weaponData.sniper || false; // For backward compatibility
         
         // Track knives used on each monster for return mechanic
         this.knivesUsed = new Map(); // monster -> count of knives hit
@@ -765,6 +771,11 @@ let keys = {
     space: false
 };
 
+// Weapon targeting tracking
+let attackedMonsters = new Set(); // Tracks which monsters were attacked in current frame
+let lastWeaponAttackFrame = 0; // Tracks frame for weapon coordination
+let weaponTargets = new Map(); // Tracks which weapon is targeting which monster
+
 // Game Objects
 const player = {
     x: 400,
@@ -877,6 +888,119 @@ player.updateHealthDisplay = function() {
         healthFill.style.width = `${percent}%`;
     }
 };
+
+// ============================================
+// IMPROVED WEAPON TARGETING SYSTEM
+// ============================================
+
+function getTargetPriority(monster, player, weapon, currentTime, recentAttacks) {
+    const dx = monster.x - player.x;
+    const dy = monster.y - player.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Skip if out of range
+    if (distance > weapon.range) return -Infinity;
+    
+    // Base score starts with distance (closer is better)
+    let score = 1000 - distance;
+    
+    // Calculate angle to monster relative to player's facing direction
+    const angleToMonster = Math.atan2(dy, dx);
+    const facingAngle = player.facingAngle || 0;
+    
+    // Calculate angle difference (normalized to -PI to PI)
+    let angleDiff = angleToMonster - facingAngle;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    
+    // Strong preference for monsters in front (angleScore from 0 to 1)
+    const angleScore = Math.max(0, Math.cos(angleDiff));
+    score += angleScore * 300;
+    
+    // Penalize monsters that were recently attacked (spread damage)
+    if (recentAttacks.has(monster)) {
+        score -= 200;
+    }
+    
+    // Check if monster is already targeted by another weapon
+    let targetCount = 0;
+    weaponTargets.forEach((targetedMonster, weaponId) => {
+        if (targetedMonster === monster && weaponId !== weapon.id) {
+            targetCount++;
+        }
+    });
+    score -= targetCount * 150; // Penalize for each other weapon targeting same monster
+    
+    // Special priorities based on weapon type
+    if (weapon.sniper || weapon.targetingPriority === 'highestHP') {
+        // Sniper prioritizes high HP enemies
+        score += monster.health * 2;
+    } else if (weapon.id === 'shotgun') {
+        // Shotgun prefers groups - bonus for monsters near others
+        let nearbyCount = 0;
+        monsters.forEach(other => {
+            if (other === monster) return;
+            const odx = other.x - monster.x;
+            const ody = other.y - monster.y;
+            const odist = Math.sqrt(odx * odx + ody * ody);
+            if (odist < 100) nearbyCount++;
+        });
+        score += nearbyCount * 50;
+    } else if (weapon.id === 'crossbow') {
+        // Crossbow prefers lined-up enemies (prioritize based on angle)
+        score += angleScore * 200;
+    } else if (weapon.id === 'throwing_knives') {
+        // Throwing knives prefer low HP enemies to secure kills
+        const healthPercent = monster.health / monster.maxHealth;
+        score += (1 - healthPercent) * 200;
+    } else if (weapon.meleeType === 'aoe') {
+        // AOE melee weapons (axe, hammer) prefer groups
+        let nearbyCount = 0;
+        monsters.forEach(other => {
+            if (other === monster) return;
+            const odx = other.x - monster.x;
+            const ody = other.y - monster.y;
+            const odist = Math.sqrt(odx * odx + ody * ody);
+            if (odist < weapon.range * 1.5) nearbyCount++;
+        });
+        score += nearbyCount * 100;
+    }
+    
+    // Emergency override: if monster is very close (within 50 pixels), prioritize it
+    if (distance < 50) {
+        score += 1000;
+    }
+    
+    return score;
+}
+
+function selectTargetForWeapon(weapon, currentTime) {
+    if (monsters.length === 0) return null;
+    
+    // Create a set of recently attacked monsters (last 500ms)
+    const recentAttacks = new Set();
+    player.weapons.forEach(w => {
+        if (currentTime - w.lastAttack < 500) {
+            // This weapon attacked recently, find what it attacked
+            // For simplicity, we'll just mark all monsters as recently attacked
+            // In a more advanced system, we'd track per-monster last attack time
+        }
+    });
+    
+    // Calculate priority for each monster
+    let bestMonster = null;
+    let bestPriority = -Infinity;
+    
+    monsters.forEach(monster => {
+        const priority = getTargetPriority(monster, player, weapon, currentTime, recentAttacks);
+        if (priority > bestPriority) {
+            bestPriority = priority;
+            bestMonster = monster;
+        }
+    });
+    
+    return bestMonster;
+}
 
 // ============================================
 // HEALING FUNCTIONS
@@ -1861,7 +1985,7 @@ function getWaveConfig(waveNumber) {
 // Wave-specific monster compositions - YOU CAN CHANGE THESE NUMBERS
 const WAVE_COMPOSITIONS = {
     // Format: waveNumber: { normal: X, fast: Y, tank: Z, explosive: W, gunner: V, splitter: U, dasher: T }
-    1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 1 },
+    1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
     2: { normal: 5, fast: 2, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
     3: { normal: 6, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
     4: { normal: 6, fast: 3, tank: 1, explosive: 1, gunner: 0, splitter: 0, dasher: 0 },
@@ -2059,6 +2183,10 @@ function initGame() {
         facingAngle: 0,
         lastFacingAngle: 0
     });
+    
+    // Reset tracking sets
+    attackedMonsters = new Set();
+    weaponTargets = new Map();
     
     // Reset towers
     playerTowers.landmines.count = 0;
@@ -2307,6 +2435,10 @@ function startWave() {
     mergeWeaponBtn.style.display = 'none';
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
+    
+    // Reset weapon targeting
+    attackedMonsters.clear();
+    weaponTargets.clear();
     
     // Show spawn indicators immediately
     showSpawnIndicators();
@@ -2685,6 +2817,18 @@ function updateDasher(dasher, currentTime) {
 function handleMonsterDeath(monster, index) {
     // Remove monster from array
     monsters.splice(index, 1);
+    
+    // Remove from targeting sets
+    if (attackedMonsters.has(monster)) {
+        attackedMonsters.delete(monster);
+    }
+    
+    // Remove from weapon targets
+    weaponTargets.forEach((target, weaponId) => {
+        if (target === monster) {
+            weaponTargets.delete(weaponId);
+        }
+    });
     
     // Return any throwable weapons (like throwing knives)
     player.weapons.forEach(weapon => {
@@ -5324,6 +5468,9 @@ function updateGame(deltaTime) {
 function updateWeapons() {
     const currentTime = Date.now();
     
+    // Clear weapon targets for this frame
+    weaponTargets.clear();
+    
     player.weapons.forEach(weapon => {
         if (!weapon || monsters.length === 0) return;
         
@@ -5333,75 +5480,13 @@ function updateWeapons() {
         weapon.attackSpeed = originalAttackSpeed;
         
         if (canAttack) {
-            let targetMonster = null;
-            
-            // Special targeting for sniper - target highest HP enemy
-            if (weapon.sniper) {
-                let highestHP = -1;
-                monsters.forEach(monster => {
-                    const dx = monster.x - player.x;
-                    const dy = monster.y - player.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < weapon.range && monster.health > highestHP) {
-                        highestHP = monster.health;
-                        targetMonster = monster;
-                    }
-                });
-            } 
-            // For crossbow and other weapons, use priority targeting
-            else {
-                // Find closest monster in front of player
-                let bestMonster = null;
-                let bestScore = -Infinity;
-                
-                monsters.forEach(monster => {
-                    const dx = monster.x - player.x;
-                    const dy = monster.y - player.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < weapon.range) {
-                        // Calculate angle to monster relative to player's facing direction
-                        const angleToMonster = Math.atan2(dy, dx);
-                        const facingAngle = player.facingAngle || 0;
-                        
-                        // Calculate angle difference (normalized to -PI to PI)
-                        let angleDiff = angleToMonster - facingAngle;
-                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                        
-                        // Prefer monsters in front (smaller angle difference)
-                        // Score: higher for closer monsters that are more in front
-                        const angleScore = Math.cos(angleDiff); // 1 for directly ahead, -1 for behind
-                        const distanceScore = 1 - (distance / weapon.range);
-                        const totalScore = angleScore * 0.7 + distanceScore * 0.3;
-                        
-                        if (totalScore > bestScore) {
-                            bestScore = totalScore;
-                            bestMonster = monster;
-                        }
-                    }
-                });
-                
-                targetMonster = bestMonster;
-            }
-            
-            // If no monster found with special targeting, just pick closest
-            if (!targetMonster) {
-                let closestDistance = Infinity;
-                monsters.forEach(monster => {
-                    const dx = monster.x - player.x;
-                    const dy = monster.y - player.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < closestDistance && distance < weapon.range) {
-                        closestDistance = distance;
-                        targetMonster = monster;
-                    }
-                });
-            }
+            // Use the improved targeting system
+            const targetMonster = selectTargetForWeapon(weapon, currentTime);
             
             if (targetMonster) {
+                // Record this weapon's target
+                weaponTargets.set(weapon.id, targetMonster);
+                
                 const attack = weapon.attack(player.x, player.y, targetMonster.x, targetMonster.y);
                 
                 if (weapon.id === 'shotgun') {
@@ -5417,6 +5502,9 @@ function updateWeapons() {
                         player.meleeAttacks.push(secondAttack);
                     }
                 }
+                
+                // Mark this monster as attacked
+                attackedMonsters.add(targetMonster);
             }
         }
     });
