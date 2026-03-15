@@ -1861,7 +1861,7 @@ function getWaveConfig(waveNumber) {
 // Wave-specific monster compositions - YOU CAN CHANGE THESE NUMBERS
 const WAVE_COMPOSITIONS = {
     // Format: waveNumber: { normal: X, fast: Y, tank: Z, explosive: W, gunner: V, splitter: U, dasher: T }
-    1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
+    1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 1 },
     2: { normal: 5, fast: 2, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
     3: { normal: 6, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
     4: { normal: 6, fast: 3, tank: 1, explosive: 1, gunner: 0, splitter: 0, dasher: 0 },
