@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Waves - Home</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a1a, #1a1a2e);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .floating-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 107, 107, 0.3);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Main container */
+        .home-container {
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Logo/Title Section */
+        .logo-section {
+            margin-bottom: 40px;
+            animation: fadeInDown 1s ease;
+        }
+
+        .game-title {
+            font-size: 5rem;
+            background: linear-gradient(90deg, #ff6b6b, #ffa726, #4ecdc4, #ff6b6b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+            margin-bottom: 10px;
+            background-size: 300% auto;
+            animation: gradientShift 8s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .tagline {
+            font-size: 1.3rem;
+            color: #aaaaff;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Feature Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin: 50px 0;
+            animation: fadeInUp 1s ease 0.2s both;
+        }
+
+        .feature-card {
+            background: rgba(30, 30, 60, 0.7);
+            backdrop-filter: blur(10px);
+            border: 2px solid #4a4a9a;
+            border-radius: 15px;
+            padding: 25px 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(255, 107, 107, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            transition: all 0.6s;
+            opacity: 0;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: #ffcc00;
+            box-shadow: 0 10px 30px rgba(255, 204, 0, 0.2);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+            left: 100%;
+            top: 100%;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            color: #ffcc00;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .feature-desc {
+            color: #aaaaff;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 40px 0;
+            animation: fadeInUp 1s ease 0.4s both;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #ffcc00;
+            text-shadow: 0 0 15px rgba(255, 204, 0, 0.5);
+        }
+
+        .stat-label {
+            color: #aaaaff;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Buttons */
+        .button-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 40px 0;
+            animation: fadeInUp 1s ease 0.6s both;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            color: white;
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.6);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #4a4a9a, #6a6ada);
+            color: white;
+            box-shadow: 0 5px 20px rgba(74, 74, 154, 0.4);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(74, 74, 154, 0.6);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #ffcc00;
+            color: #ffcc00;
+        }
+
+        .btn-outline:hover {
+            background: #ffcc00;
+            color: #1a1a2e;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 204, 0, 0.4);
+        }
+
+        /* Weapon Showcase */
+        .weapon-showcase {
+            margin: 60px 0;
+            animation: fadeInUp 1s ease 0.8s both;
+        }
+
+        .showcase-title {
+            font-size: 2rem;
+            color: #ffcc00;
+            margin-bottom: 30px;
+        }
+
+        .weapon-slider {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 20px 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #ff6b6b #1a1a2e;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .weapon-slider::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .weapon-slider::-webkit-scrollbar-track {
+            background: #1a1a2e;
+            border-radius: 10px;
+        }
+
+        .weapon-slider::-webkit-scrollbar-thumb {
+            background: linear-gradient(90deg, #ff6b6b, #ffa726);
+            border-radius: 10px;
+        }
+
+        .weapon-card {
+            flex: 0 0 200px;
+            background: rgba(40, 40, 80, 0.8);
+            backdrop-filter: blur(5px);
+            border: 2px solid #4a4a9a;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .weapon-card:hover {
+            transform: scale(1.05);
+            border-color: #ffcc00;
+            box-shadow: 0 5px 20px rgba(255, 204, 0, 0.3);
+        }
+
+        .weapon-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .weapon-name {
+            color: #ffcc00;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .weapon-type {
+            color: #aaaaff;
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            background: rgba(255, 107, 107, 0.2);
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        /* News/Tips Section */
+        .news-section {
+            margin: 40px 0;
+            animation: fadeInUp 1s ease 1s both;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .news-card {
+            background: rgba(30, 30, 60, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid #4a4a9a;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+
+        .news-card:hover {
+            border-color: #ffcc00;
+            transform: translateX(5px);
+        }
+
+        .news-date {
+            color: #ff6b6b;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+
+        .news-title {
+            color: #ffcc00;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .news-content {
+            color: #aaaaff;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 60px;
+            padding: 30px 0;
+            border-top: 1px solid #4a4a9a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            animation: fadeIn 1s ease 1.2s both;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-link {
+            color: #aaaaff;
+            text-decoration: none;
+            transition: color 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .footer-link:hover {
+            color: #ffcc00;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .social-link {
+            color: #aaaaff;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .social-link:hover {
+            color: #ffcc00;
+            transform: translateY(-3px);
+        }
+
+        .copyright {
+            color: #5555aa;
+            font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .news-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .game-title {
+                font-size: 3rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-section {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .button-container {
+                flex-direction: column;
+            }
+
+            .news-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .footer-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        /* Loading Screen (hidden by default) */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a1a;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .loading-screen.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #4a4a9a;
+            border-top-color: #ffcc00;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #ffcc00;
+            font-size: 1.2rem;
+            animation: pulse 1.5s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Save Game Notification */
+        .save-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ffcc00;
+            border-radius: 10px;
+            padding: 15px 25px;
+            color: #ffcc00;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1001;
+        }
+
+        .save-notification.show {
+            transform: translateX(0);
+        }
+
+        .save-notification .save-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .save-notification .save-icon {
+            font-size: 1.5rem;
+        }
+
+        .save-notification .save-text {
+            font-weight: bold;
+        }
+
+        .save-notification .save-time {
+            font-size: 0.8rem;
+            color: #aaaaff;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="background-animation" id="backgroundAnimation"></div>
+
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Preparing Battlefield...</div>
+    </div>
+
+    <!-- Save Notification -->
+    <div class="save-notification" id="saveNotification">
+        <div class="save-content">
+            <span class="save-icon">💾</span>
+            <div>
+                <div class="save-text" id="saveMessage">Game Saved!</div>
+                <div class="save-time" id="saveTime">Just now</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="home-container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <h1 class="game-title">BATTLE WAVES</h1>
+            <div class="tagline">Survive. Upgrade. Conquer.</div>
+        </div>
+
+        <!-- Feature Cards -->
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">⚔️</div>
+                <div class="feature-title">30+ Weapons</div>
+                <div class="feature-desc">Swords, axes, guns, snipers, crossbows and more with unique animations</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">👾</div>
+                <div class="feature-title">8 Monster Types</div>
+                <div class="feature-desc">Normal, Fast, Tank, Explosive, Gunner, Splitter, Dasher, and Bosses</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏥</div>
+                <div class="feature-title">Healing Towers</div>
+                <div class="feature-desc">Place towers that heal you and distract enemies</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔄</div>
+                <div class="feature-title">Weapon Merging</div>
+                <div class="feature-desc">Combine weapons to tier up and become stronger</div>
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="stats-section">
+            <div class="stat-item">
+                <div class="stat-number" id="totalPlayers">10K+</div>
+                <div class="stat-label">Active Players</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalWaves">1M+</div>
+                <div class="stat-label">Waves Cleared</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalKills">5M+</div>
+                <div class="stat-label">Monsters Killed</div>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="button-container">
+            <a href="index.html" class="btn btn-primary" onclick="showLoading()">
+                <span>🎮</span> Start Game
+            </a>
+            <button class="btn btn-secondary" onclick="showLoading(); setTimeout(() => window.location.href='index.html?load=true', 1500)">
+                <span>📂</span> Continue Save
+            </button>
+            <button class="btn btn-outline" onclick="showTutorial()">
+                <span>📖</span> How to Play
+            </button>
+        </div>
+
+        <!-- Weapon Showcase -->
+        <div class="weapon-showcase">
+            <h2 class="showcase-title">Featured Weapons</h2>
+            <div class="weapon-slider">
+                <div class="weapon-card">
+                    <div class="weapon-icon">🔭</div>
+                    <div class="weapon-name">Sniper Rifle</div>
+                    <div class="weapon-type">RANGED</div>
+                </div>
+                <div class="weapon-card">
+                    <div class="weapon-icon">🏹</div>
+                    <div class="weapon-name">Crossbow</div>
+                    <div class="weapon-type">PIERCE</div>
+                </div>
+                <div class="weapon-card">
+                    <div class="weapon-icon">⚔️</div>
+                    <div class="weapon-name">Iron Sword</div>
+                    <div class="weapon-type">MELEE</div>
+                </div>
+                <div class="weapon-card">
+                    <div class="weapon-icon">🪓</div>
+                    <div class="weapon-name">Battle Axe</div>
+                    <div class="weapon-type">AOE</div>
+                </div>
+                <div class="weapon-card">
+                    <div class="weapon-icon">🔫</div>
+                    <div class="weapon-name">Machine Gun</div>
+                    <div class="weapon-type">RAPID</div>
+                </div>
+                <div class="weapon-card">
+                    <div class="weapon-icon">💥</div>
+                    <div class="weapon-name">Shotgun</div>
+                    <div class="weapon-type">SPREAD</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- News/Tips Section -->
+        <div class="news-section">
+            <h2 class="showcase-title">Latest Updates</h2>
+            <div class="news-grid">
+                <div class="news-card">
+                    <div class="news-date">March 19, 2026</div>
+                    <div class="news-title">🎯 Sniper Added</div>
+                    <div class="news-content">New sniper rifle that targets the highest HP enemy! Perfect for taking down bosses.</div>
+                </div>
+                <div class="news-card">
+                    <div class="news-date">March 18, 2026</div>
+                    <div class="news-title">🏹 Crossbow Update</div>
+                    <div class="news-content">Crossbow now pierces through multiple enemies. Great for crowd control!</div>
+                </div>
+                <div class="news-card">
+                    <div class="news-date">March 17, 2026</div>
+                    <div class="news-title">⚡ Smart Targeting</div>
+                    <div class="news-content">Weapons now coordinate attacks to spread damage efficiently.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-links">
+                <a href="#" class="footer-link">About</a>
+                <a href="#" class="footer-link">Updates</a>
+                <a href="#" class="footer-link">Community</a>
+                <a href="#" class="footer-link">Support</a>
+            </div>
+            <div class="social-links">
+                <a href="#" class="social-link">📘</a>
+                <a href="#" class="social-link">🐦</a>
+                <a href="#" class="social-link">📷</a>
+                <a href="#" class="social-link">🎮</a>
+            </div>
+            <div class="copyright">
+                © 2026 Battle Waves. All rights reserved.
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutorial Modal (Hidden by default) -->
+    <div class="overlay" id="tutorialOverlay" style="display: none;">
+        <div class="overlay-content">
+            <h2 class="overlay-title">How to Play</h2>
+            <div style="text-align: left; color: #aaaaff; line-height: 1.8;">
+                <p>🎮 <strong>Controls:</strong></p>
+                <ul style="margin-left: 20px; margin-bottom: 20px;">
+                    <li>WASD or Arrow Keys - Move</li>
+                    <li>Mouse - Aim</li>
+                    <li>Space - Start Next Wave</li>
+                    <li>R - Manual Reload</li>
+                    <li>Ctrl+S - Save Game</li>
+                    <li>Ctrl+L - Load Game</li>
+                </ul>
+                
+                <p>⚔️ <strong>Combat Tips:</strong></p>
+                <ul style="margin-left: 20px; margin-bottom: 20px;">
+                    <li>Weapons auto-attack the closest enemy</li>
+                    <li>Sniper targets highest HP enemies</li>
+                    <li>Shotgun is great for groups</li>
+                    <li>Crossbow pierces through enemies</li>
+                </ul>
+                
+                <p>🏥 <strong>Survival Tips:</strong></p>
+                <ul style="margin-left: 20px; margin-bottom: 20px;">
+                    <li>Place Healing Towers to regenerate HP</li>
+                    <li>Use Bombs for emergency crowd control</li>
+                    <li>Merge identical weapons to tier up</li>
+                    <li>Choose stat buffs wisely after each wave</li>
+                </ul>
+            </div>
+            <button class="btn btn-primary" onclick="hideTutorial()" style="margin-top: 20px;">Got It!</button>
+        </div>
+    </div>
+
+    <script>
+        // Create floating particles for background
+        function createParticles() {
+            const container = document.getElementById('backgroundAnimation');
+            const particleCount = 50;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'floating-particle';
+                
+                // Random properties
+                const size = Math.random() * 6 + 2;
+                const left = Math.random() * 100;
+                const delay = Math.random() * 15;
+                const duration = Math.random() * 10 + 10;
+                
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                particle.style.left = left + '%';
+                particle.style.animationDelay = delay + 's';
+                particle.style.animationDuration = duration + 's';
+                
+                // Random color
+                const colors = ['#ff6b6b', '#4ecdc4', '#ffa726', '#ff69b4'];
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                
+                container.appendChild(particle);
+            }
+        }
+
+        // Show loading screen when starting game
+        function showLoading() {
+            document.getElementById('loadingScreen').classList.add('active');
+        }
+
+        // Show tutorial
+        function showTutorial() {
+            document.getElementById('tutorialOverlay').style.display = 'flex';
+        }
+
+        function hideTutorial() {
+            document.getElementById('tutorialOverlay').style.display = 'none';
+        }
+
+        // Show save notification (for continue button)
+        function showSaveNotification(message) {
+            const notification = document.getElementById('saveNotification');
+            document.getElementById('saveMessage').textContent = message;
+            document.getElementById('saveTime').textContent = 'Just now';
+            
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Check if there's a saved game
+        function checkForSaveGame() {
+            const saved = localStorage.getItem('gameSave');
+            if (saved) {
+                try {
+                    const gameData = JSON.parse(saved);
+                    const date = new Date(gameData.timestamp);
+                    const timeStr = date.toLocaleTimeString();
+                    
+                    // Update continue button text
+                    const continueBtn = document.querySelector('.btn-secondary');
+                    continueBtn.innerHTML = `<span>📂</span> Continue (Wave ${gameData.wave})`;
+                    
+                    // Show notification
+                    showSaveNotification(`Found save from Wave ${gameData.wave}`);
+                } catch (e) {
+                    console.error('Failed to parse save:', e);
+                }
+            }
+        }
+
+        // Animate stats counting
+        function animateStats() {
+            const players = document.getElementById('totalPlayers');
+            const waves = document.getElementById('totalWaves');
+            const kills = document.getElementById('totalKills');
+            
+            let playersCount = 0;
+            let wavesCount = 0;
+            let killsCount = 0;
+            
+            const interval = setInterval(() => {
+                playersCount += 100;
+                wavesCount += 10000;
+                killsCount += 50000;
+                
+                if (playersCount <= 10000) {
+                    players.textContent = playersCount.toLocaleString() + '+';
+                }
+                if (wavesCount <= 1000000) {
+                    waves.textContent = wavesCount.toLocaleString() + '+';
+                }
+                if (killsCount <= 5000000) {
+                    kills.textContent = killsCount.toLocaleString() + '+';
+                }
+                
+                if (playersCount >= 10000 && wavesCount >= 1000000 && killsCount >= 5000000) {
+                    clearInterval(interval);
+                }
+            }, 20);
+        }
+
+        // Initialize
+        window.onload = function() {
+            createParticles();
+            checkForSaveGame();
+            animateStats();
+            
+            // Hide loading screen if it was shown
+            setTimeout(() => {
+                document.getElementById('loadingScreen').classList.remove('active');
+            }, 500);
+        };
+
+        // Handle start game with save
+        window.startGame = function(loadSave = false) {
+            showLoading();
+            if (loadSave) {
+                setTimeout(() => {
+                    window.location.href = 'index.html?load=true';
+                }, 1500);
+            } else {
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+            }
+        };
+    </script>
+
+    <style>
+        /* Additional styles for tutorial overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .overlay-content {
+            background: rgba(30, 30, 60, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ffcc00;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 50px rgba(255, 204, 0, 0.2);
+        }
+
+        .overlay-content ul {
+            list-style-type: none;
+        }
+
+        .overlay-content ul li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .overlay-content ul li::before {
+            content: '•';
+            color: #ffcc00;
+            font-size: 1.5rem;
+            position: absolute;
+            left: 0;
+            top: -5px;
+        }
+    </style>
+</body>
+</html>
