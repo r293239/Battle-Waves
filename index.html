@@ -1221,7 +1221,23 @@
             </div>
         </div>
     </div>
-
+<script>
+    // Check if we need to load a saved game
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('load')) {
+            // Wait for game to initialize then load save
+            const checkGameLoaded = setInterval(() => {
+                if (typeof loadGame === 'function') {
+                    clearInterval(checkGameLoaded);
+                    setTimeout(() => {
+                        loadGame();
+                    }, 500);
+                }
+            }, 100);
+        }
+    })();
+</script>
     <script src="game-data.js"></script>
     <script src="game-logic.js"></script>
 </body>
