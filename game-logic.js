@@ -220,7 +220,7 @@ class WeaponInstance {
         this.sniper = weaponData.sniper || false;
         
         // Track knives used on each monster for return mechanic
-        this.knivesUsed = new Map();
+        this.knivesUsed = new Map(); // monster -> count of knives hit
         
         if (this.usesAmmo) {
             this.magazineSize = weaponData.magazineSize;
@@ -365,10 +365,11 @@ class WeaponInstance {
         if (this.resetEachRound) {
             this.currentAmmo = this.magazineSize;
             this.isReloading = false;
-            this.knivesUsed.clear();
+            this.knivesUsed.clear(); // Clear tracking at start of wave
         }
     }
 
+    // Track knife hit on monster
     trackKnifeHit(monster) {
         if (!this.isThrowable) return;
         
@@ -376,12 +377,14 @@ class WeaponInstance {
         this.knivesUsed.set(monster, currentCount + 1);
     }
 
+    // Return knives when monster dies
     returnKnives(monster) {
         if (!this.isThrowable) return 0;
         
         const knivesHit = this.knivesUsed.get(monster) || 0;
         if (knivesHit > 0) {
             this.knivesUsed.delete(monster);
+            // Add back the knives
             this.currentAmmo = Math.min(this.magazineSize, this.currentAmmo + knivesHit);
             return knivesHit;
         }
@@ -421,7 +424,7 @@ class WeaponInstance {
                         isPellet: true,
                         startTime: currentTime,
                         size: 3,
-                        weaponRef: this
+                        weaponRef: this // Add reference to weapon for tracking
                     });
                 }
                 return attacks;
@@ -455,6 +458,7 @@ class WeaponInstance {
                 };
             } else if (this.id === 'throwing_knives') {
                 const angle = Math.atan2(targetY - playerY, targetX - playerX);
+                // Add slight spread for throwing knives
                 const spreadAmount = (Math.random() - 0.5) * this.spread;
                 const finalAngle = angle + spreadAmount;
                 
@@ -474,7 +478,7 @@ class WeaponInstance {
                     size: this.projectileSize || 6,
                     spinSpeed: this.spinSpeed || 0,
                     rotation: 0,
-                    weaponRef: this
+                    weaponRef: this // Add reference to weapon for tracking
                 };
             } else if (this.id === 'sniper') {
                 const angle = Math.atan2(targetY - playerY, targetX - playerX);
@@ -714,7 +718,7 @@ let playerTowers = {
         active: []
     },
     healingTowers: {
-        active: []
+        active: [] // Simplified - just track active towers
     }
 };
 
@@ -740,7 +744,7 @@ let joystickBaseX = 0;
 let joystickBaseY = 0;
 let joystickMaxDistance = 50;
 
-// Message queue
+// Message queue for notifications
 let messageQueue = [];
 let messageContainer = null;
 
@@ -763,8 +767,8 @@ let keys = {
 };
 
 // Weapon targeting tracking
-let attackedMonsters = new Set();
-let weaponTargets = new Map();
+let attackedMonsters = new Set(); // Tracks which monsters were attacked in current frame
+let weaponTargets = new Map(); // Tracks which weapon is targeting which monster
 
 // Game Objects
 const player = {
@@ -817,8 +821,8 @@ const player = {
     slowFieldTicks: 0,
     lastSlowFieldTick: 0,
     
-    facingAngle: 0,
-    lastFacingAngle: 0,
+    facingAngle: 0, // Direction player is facing
+    lastFacingAngle: 0, // Last facing direction when moving
     
     updateHealthDisplay: null
 };
@@ -835,7 +839,9 @@ let bossProjectiles = [];
 let monsterProjectiles = [];
 let placedBombs = [];
 
-// DOM Elements
+// Obstacles array (loaded from game-obstacles.js)
+let obstacles = [];
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const waveDisplay = document.getElementById('waveDisplay');
@@ -989,8 +995,10 @@ function selectTargetForWeapon(weapon, currentTime) {
 function applyHealing(amount) {
     if (player.health >= player.maxHealth) return;
     
+    // Add to pending healing
     pendingHealing += amount;
     
+    // Always heal at least 1 HP if there's any healing and health isn't full
     while (pendingHealing >= 1) {
         player.health = Math.min(player.maxHealth, player.health + 1);
         pendingHealing -= 1;
@@ -1005,8 +1013,9 @@ function applyHealing(amount) {
 function spawnRandomLandmine() {
     if (playerTowers.landmines.count <= 0) return;
     
+    // Check if we already have max active landmines
     if (playerTowers.landmines.active.length >= playerTowers.landmines.count) {
-        return;
+        return; // Don't spawn if we already have the maximum number active
     }
     
     let x, y;
@@ -1019,6 +1028,7 @@ function spawnRandomLandmine() {
         x = 50 + Math.random() * (canvas.width - 100);
         y = 50 + Math.random() * (canvas.height - 100);
         
+        // Check distance from player
         const dx = x - player.x;
         const dy = y - player.y;
         const distanceFromPlayer = Math.sqrt(dx * dx + dy * dy);
@@ -1028,6 +1038,7 @@ function spawnRandomLandmine() {
             continue;
         }
         
+        // Check distance from other landmines
         let tooCloseToOtherMine = false;
         for (let mine of playerTowers.landmines.active) {
             const dx = x - mine.x;
@@ -1045,6 +1056,7 @@ function spawnRandomLandmine() {
         attempts++;
     }
     
+    // If we couldn't find a valid position, just place it somewhere
     if (!validPosition) {
         x = 100 + Math.random() * (canvas.width - 200);
         y = 100 + Math.random() * (canvas.height - 200);
@@ -1130,6 +1142,7 @@ function explodeLandmine(mine, index) {
 // ============================================
 
 function placeHealingTower() {
+    // Check max towers (3)
     if (playerTowers.healingTowers.active.length >= 3) {
         queueMessage("Maximum towers reached (3)!");
         return false;
@@ -1143,11 +1156,12 @@ function placeHealingTower() {
         healAmount: 1,
         healTimer: 0,
         lastHeal: Date.now(),
-        id: Date.now() + Math.random()
+        id: Date.now() + Math.random() // unique ID
     };
     
     playerTowers.healingTowers.active.push(tower);
     
+    // Visual effect
     addVisualEffect({
         type: 'towerSpawn',
         x: tower.x,
@@ -1164,11 +1178,13 @@ function placeHealingTower() {
 
 function updateHealingTowers(currentTime) {
     playerTowers.healingTowers.active.forEach(tower => {
+        // Heal player every 2 seconds
         if (currentTime - tower.lastHeal >= 2000) {
             if (player.health < player.maxHealth) {
                 player.health = Math.min(player.maxHealth, player.health + tower.healAmount);
                 createHealthPopup(player.x, player.y, tower.healAmount);
                 
+                // Heal effect
                 addVisualEffect({
                     type: 'heal',
                     x: player.x,
@@ -1189,14 +1205,17 @@ function drawHealingTowers() {
         ctx.save();
         ctx.translate(tower.x, tower.y);
         
+        // Tower base
         ctx.fillStyle = '#8B4513';
         ctx.fillRect(-10, -10, 20, 30);
         
+        // Healing crystal
         const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.8;
         
         ctx.shadowColor = '#4CAF50';
         ctx.shadowBlur = 15 * pulse;
         
+        // Crystal
         ctx.fillStyle = '#4CAF50';
         ctx.beginPath();
         ctx.moveTo(0, -25);
@@ -1206,6 +1225,7 @@ function drawHealingTowers() {
         ctx.closePath();
         ctx.fill();
         
+        // Health bar
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#000000';
         ctx.fillRect(-15, -35, 30, 4);
@@ -1214,6 +1234,7 @@ function drawHealingTowers() {
         ctx.fillStyle = healthPercent > 0.5 ? '#00FF00' : '#FF0000';
         ctx.fillRect(-15, -35, 30 * healthPercent, 4);
         
+        // Healing pulse when active
         if (Date.now() - tower.lastHeal < 500) {
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 2;
@@ -1226,42 +1247,6 @@ function drawHealingTowers() {
         
         ctx.restore();
     });
-}
-
-// ============================================
-// SIMPLE PATHFINDING
-// ============================================
-
-function findPathToTarget(enemy, target) {
-    const dx = target.x - enemy.x;
-    const dy = target.y - enemy.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distance < 5) return { x: 0, y: 0 };
-    
-    let moveX = dx / distance;
-    let moveY = dy / distance;
-    
-    for (let tower of playerTowers.healingTowers.active) {
-        if (tower === target) continue;
-        
-        const toTowerX = tower.x - enemy.x;
-        const toTowerY = tower.y - enemy.y;
-        const toTowerDist = Math.sqrt(toTowerX * toTowerX + toTowerY * toTowerY);
-        
-        if (toTowerDist < 50) {
-            const avoidX = (enemy.x - tower.x) / toTowerDist;
-            const avoidY = (enemy.y - tower.y) / toTowerDist;
-            moveX = (moveX + avoidX * 0.5) / 1.5;
-            moveY = (moveY + avoidY * 0.5) / 1.5;
-            
-            const newDist = Math.sqrt(moveX * moveX + moveY * moveY);
-            moveX /= newDist;
-            moveY /= newDist;
-        }
-    }
-    
-    return { x: moveX, y: moveY };
 }
 
 // ============================================
@@ -1406,6 +1391,7 @@ function useExpScroll() {
     weapon.tier++;
     weapon.applyTierBonuses();
     
+    // Reset ammo for throwable weapons after upgrade
     if (weapon.resetEachRound) {
         weapon.resetAmmo();
     }
@@ -1941,8 +1927,9 @@ function getWaveConfig(waveNumber) {
     }
 }
 
-// Wave-specific monster compositions
+// Wave-specific monster compositions - YOU CAN CHANGE THESE NUMBERS
 const WAVE_COMPOSITIONS = {
+    // Format: waveNumber: { normal: X, fast: Y, tank: Z, explosive: W, gunner: V, splitter: U, dasher: T }
     1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
     2: { normal: 5, fast: 2, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
     3: { normal: 6, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
@@ -1952,7 +1939,7 @@ const WAVE_COMPOSITIONS = {
     7: { normal: 8, fast: 4, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0 },
     8: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 1, splitter: 0, dasher: 0 },
     9: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 0, dasher: 0 },
-    10: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
+    10: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 }, // Boss wave
     11: { normal: 10, fast: 6, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 2 },
     12: { normal: 11, fast: 6, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 3 },
     13: { normal: 11, fast: 7, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2 },
@@ -1962,7 +1949,7 @@ const WAVE_COMPOSITIONS = {
     17: { normal: 13, fast: 9, tank: 6, explosive: 5, gunner: 5, splitter: 2, dasher: 2 },
     18: { normal: 14, fast: 9, tank: 7, explosive: 5, gunner: 5, splitter: 2, dasher: 2 },
     19: { normal: 14, fast: 10, tank: 7, explosive: 6, gunner: 5, splitter: 2, dasher: 2 },
-    20: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
+    20: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 }, // Boss wave
     21: { normal: 15, fast: 10, tank: 8, explosive: 6, gunner: 6, splitter: 4, dasher: 4 },
     22: { normal: 16, fast: 11, tank: 8, explosive: 7, gunner: 6, splitter: 4, dasher: 4 },
     23: { normal: 16, fast: 11, tank: 9, explosive: 7, gunner: 7, splitter: 5, dasher: 4 },
@@ -1972,20 +1959,24 @@ const WAVE_COMPOSITIONS = {
     27: { normal: 18, fast: 13, tank: 11, explosive: 9, gunner: 9, splitter: 4, dasher: 4 },
     28: { normal: 19, fast: 14, tank: 11, explosive: 10, gunner: 9, splitter: 4, dasher: 4 },
     29: { normal: 19, fast: 14, tank: 12, explosive: 10, gunner: 10, splitter: 4, dasher: 4 },
-    30: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
+    30: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 }, // Boss wave
     31: { normal: 20, fast: 15, tank: 13, explosive: 12, gunner: 12, splitter: 8, dasher: 8 }
 };
 
 function getMonsterTypeForWave(waveNumber) {
+    // For boss waves, return boss type
     if (waveNumber % 10 === 0) {
         return MONSTER_TYPES.BOSS;
     }
     
+    // Use the fixed composition for this wave
     const comp = WAVE_COMPOSITIONS[waveNumber];
     if (!comp) {
+        // Fallback for waves beyond 31
         return MONSTER_TYPES.NORMAL;
     }
     
+    // Build an array of monster types based on the composition
     const types = [];
     for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL);
     for (let i = 0; i < comp.fast; i++) types.push(MONSTER_TYPES.FAST);
@@ -2142,10 +2133,14 @@ function initGame() {
     attackedMonsters.clear();
     weaponTargets.clear();
     
+    // Reset towers
     playerTowers.landmines.count = 0;
     playerTowers.landmines.active = [];
     playerTowers.healingTowers.active = [];
     placedBombs = [];
+    
+    // Clear obstacles
+    obstacles = [];
     
     const handgun = getWeaponById('handgun');
     player.weapons.push(new WeaponInstance(handgun));
@@ -2184,7 +2179,6 @@ function initGame() {
     bossAbilities.bossDashDirection = { x: 0, y: 0 };
     bossAbilities.bossDashDistance = 0;
     bossAbilities.minionSpawnTimer = 0;
-    
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -2218,7 +2212,7 @@ function initGame() {
 }
 
 // ============================================
-// WAVE MANAGEMENT
+// WAVE MANAGEMENT - UPDATED SPAWN SYSTEM
 // ============================================
 
 function showSpawnIndicators() {
@@ -2233,9 +2227,11 @@ function showSpawnIndicators() {
         }
     }
     
+    // Determine number of spawn clusters (more clusters for larger waves)
     const numClusters = Math.min(5, Math.max(2, Math.floor(totalMonsters / 8)));
     const clusterCenters = [];
     
+    // Generate cluster centers (random positions anywhere on map)
     for (let c = 0; c < numClusters; c++) {
         clusterCenters.push({
             x: 100 + Math.random() * (canvas.width - 200),
@@ -2243,28 +2239,33 @@ function showSpawnIndicators() {
         });
     }
     
+    // Distribute monsters among clusters
     for (let i = 0; i < totalMonsters; i++) {
         let x, y;
         
         if (waveConfig.isBoss && i === 0) {
+            // Boss spawns in center
             x = canvas.width / 2;
             y = canvas.height / 2;
         } else {
+            // Pick a random cluster
             const cluster = clusterCenters[Math.floor(Math.random() * clusterCenters.length)];
             
+            // Spawn within cluster radius (30-100 pixels)
             const angle = Math.random() * Math.PI * 2;
-            const distance = 30 + Math.random() * 70;
+            const distance = 30 + Math.random() * 70; // Cluster together
             x = cluster.x + Math.cos(angle) * distance;
             y = cluster.y + Math.sin(angle) * distance;
             
+            // Keep within bounds
             x = Math.max(50, Math.min(canvas.width - 50, x));
             y = Math.max(50, Math.min(canvas.height - 50, y));
         }
         
         spawnIndicators.push({
             x, y,
-            timer: 2000,
-            startTime: Date.now(),
+            timer: 2000, // 2 seconds
+            startTime: Date.now() + (i * 50), // Stagger start times slightly
             isBoss: waveConfig.isBoss && i === 0,
             isMinion: waveConfig.isBoss && i > 0,
             index: i
@@ -2310,6 +2311,13 @@ function startWave() {
     waveActive = true;
     waveStartTime = Date.now();
     
+    // Generate obstacles for this wave
+    obstacles = [];
+    if (typeof generateObstaclesForWave === 'function') {
+        generateObstaclesForWave(wave);
+    }
+    
+    // Reset Runic Plate for new wave
     if (player.firstHitReduction) {
         player.firstHitActive = true;
     }
@@ -2318,6 +2326,7 @@ function startWave() {
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
     
+    // Reset throwable weapon ammo
     player.weapons.forEach(weapon => {
         if (weapon.resetEachRound) {
             weapon.resetAmmo();
@@ -2336,7 +2345,6 @@ function startWave() {
     bossAbilities.bossDashDirection = { x: 0, y: 0 };
     bossAbilities.bossDashDistance = 0;
     bossAbilities.minionSpawnTimer = 0;
-    
     if (asteroidTimer) {
         clearInterval(asteroidTimer);
         asteroidTimer = null;
@@ -2379,21 +2387,25 @@ function startWave() {
     selectedWeaponIndex = -1;
     mergeTargetIndex = -1;
     
+    // Show spawn indicators immediately
     showSpawnIndicators();
     
+    // Spawn a landmine if player has any
     setTimeout(() => {
         if (playerTowers.landmines.count > 0) {
             spawnRandomLandmine();
         }
     }, 500);
     
+    // Spawn monsters over time - NOT all at once
     if (!waveConfig.isBoss) {
         const monsterCount = waveConfig.monsters;
         const monsterTypes = getMonsterTypeForWave(wave);
-        const baseSpawnDelay = waveConfig.spawnDelay || 300;
+        const baseSpawnDelay = waveConfig.spawnDelay || 300; // Base delay between spawns
         
         let spawnedCount = 0;
         
+        // Spawn monsters one by one over time
         const spawnInterval = setInterval(() => {
             if (gameState !== 'wave') {
                 clearInterval(spawnInterval);
@@ -2405,8 +2417,10 @@ function startWave() {
                 return;
             }
             
+            // Get the monster type from our fixed composition
             const monsterType = monsterTypes[spawnedCount] || MONSTER_TYPES.NORMAL;
             
+            // Use the spawn indicator position if available
             if (spawnIndicators.length > spawnedCount) {
                 const indicator = spawnIndicators[spawnedCount];
                 const monster = createMonster(monsterType, false, indicator.x, indicator.y);
@@ -2417,6 +2431,7 @@ function startWave() {
                     }
                 }
             } else {
+                // Fallback if indicator missing
                 const monster = createMonster(monsterType, false);
                 if (monster) {
                     monsters.push(monster);
@@ -2428,12 +2443,14 @@ function startWave() {
             
             spawnedCount++;
             
+            // Clear indicators as monsters spawn
             if (spawnedCount >= monsterCount) {
                 spawnIndicators = [];
             }
         }, baseSpawnDelay);
         
     } else {
+        // Boss wave - spawn boss immediately
         const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
         if (boss) {
             boss.lifeSteal = 0.1;
@@ -2469,6 +2486,7 @@ function startWave() {
             });
             
             if (waveConfig.minions > 0) {
+                // Spawn minions over time
                 let minionCount = 0;
                 const minionInterval = setInterval(() => {
                     if (gameState !== 'wave' || !boss || boss.health <= 0) {
@@ -2660,6 +2678,7 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
     return monster;
 }
 
+// Splitter death handler
 function handleSplitterDeath(monster) {
     if (!monster.isSplitter) return;
     
@@ -2697,6 +2716,7 @@ function handleSplitterDeath(monster) {
     });
 }
 
+// Dasher AI update
 function updateDasher(dasher, currentTime) {
     if (!dasher.isDasher) return;
     
@@ -2742,6 +2762,9 @@ function updateDasher(dasher, currentTime) {
 // ============================================
 
 function handleMonsterDeath(monster, index) {
+    // Remove monster from array
+    monsters.splice(index, 1);
+    
     // Remove from targeting sets
     attackedMonsters.delete(monster);
     weaponTargets.forEach((target, weaponId) => {
@@ -2750,8 +2773,7 @@ function handleMonsterDeath(monster, index) {
         }
     });
     
-    monsters.splice(index, 1);
-    
+    // Return any throwable weapons (like throwing knives)
     player.weapons.forEach(weapon => {
         if (weapon.isThrowable) {
             const returned = weapon.returnKnives(monster);
@@ -2761,6 +2783,7 @@ function handleMonsterDeath(monster, index) {
         }
     });
     
+    // Calculate gold drop
     let goldDrop = 0;
     if (monster.monsterType && monster.monsterType.goldDrop) {
         const baseGold = Math.floor(
@@ -2775,8 +2798,10 @@ function handleMonsterDeath(monster, index) {
     gold += goldDrop;
     kills++;
     
+    // Create gold popup
     createGoldPopup(monster.x, monster.y, goldDrop);
     
+    // Create death effect
     addVisualEffect({
         type: 'death',
         x: monster.x,
@@ -2785,6 +2810,7 @@ function handleMonsterDeath(monster, index) {
         duration: 300
     });
     
+    // Handle explosive monster explosion
     if (monster.explosive) {
         const explosionRadius = 100;
         const explosionDamage = monster.damage * 2;
@@ -2799,6 +2825,7 @@ function handleMonsterDeath(monster, index) {
             duration: 400
         });
         
+        // Damage nearby monsters
         monsters.forEach((otherMonster, otherIndex) => {
             if (otherMonster === monster) return;
             
@@ -2816,6 +2843,7 @@ function handleMonsterDeath(monster, index) {
             }
         });
         
+        // Damage player if too close
         const dx = player.x - monster.x;
         const dy = player.y - monster.y;
         const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
@@ -2830,10 +2858,12 @@ function handleMonsterDeath(monster, index) {
         }
     }
     
+    // Handle splitter monster splitting
     if (monster.isSplitter) {
         handleSplitterDeath(monster);
     }
     
+    // Handle dasher removal from tracking
     if (monster.isDasher) {
         const dasherIndex = dashers.indexOf(monster);
         if (dasherIndex > -1) {
@@ -2841,9 +2871,10 @@ function handleMonsterDeath(monster, index) {
         }
     }
     
+    // Berserker Ring effect - damage increases as health decreases
     if (player.berserkerRing) {
         const healthPercent = player.health / player.maxHealth;
-        const damageBonus = (1 - healthPercent) * 0.5;
+        const damageBonus = (1 - healthPercent) * 0.5; // Up to 50% bonus at 1 HP
         player.damageMultiplier = player.baseDamageMultiplier || 1.0;
         player.damageMultiplier += damageBonus;
     }
@@ -2920,9 +2951,11 @@ function updateWeaponDisplay() {
             
             const effectiveDamage = Math.floor(weapon.baseDamage * player.damageMultiplier);
             
+            // Special display for throwable weapons (like Throwing Knives)
             let ammoDisplay = '';
             if (weapon.usesAmmo) {
                 if (weapon.isThrowable) {
+                    // Smaller ammo display
                     ammoDisplay = `
                         <div class="throwable-ammo-small">
                             <span class="ammo-count">${weapon.currentAmmo}</span>
@@ -3304,6 +3337,7 @@ function purchaseItem(index) {
         queueMessage(`Purchased ${data.name} Tier ${tier}!`);
         
     } else if (shopItem.type === 'tower') {
+        // Handle tower purchases
         if (data.id === 'landmine') {
             if (playerTowers.landmines.count >= playerTowers.landmines.max) {
                 queueMessage(`Maximum landmines (${playerTowers.landmines.max}) reached!`);
@@ -3314,11 +3348,13 @@ function purchaseItem(index) {
             playerTowers.landmines.count++;
             queueMessage(`Purchased Landmine! (${playerTowers.landmines.count}/${playerTowers.landmines.max})`);
             
+            // Spawn immediately if we're in a wave
             if (gameState === 'wave') {
                 setTimeout(() => spawnRandomLandmine(), 100);
             }
         }
         else if (data.id === 'healing_tower') {
+            // Add to consumables
             const existing = player.consumables.find(c => c.id === 'healing_tower');
             if (existing) {
                 existing.count = (existing.count || 1) + 1;
@@ -3534,9 +3570,15 @@ function endWave() {
     gameState = 'statSelect';
     waveActive = false;
     
+    // Clear active landmines at end of wave
     playerTowers.landmines.active = [];
+    // Keep healing towers for next wave
+    // playerTowers.healingTowers.active = []; // Uncomment to clear them
     
-    placedBombs = [];
+    placedBombs = []; // Clear any undetonated bombs
+    
+    // Clear obstacles at end of wave
+    obstacles = [];
     
     player.inSlowField = false;
     player.slowFieldTicks = 0;
@@ -3601,6 +3643,9 @@ function gameOver() {
     bossAbilities.bossDashTarget = { x: 0, y: 0 };
     bossAbilities.bossDashStart = 0;
     
+    // Clear obstacles
+    obstacles = [];
+    
     if (player.bloodContractInterval) {
         clearInterval(player.bloodContractInterval);
         player.bloodContractInterval = null;
@@ -3608,13 +3653,15 @@ function gameOver() {
     
     clearSave();
     
+    // Guardian Angel check - if health <= 0 and Guardian Angel is available
     if (player.guardianAngel && !player.guardianAngelUsed && player.health <= 0) {
         player.guardianAngelUsed = true;
-        player.health = Math.max(1, Math.floor(player.maxHealth * 0.5));
+        player.health = Math.max(1, Math.floor(player.maxHealth * 0.5)); // Survive with 50% health, minimum 1
         gameState = 'wave';
         waveActive = true;
         queueMessage("GUARDIAN ANGEL SAVED YOU! 50% health restored.");
         
+        // Add visual effect
         addVisualEffect({
             type: 'guardianAngel',
             x: player.x,
@@ -3626,7 +3673,7 @@ function gameOver() {
         });
         
         updateUI();
-        return;
+        return; // Don't show game over
     }
     
     gameOverText.textContent = `You survived ${wave} waves with ${kills} kills.`;
@@ -3676,6 +3723,7 @@ function gameLoop() {
             player.x += moveX;
             player.y += moveY;
             
+            // Fixed boundaries - player radius on all sides
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
         }
@@ -3692,6 +3740,10 @@ function gameLoop() {
     drawSpawnIndicators();
     drawTowers();
     drawBombs();
+    // Draw obstacles
+    if (typeof drawObstacles === 'function') {
+        drawObstacles();
+    }
     drawMonsters();
     drawProjectiles();
     drawBossProjectiles();
@@ -3739,27 +3791,32 @@ function drawBombs() {
         const timeLeft = bomb.detonateTime - Date.now();
         const progress = Math.max(0, Math.min(1, timeLeft / 2000));
         
+        // Pulsing effect
         const pulse = Math.sin(Date.now() * 0.01) * 0.2 + 0.8;
         
         ctx.shadowColor = '#FF0000';
         ctx.shadowBlur = 20;
         
+        // Outer ring (fuse indicator)
         ctx.strokeStyle = '#FFA500';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(0, 0, bomb.radius * (1 + (1 - progress)), 0, Math.PI * 2);
         ctx.stroke();
         
+        // Bomb body
         ctx.fillStyle = '#000000';
         ctx.beginPath();
         ctx.arc(0, 0, bomb.radius * pulse, 0, Math.PI * 2);
         ctx.fill();
         
+        // Fuse
         ctx.fillStyle = '#FFA500';
         ctx.beginPath();
         ctx.arc(0, -bomb.radius, 3, 0, Math.PI * 2);
         ctx.fill();
         
+        // Spark
         if (progress < 0.2) {
             ctx.fillStyle = '#FF0000';
             ctx.beginPath();
@@ -3767,6 +3824,7 @@ function drawBombs() {
             ctx.fill();
         }
         
+        // Timer text
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
@@ -3778,6 +3836,7 @@ function drawBombs() {
 }
 
 function drawTowers() {
+    // Draw landmines
     playerTowers.landmines.active.forEach(mine => {
         ctx.save();
         ctx.translate(mine.x, mine.y);
@@ -3787,22 +3846,26 @@ function drawTowers() {
         ctx.shadowColor = '#8B4513';
         ctx.shadowBlur = 15;
         
+        // Outer ring (pulsing)
         ctx.strokeStyle = '#FF0000';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(0, 0, mine.radius * pulse, 0, Math.PI * 2);
         ctx.stroke();
         
+        // Base
         ctx.fillStyle = mine.color;
         ctx.beginPath();
         ctx.arc(0, 0, mine.radius, 0, Math.PI * 2);
         ctx.fill();
         
+        // Inner core
         ctx.fillStyle = '#FF4500';
         ctx.beginPath();
         ctx.arc(0, 0, mine.radius * 0.5, 0, Math.PI * 2);
         ctx.fill();
         
+        // Danger symbol
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
@@ -3812,6 +3875,7 @@ function drawTowers() {
         ctx.restore();
     });
     
+    // Draw healing towers
     drawHealingTowers();
 }
 
@@ -4071,6 +4135,7 @@ function drawCrossbowProjectile(ctx, projectile, currentTime) {
 }
 
 function drawThrowingKnife(ctx, projectile, currentTime) {
+    // Update rotation for spinning
     projectile.rotation = (projectile.rotation || 0) + (projectile.spinSpeed || 0);
     
     ctx.save();
@@ -4080,10 +4145,12 @@ function drawThrowingKnife(ctx, projectile, currentTime) {
     ctx.shadowColor = '#C0C0C0';
     ctx.shadowBlur = 15;
     
+    // Draw knife
     ctx.fillStyle = '#C0C0C0';
     ctx.strokeStyle = '#808080';
     ctx.lineWidth = 2;
     
+    // Blade
     ctx.beginPath();
     ctx.moveTo(0, -projectile.size);
     ctx.lineTo(projectile.size, 0);
@@ -4093,11 +4160,13 @@ function drawThrowingKnife(ctx, projectile, currentTime) {
     ctx.fill();
     ctx.stroke();
     
+    // Handle
     ctx.fillStyle = '#8B4513';
     ctx.beginPath();
     ctx.rect(-projectile.size * 0.3, -projectile.size * 0.8, projectile.size * 0.6, projectile.size * 1.6);
     ctx.fill();
     
+    // Glint
     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.beginPath();
     ctx.arc(-projectile.size * 0.2, -projectile.size * 0.5, 1, 0, Math.PI * 2);
@@ -4327,6 +4396,7 @@ function drawMeleeAttacks() {
 }
 
 function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
+    // First dagger
     ctx.save();
     ctx.rotate(angle - 0.2);
     ctx.translate(distance * 0.8, 0);
@@ -4334,6 +4404,7 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(70, 130, 180, 0.5)';
     ctx.shadowBlur = 10 * alpha;
     
+    // Blade
     ctx.fillStyle = attack.bladeColor || '#4682B4';
     ctx.beginPath();
     ctx.moveTo(0, -3);
@@ -4343,9 +4414,11 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
+    // Hilt
     ctx.fillStyle = attack.hiltColor || '#2F4F4F';
     ctx.fillRect(-5, -4, 8, 8);
     
+    // Glow
     ctx.fillStyle = attack.sparkleColor || '#00FFFF';
     ctx.globalAlpha = alpha * 0.3;
     ctx.beginPath();
@@ -4353,6 +4426,7 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
     
+    // Second dagger (offset)
     ctx.save();
     ctx.rotate(angle + 0.2);
     ctx.translate(distance * 0.8, 0);
@@ -4360,6 +4434,7 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.shadowColor = 'rgba(70, 130, 180, 0.5)';
     ctx.shadowBlur = 10 * alpha;
     
+    // Blade
     ctx.fillStyle = attack.bladeColor || '#4682B4';
     ctx.beginPath();
     ctx.moveTo(0, -3);
@@ -4369,9 +4444,11 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.closePath();
     ctx.fill();
     
+    // Hilt
     ctx.fillStyle = attack.hiltColor || '#2F4F4F';
     ctx.fillRect(-5, -4, 8, 8);
     
+    // Glow
     ctx.fillStyle = attack.sparkleColor || '#00FFFF';
     ctx.globalAlpha = alpha * 0.3;
     ctx.beginPath();
@@ -4379,6 +4456,7 @@ function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
     ctx.fill();
     ctx.restore();
     
+    // Trail effect
     if (progress < 0.5) {
         ctx.save();
         ctx.rotate(angle);
@@ -4963,6 +5041,7 @@ function drawPlayer() {
     ctx.save();
     ctx.translate(player.x, player.y);
     
+    // Calculate movement direction
     let moveX = 0;
     let moveY = 0;
     
@@ -4977,22 +5056,27 @@ function drawPlayer() {
         moveY += (joystickCurrentY / joystickMaxDistance) * strength;
     }
     
+    // Determine if player is moving
     const isMoving = moveX !== 0 || moveY !== 0;
     
+    // Calculate facing angle (direction of movement or last movement)
     let facingAngle = player.lastFacingAngle || 0;
     
     if (isMoving) {
         facingAngle = Math.atan2(moveY, moveX);
         player.lastFacingAngle = facingAngle;
     } else {
+        // If not moving, face mouse direction
         facingAngle = Math.atan2(mouseY - player.y, mouseX - player.x);
     }
     
+    // Save the angle for weapon aiming
     player.facingAngle = facingAngle;
     
     ctx.shadowColor = 'rgba(255, 107, 107, 0.5)';
     ctx.shadowBlur = 15;
     
+    // Draw player body (circle)
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
@@ -5005,32 +5089,40 @@ function drawPlayer() {
     ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
     ctx.stroke();
     
+    // Draw facing direction indicator (visor/face)
     ctx.save();
     ctx.rotate(facingAngle);
     
+    // Eyes (always look forward relative to facing direction)
     ctx.fillStyle = '#FFFFFF';
     ctx.shadowBlur = 5;
     ctx.shadowColor = '#FFFFFF';
     
+    // Left eye
     ctx.beginPath();
     ctx.arc(8, -5, 4, 0, Math.PI * 2);
     ctx.fill();
     
+    // Right eye
     ctx.beginPath();
     ctx.arc(8, 5, 4, 0, Math.PI * 2);
     ctx.fill();
     
+    // Pupils (follow movement/mouse)
     ctx.fillStyle = '#000000';
     ctx.shadowBlur = 0;
     
+    // Calculate pupil offset based on movement/mouse
     const pupilOffset = 1.5;
     let pupilX = 8;
     let pupilY = -5;
     
     if (isMoving) {
+        // Pupils look in movement direction
         pupilX += Math.cos(facingAngle) * pupilOffset;
         pupilY += Math.sin(facingAngle) * pupilOffset;
     } else {
+        // Pupils look at mouse
         const mouseAngle = Math.atan2(mouseY - player.y, mouseX - player.x) - facingAngle;
         pupilX += Math.cos(mouseAngle) * pupilOffset;
         pupilY += Math.sin(mouseAngle) * pupilOffset;
@@ -5044,14 +5136,17 @@ function drawPlayer() {
     ctx.arc(pupilX, pupilY + 5, 2, 0, Math.PI * 2);
     ctx.fill();
     
+    // Mouth/visor line (changes with movement)
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.beginPath();
     if (isMoving) {
+        // Determined expression when moving
         ctx.moveTo(12, -2);
         ctx.lineTo(18, 0);
         ctx.lineTo(12, 2);
     } else {
+        // Neutral expression when idle
         ctx.moveTo(12, -1);
         ctx.lineTo(18, 0);
         ctx.moveTo(12, 1);
@@ -5061,9 +5156,11 @@ function drawPlayer() {
     
     ctx.restore();
     
+    // Draw weapon indicator (shows facing direction)
     ctx.save();
     ctx.rotate(facingAngle);
     
+    // Weapon indicator line
     ctx.strokeStyle = '#ffcc00';
     ctx.lineWidth = 3;
     ctx.shadowColor = '#ffcc00';
@@ -5073,6 +5170,7 @@ function drawPlayer() {
     ctx.lineTo(player.radius + 15, 0);
     ctx.stroke();
     
+    // Weapon tip
     ctx.fillStyle = '#ffcc00';
     ctx.shadowBlur = 15;
     ctx.beginPath();
@@ -5080,6 +5178,7 @@ function drawPlayer() {
     ctx.fill();
     ctx.restore();
     
+    // Runic Plate visual indicator
     if (player.firstHitReduction && player.firstHitActive) {
         ctx.shadowColor = '#00FFFF';
         ctx.shadowBlur = 20;
@@ -5140,9 +5239,16 @@ function drawPlayer() {
 function updateGame(deltaTime) {
     const currentTime = Date.now();
     
+    // Check landmine triggers
     checkLandmineTriggers();
     
+    // Update healing towers
     updateHealingTowers(currentTime);
+    
+    // Update obstacles
+    if (typeof updateObstacles === 'function') {
+        updateObstacles(currentTime);
+    }
     
     if (bossAbilities.slowField && bossAbilities.slowField.active) {
         const boss = monsters.find(m => m.isBoss && wave === 30);
@@ -5281,6 +5387,7 @@ function updateGame(deltaTime) {
         }
     }
     
+    // Health Regen with pending healing accumulation - ALWAYS HEAL AT LEAST 1 HP
     if ((player.healthRegen > 0 || player.healthRegenPercent > 0) && currentTime - player.lastRegen >= 1000) {
         let regenAmount = 0;
         if (player.healthRegen > 0) {
@@ -5290,7 +5397,9 @@ function updateGame(deltaTime) {
             regenAmount += Math.floor(player.maxHealth * player.healthRegenPercent);
         }
         
+        // Always heal at least 1 HP if health isn't full
         if (regenAmount > 0 && player.health < player.maxHealth) {
+            // Apply at least 1 HP healing
             applyHealing(Math.max(1, regenAmount));
         }
         
@@ -5345,6 +5454,7 @@ function updateWeapons() {
                 } else {
                     player.meleeAttacks.push(attack);
                     
+                    // For dual daggers, add second attack
                     if (weapon.dualStrike) {
                         const secondAttack = {...attack, angle: attack.angle + 0.2};
                         player.meleeAttacks.push(secondAttack);
@@ -5394,6 +5504,7 @@ function updateMonsterProjectiles(currentTime) {
         if (distance < player.radius + proj.radius) {
             let damage = proj.damage;
             
+            // Runic Plate effect - reduce first hit damage
             if (player.firstHitActive) {
                 damage *= 0.5;
                 player.firstHitActive = false;
@@ -5440,6 +5551,7 @@ function updateBossProjectiles(currentTime) {
         if (distance < player.radius + proj.radius) {
             let damage = proj.damage;
             
+            // Runic Plate effect - reduce first hit damage
             if (player.firstHitActive) {
                 damage *= 0.5;
                 player.firstHitActive = false;
@@ -5526,6 +5638,10 @@ function shootBossProjectiles(boss) {
     }
 }
 
+// ============================================
+// PROJECTILES UPDATE FUNCTION
+// ============================================
+
 function updateProjectiles() {
     const currentTime = Date.now();
     
@@ -5536,6 +5652,14 @@ function updateProjectiles() {
             projectile.startX = projectile.x;
             projectile.startY = projectile.y;
             projectile.startTime = currentTime;
+        }
+        
+        // Check obstacle collision first
+        if (typeof checkProjectileObstacleCollision === 'function') {
+            if (checkProjectileObstacleCollision(projectile)) {
+                player.projectiles.splice(i, 1);
+                continue;
+            }
         }
         
         if (projectile.isBoomerang) {
@@ -5608,11 +5732,14 @@ function updateProjectiles() {
         
         // Handle crossbow piercing
         if (projectile.weaponId === 'crossbow' && projectile.pierceCount > 0) {
+            // Track pierced enemies
             if (!projectile.piercedEnemies) projectile.piercedEnemies = [];
             
+            // Check all monsters in range
             for (let j = monsters.length - 1; j >= 0; j--) {
                 const monster = monsters[j];
                 
+                // Skip already pierced enemies
                 if (projectile.piercedEnemies.includes(monster)) continue;
                 
                 const dx = projectile.x - monster.x;
@@ -5620,6 +5747,7 @@ function updateProjectiles() {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
                 if (distance < 8 + monster.radius) {
+                    // Damage calculation
                     let damage = projectile.damage;
                     let isCritical = false;
                     
@@ -5631,15 +5759,18 @@ function updateProjectiles() {
                     damage = Math.floor(damage * player.damageMultiplier);
                     monster.health -= damage;
                     
+                    // Track knife hit for throwable weapons
                     if (projectile.weaponRef && projectile.weaponRef.isThrowable) {
                         projectile.weaponRef.trackKnifeHit(monster);
                     }
                     
                     createDamageIndicator(monster.x, monster.y, damage, isCritical);
                     
+                    // Track pierced enemy
                     projectile.piercedEnemies.push(monster);
                     projectile.pierceCount--;
                     
+                    // Life steal
                     if (player.lifeSteal > 0) {
                         const healAmount = damage * player.lifeSteal;
                         applyHealing(healAmount);
@@ -5657,6 +5788,7 @@ function updateProjectiles() {
                         handleMonsterDeath(monster, j);
                     }
                     
+                    // Stop if no more pierces left
                     if (projectile.pierceCount <= 0) {
                         player.projectiles.splice(i, 1);
                         break;
@@ -5664,6 +5796,7 @@ function updateProjectiles() {
                 }
             }
         } else {
+            // Regular collision detection for non-piercing weapons
             for (let j = monsters.length - 1; j >= 0; j--) {
                 const monster = monsters[j];
                 
@@ -5684,6 +5817,7 @@ function updateProjectiles() {
                     
                     monster.health -= damage;
                     
+                    // Track knife hit for throwable weapons
                     if (projectile.weaponRef && projectile.weaponRef.isThrowable) {
                         projectile.weaponRef.trackKnifeHit(monster);
                     }
@@ -5823,11 +5957,13 @@ function updateMonsters(currentTime) {
             return;
         }
         
+        // First, find closest healing tower for each monster
         let targetX = player.x;
         let targetY = player.y;
         let targetIsTower = false;
         let targetTower = null;
         
+        // Check if any towers exist and are closer than player
         if (playerTowers.healingTowers.active.length > 0) {
             let closestTowerDist = Infinity;
             let closestTower = null;
@@ -5843,6 +5979,7 @@ function updateMonsters(currentTime) {
                 }
             });
             
+            // If tower is closer than player, target it
             const distToPlayer = Math.sqrt(
                 Math.pow(player.x - monster.x, 2) + 
                 Math.pow(player.y - monster.y, 2)
@@ -5856,23 +5993,43 @@ function updateMonsters(currentTime) {
             }
         }
         
-        const moveDir = findPathToTarget(monster, { x: targetX, y: targetY });
-        
-        if (moveDir.x !== 0 || moveDir.y !== 0) {
-            monster.x += moveDir.x * monster.speed;
-            monster.y += moveDir.y * monster.speed;
+        // Move towards target using pathfinding
+        if (typeof moveMonsterWithPathfinding === 'function') {
+            const moveResult = moveMonsterWithPathfinding(monster, targetX, targetY);
+            if (!moveResult) {
+                // Fallback to direct movement if pathfinding fails
+                const dx = targetX - monster.x;
+                const dy = targetY - monster.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                    monster.x += (dx / dist) * monster.speed;
+                    monster.y += (dy / dist) * monster.speed;
+                }
+            }
+        } else {
+            // Original movement if pathfinding not available
+            const dx = targetX - monster.x;
+            const dy = targetY - monster.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+                monster.x += (dx / dist) * monster.speed;
+                monster.y += (dy / dist) * monster.speed;
+            }
         }
         
+        // Check if monster is a gunner and should shoot
         if (monster.isGunner && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootGunnerProjectile(monster);
             monster.lastAttack = currentTime;
         }
         
+        // Check if monster is boss and should shoot
         if (monster.isBoss && currentTime - monster.lastAttack >= monster.attackCooldown) {
             shootBossProjectiles(monster);
             monster.lastAttack = currentTime;
         }
         
+        // Attack if close to target
         const distToTarget = Math.sqrt(
             Math.pow(targetX - monster.x, 2) + 
             Math.pow(targetY - monster.y, 2)
@@ -5881,9 +6038,11 @@ function updateMonsters(currentTime) {
         if (distToTarget < monster.radius + (targetIsTower ? 20 : player.radius)) {
             if (currentTime - monster.lastAttack >= monster.attackCooldown) {
                 if (targetIsTower && targetTower) {
+                    // Attack tower
                     targetTower.health -= monster.damage;
                     createDamageIndicator(targetTower.x, targetTower.y, monster.damage, false);
                     
+                    // Check if tower destroyed
                     if (targetTower.health <= 0) {
                         const index = playerTowers.healingTowers.active.indexOf(targetTower);
                         if (index > -1) {
@@ -5901,6 +6060,7 @@ function updateMonsters(currentTime) {
                         }
                     }
                 } else {
+                    // Attack player
                     let actualDamage = monster.damage;
                     
                     if (Math.random() < player.dodgeChance) {
@@ -5909,6 +6069,7 @@ function updateMonsters(currentTime) {
                         return;
                     }
                     
+                    // Runic Plate effect - reduce first hit damage
                     if (player.firstHitActive) {
                         actualDamage *= 0.5;
                         player.firstHitActive = false;
@@ -6113,6 +6274,7 @@ function drawVisualEffects() {
                 ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
                 ctx.stroke();
                 
+                // Inner pulsing circle
                 ctx.strokeStyle = '#FFA500';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -6386,6 +6548,10 @@ function createHealthPopup(x, y, amount) {
     }, 1000);
 }
 
+// ============================================
+// STATS PANEL BUTTON
+// ============================================
+
 function createStatsButton() {
     const button = document.createElement('button');
     button.id = 'statsButton';
@@ -6400,10 +6566,12 @@ function createStatsButton() {
     
     document.body.appendChild(button);
 }
-
 document.addEventListener('keydown', (e) => {
+// ============================================
     const key = e.key.toLowerCase();
-    
+// INITIALIZATION
+
+// ============================================
     if (key === 'w' || key === 'arrowup') {
         keys.w = true;
         keys.up = true;
@@ -6424,7 +6592,7 @@ document.addEventListener('keydown', (e) => {
         keys.right = true;
         e.preventDefault();
     }
-    
+
     if (key === ' ') {
         if (gameState === 'shop') {
             keys.space = true;
@@ -6432,7 +6600,7 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
     }
-    
+
     if (key === 'r') {
         if (gameState === 'shop') {
             player.weapons.forEach(weapon => {
@@ -6443,12 +6611,12 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
     }
-    
+
     if (key === 's' && e.ctrlKey) {
         e.preventDefault();
         saveGame();
     }
-    
+
     if (key === 'l' && e.ctrlKey) {
         e.preventDefault();
         loadGame();
@@ -6457,7 +6625,7 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
-    
+
     if (key === 'w' || key === 'arrowup') {
         keys.w = false;
         keys.up = false;
@@ -6606,7 +6774,6 @@ style.textContent = `
         70% { opacity: 1; }
         100% { opacity: 0; }
     }
-
     @keyframes slideIn {
         from {
             transform: translateX(100%);
@@ -6617,7 +6784,6 @@ style.textContent = `
             opacity: 1;
         }
     }
-
     @keyframes slideOut {
         from {
             transform: translateX(0);
@@ -6710,7 +6876,6 @@ style.textContent = `
         padding: 10px;
         font-size: 0.9rem;
     }
-
     .joystick-container {
         position: fixed;
         bottom: 30px;
@@ -6721,7 +6886,6 @@ style.textContent = `
         -webkit-user-select: none;
         touch-action: none;
     }
-
     .joystick-base {
         width: 120px;
         height: 120px;
@@ -6734,12 +6898,10 @@ style.textContent = `
         justify-content: center;
         transition: all 0.2s;
     }
-
     .joystick-base.active {
         background: rgba(255, 255, 255, 0.25);
         border-color: rgba(255, 215, 0, 0.5);
     }
-
     .joystick-handle {
         width: 50px;
         height: 50px;
@@ -6749,7 +6911,6 @@ style.textContent = `
         transition: transform 0.05s ease;
         pointer-events: none;
     }
-
     @media (max-width: 768px) {
         .joystick-base {
             width: 100px;
@@ -6761,7 +6922,6 @@ style.textContent = `
             height: 40px;
         }
     }
-
     .message-container {
         position: fixed;
         top: 100px;
@@ -6773,7 +6933,6 @@ style.textContent = `
         pointer-events: none;
         max-width: 300px;
     }
-
     .message-item {
         background: rgba(0, 0, 0, 0.8);
         color: #ffcc00;
@@ -6787,17 +6946,14 @@ style.textContent = `
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     }
-
     .message-item.show {
         transform: translateX(0);
         opacity: 1;
     }
-
     .message-item.hide {
         transform: translateX(100%);
         opacity: 0;
     }
-
     #continueGameBtn {
         margin-top: 10px;
         padding: 10px 30px;
@@ -6814,37 +6970,31 @@ style.textContent = `
         -webkit-user-select: none;
         touch-action: manipulation;
     }
-
     #continueGameBtn:hover {
         transform: scale(1.05);
         box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
     }
-
     #continueGameBtn:active {
         transform: scale(0.98);
     }
-
     .shop-item {
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
     }
-
     .weapon-slot {
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
     }
-
     .stat-buff {
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
     }
-
     .stats-button {
         position: fixed;
         top: 20px;
@@ -6865,16 +7015,13 @@ style.textContent = `
         -webkit-user-select: none;
         touch-action: manipulation;
     }
-
     .stats-button:hover {
         transform: scale(1.05);
         box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
     }
-
     .stats-button:active {
         transform: scale(0.95);
     }
-
     #statsPanel {
         position: fixed;
         top: 50%;
@@ -6893,19 +7040,16 @@ style.textContent = `
         transition: all 0.3s;
         overflow-y: auto;
     }
-
     .stats-panel-hidden {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
     }
-
     .stats-panel-visible {
         opacity: 1;
         visibility: visible;
         pointer-events: all;
     }
-
     .stats-header {
         display: flex;
         justify-content: space-between;
@@ -6914,13 +7058,11 @@ style.textContent = `
         padding-bottom: 10px;
         border-bottom: 1px solid #ffd700;
     }
-
     .stats-header h3 {
         margin: 0;
         color: #ffd700;
         font-size: 1.3rem;
     }
-
     #closeStatsBtn {
         background: none;
         border: none;
@@ -6931,21 +7073,17 @@ style.textContent = `
         transition: transform 0.2s;
         -webkit-tap-highlight-color: transparent;
     }
-
     #closeStatsBtn:hover {
         transform: scale(1.2);
     }
-
     #closeStatsBtn:active {
         transform: scale(0.9);
     }
-
     .stats-content {
         display: flex;
         flex-direction: column;
         gap: 8px;
     }
-
     .stat-row {
         display: flex;
         justify-content: space-between;
@@ -6954,24 +7092,20 @@ style.textContent = `
         background: rgba(255, 255, 255, 0.1);
         border-radius: 5px;
     }
-
     .stat-label {
         color: #aaaaff;
         font-size: 0.9rem;
     }
-
     .stat-value {
         color: #ffd700;
         font-weight: bold;
         font-size: 1rem;
     }
-
     .stat-divider {
         height: 1px;
         background: rgba(255, 215, 0, 0.3);
         margin: 10px 0;
     }
-
     .control-hint {
         position: fixed;
         bottom: 10px;
@@ -6984,7 +7118,6 @@ style.textContent = `
         pointer-events: none;
         z-index: 100;
     }
-
     .throwable-ammo-small {
         position: absolute;
         top: 2px;
@@ -7012,6 +7145,9 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+// ============================================
+// INITIALIZATION
+// ============================================
 
 const controlHint = document.createElement('div');
 controlHint.className = 'control-hint';
