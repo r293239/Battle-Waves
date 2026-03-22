@@ -6566,12 +6566,14 @@ function createStatsButton() {
     
     document.body.appendChild(button);
 }
-document.addEventListener('keydown', (e) => {
-// ============================================
-    const key = e.key.toLowerCase();
-// INITIALIZATION
 
 // ============================================
+// KEYBOARD CONTROLS
+// ============================================
+
+document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    
     if (key === 'w' || key === 'arrowup') {
         keys.w = true;
         keys.up = true;
@@ -6592,7 +6594,7 @@ document.addEventListener('keydown', (e) => {
         keys.right = true;
         e.preventDefault();
     }
-
+    
     if (key === ' ') {
         if (gameState === 'shop') {
             keys.space = true;
@@ -6600,7 +6602,7 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
     }
-
+    
     if (key === 'r') {
         if (gameState === 'shop') {
             player.weapons.forEach(weapon => {
@@ -6611,12 +6613,12 @@ document.addEventListener('keydown', (e) => {
         }
         e.preventDefault();
     }
-
+    
     if (key === 's' && e.ctrlKey) {
         e.preventDefault();
         saveGame();
     }
-
+    
     if (key === 'l' && e.ctrlKey) {
         e.preventDefault();
         loadGame();
@@ -6625,7 +6627,7 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
-
+    
     if (key === 'w' || key === 'arrowup') {
         keys.w = false;
         keys.up = false;
@@ -6651,6 +6653,10 @@ document.addEventListener('keyup', (e) => {
         e.preventDefault();
     }
 });
+
+// ============================================
+// TOUCH EVENT HANDLERS
+// ============================================
 
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
@@ -6767,6 +6773,10 @@ restartBtn.addEventListener('touchstart', (e) => {
     initGame();
 });
 
+// ============================================
+// CSS STYLES
+// ============================================
+
 const style = document.createElement('style');
 style.textContent = `
     @keyframes fadeOut {
@@ -6876,6 +6886,7 @@ style.textContent = `
         padding: 10px;
         font-size: 0.9rem;
     }
+    
     .joystick-container {
         position: fixed;
         bottom: 30px;
@@ -6886,6 +6897,7 @@ style.textContent = `
         -webkit-user-select: none;
         touch-action: none;
     }
+    
     .joystick-base {
         width: 120px;
         height: 120px;
@@ -6898,10 +6910,12 @@ style.textContent = `
         justify-content: center;
         transition: all 0.2s;
     }
+    
     .joystick-base.active {
         background: rgba(255, 255, 255, 0.25);
         border-color: rgba(255, 215, 0, 0.5);
     }
+    
     .joystick-handle {
         width: 50px;
         height: 50px;
@@ -6911,6 +6925,7 @@ style.textContent = `
         transition: transform 0.05s ease;
         pointer-events: none;
     }
+    
     @media (max-width: 768px) {
         .joystick-base {
             width: 100px;
@@ -6922,6 +6937,7 @@ style.textContent = `
             height: 40px;
         }
     }
+    
     .message-container {
         position: fixed;
         top: 100px;
@@ -6933,6 +6949,7 @@ style.textContent = `
         pointer-events: none;
         max-width: 300px;
     }
+    
     .message-item {
         background: rgba(0, 0, 0, 0.8);
         color: #ffcc00;
@@ -6946,14 +6963,17 @@ style.textContent = `
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     }
+    
     .message-item.show {
         transform: translateX(0);
         opacity: 1;
     }
+    
     .message-item.hide {
         transform: translateX(100%);
         opacity: 0;
     }
+    
     #continueGameBtn {
         margin-top: 10px;
         padding: 10px 30px;
@@ -6970,31 +6990,37 @@ style.textContent = `
         -webkit-user-select: none;
         touch-action: manipulation;
     }
+    
     #continueGameBtn:hover {
         transform: scale(1.05);
         box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
     }
+    
     #continueGameBtn:active {
         transform: scale(0.98);
     }
+    
     .shop-item {
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
     }
+    
     .weapon-slot {
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
     }
+    
     .stat-buff {
         -webkit-tap-highlight-color: transparent;
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
     }
+    
     .stats-button {
         position: fixed;
         top: 20px;
@@ -7015,13 +7041,16 @@ style.textContent = `
         -webkit-user-select: none;
         touch-action: manipulation;
     }
+    
     .stats-button:hover {
         transform: scale(1.05);
         box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
     }
+    
     .stats-button:active {
         transform: scale(0.95);
     }
+    
     #statsPanel {
         position: fixed;
         top: 50%;
@@ -7040,16 +7069,19 @@ style.textContent = `
         transition: all 0.3s;
         overflow-y: auto;
     }
+    
     .stats-panel-hidden {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
     }
+    
     .stats-panel-visible {
         opacity: 1;
         visibility: visible;
         pointer-events: all;
     }
+    
     .stats-header {
         display: flex;
         justify-content: space-between;
@@ -7058,11 +7090,13 @@ style.textContent = `
         padding-bottom: 10px;
         border-bottom: 1px solid #ffd700;
     }
+    
     .stats-header h3 {
         margin: 0;
         color: #ffd700;
         font-size: 1.3rem;
     }
+    
     #closeStatsBtn {
         background: none;
         border: none;
@@ -7073,17 +7107,21 @@ style.textContent = `
         transition: transform 0.2s;
         -webkit-tap-highlight-color: transparent;
     }
+    
     #closeStatsBtn:hover {
         transform: scale(1.2);
     }
+    
     #closeStatsBtn:active {
         transform: scale(0.9);
     }
+    
     .stats-content {
         display: flex;
         flex-direction: column;
         gap: 8px;
     }
+    
     .stat-row {
         display: flex;
         justify-content: space-between;
@@ -7092,20 +7130,24 @@ style.textContent = `
         background: rgba(255, 255, 255, 0.1);
         border-radius: 5px;
     }
+    
     .stat-label {
         color: #aaaaff;
         font-size: 0.9rem;
     }
+    
     .stat-value {
         color: #ffd700;
         font-weight: bold;
         font-size: 1rem;
     }
+    
     .stat-divider {
         height: 1px;
         background: rgba(255, 215, 0, 0.3);
         margin: 10px 0;
     }
+    
     .control-hint {
         position: fixed;
         bottom: 10px;
@@ -7118,6 +7160,7 @@ style.textContent = `
         pointer-events: none;
         z-index: 100;
     }
+    
     .throwable-ammo-small {
         position: absolute;
         top: 2px;
@@ -7145,6 +7188,7 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
 // ============================================
 // INITIALIZATION
 // ============================================
