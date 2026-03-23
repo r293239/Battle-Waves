@@ -476,43 +476,6 @@ class WeaponInstance {
                     rotation: 0,
                     weaponRef: this
                 };
-            } else if (this.id === 'sniper') {
-                const angle = Math.atan2(targetY - playerY, targetX - playerX);
-                return {
-                    type: 'ranged',
-                    x: playerX,
-                    y: playerY,
-                    angle: angle,
-                    speed: this.projectileSpeed,
-                    range: this.range,
-                    damage: this.baseDamage,
-                    color: this.projectileColor,
-                    weaponId: this.id,
-                    animation: 'sniper',
-                    startTime: currentTime,
-                    size: 6,
-                    weaponRef: this,
-                    sniper: true
-                };
-            } else if (this.id === 'crossbow') {
-                const angle = Math.atan2(targetY - playerY, targetX - playerX);
-                return {
-                    type: 'ranged',
-                    x: playerX,
-                    y: playerY,
-                    angle: angle,
-                    speed: this.projectileSpeed,
-                    range: this.range,
-                    damage: this.baseDamage,
-                    color: this.projectileColor,
-                    weaponId: this.id,
-                    animation: 'bolt',
-                    startTime: currentTime,
-                    size: 5,
-                    weaponRef: this,
-                    pierceCount: this.pierceCount,
-                    piercedEnemies: []
-                };
             } else {
                 const baseAngle = Math.atan2(targetY - playerY, targetX - playerX);
                 const spreadAmount = (Math.random() - 0.5) * this.spread;
@@ -611,8 +574,6 @@ class WeaponInstance {
             if (this.id === 'laser') return 'ENERGY';
             if (this.id === 'boomerang') return 'BOOMERANG';
             if (this.id === 'throwing_knives') return 'THROWING';
-            if (this.id === 'sniper') return 'SNIPER';
-            if (this.id === 'crossbow') return 'CROSSBOW';
             return 'RANGED';
         }
         if (this.meleeType === 'single') return 'SINGLE';
@@ -762,10 +723,6 @@ let keys = {
     space: false
 };
 
-// Weapon targeting tracking
-let attackedMonsters = new Set();
-let weaponTargets = new Map();
-
 // Game Objects
 const player = {
     x: 400,
@@ -879,108 +836,6 @@ player.updateHealthDisplay = function() {
         healthFill.style.width = `${percent}%`;
     }
 };
-
-// ============================================
-// WEAPON PRIORITY TARGETING SYSTEM
-// ============================================
-
-function getTargetPriority(monster, player, weapon, currentTime) {
-    const dx = monster.x - player.x;
-    const dy = monster.y - player.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // Skip if out of range
-    if (distance > weapon.range) return -Infinity;
-    
-    // Base score starts with distance (closer is better)
-    let score = 1000 - distance;
-    
-    // Calculate angle to monster relative to player's facing direction
-    const angleToMonster = Math.atan2(dy, dx);
-    const facingAngle = player.facingAngle || 0;
-    
-    // Calculate angle difference (normalized to -PI to PI)
-    let angleDiff = angleToMonster - facingAngle;
-    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-    
-    // Strong preference for monsters in front (angleScore from 0 to 1)
-    const angleScore = Math.max(0, Math.cos(angleDiff));
-    score += angleScore * 300;
-    
-    // Penalize monsters that were attacked recently (spread damage)
-    if (attackedMonsters.has(monster)) {
-        score -= 200;
-    }
-    
-    // Check if monster is already targeted by another weapon this frame
-    let targetCount = 0;
-    weaponTargets.forEach((targetedMonster, weaponId) => {
-        if (targetedMonster === monster && weaponId !== weapon.id) {
-            targetCount++;
-        }
-    });
-    score -= targetCount * 150;
-    
-    // Special priorities based on weapon type
-    if (weapon.sniper) {
-        // Sniper prioritizes high HP enemies
-        score += monster.health * 2;
-    } else if (weapon.id === 'shotgun') {
-        // Shotgun prefers groups - bonus for monsters near others
-        let nearbyCount = 0;
-        monsters.forEach(other => {
-            if (other === monster) return;
-            const odx = other.x - monster.x;
-            const ody = other.y - monster.y;
-            const odist = Math.sqrt(odx * odx + ody * ody);
-            if (odist < 100) nearbyCount++;
-        });
-        score += nearbyCount * 50;
-    } else if (weapon.id === 'crossbow') {
-        // Crossbow prefers lined-up enemies
-        score += angleScore * 200;
-    } else if (weapon.id === 'throwing_knives') {
-        // Throwing knives prefer low HP enemies
-        const healthPercent = monster.health / monster.maxHealth;
-        score += (1 - healthPercent) * 200;
-    } else if (weapon.meleeType === 'aoe') {
-        // AOE melee weapons (axe, hammer) prefer groups
-        let nearbyCount = 0;
-        monsters.forEach(other => {
-            if (other === monster) return;
-            const odx = other.x - monster.x;
-            const ody = other.y - monster.y;
-            const odist = Math.sqrt(odx * odx + ody * ody);
-            if (odist < weapon.range * 1.5) nearbyCount++;
-        });
-        score += nearbyCount * 100;
-    }
-    
-    // Emergency override: if monster is very close (within 50 pixels), prioritize it
-    if (distance < 50) {
-        score += 1000;
-    }
-    
-    return score;
-}
-
-function selectTargetForWeapon(weapon, currentTime) {
-    if (monsters.length === 0) return null;
-    
-    let bestMonster = null;
-    let bestPriority = -Infinity;
-    
-    monsters.forEach(monster => {
-        const priority = getTargetPriority(monster, player, weapon, currentTime);
-        if (priority > bestPriority) {
-            bestPriority = priority;
-            bestMonster = monster;
-        }
-    });
-    
-    return bestMonster;
-}
 
 // ============================================
 // HEALING FUNCTIONS
@@ -2138,10 +1993,6 @@ function initGame() {
         lastFacingAngle: 0
     });
     
-    // Reset targeting sets
-    attackedMonsters.clear();
-    weaponTargets.clear();
-    
     playerTowers.landmines.count = 0;
     playerTowers.landmines.active = [];
     playerTowers.healingTowers.active = [];
@@ -2742,14 +2593,6 @@ function updateDasher(dasher, currentTime) {
 // ============================================
 
 function handleMonsterDeath(monster, index) {
-    // Remove from targeting sets
-    attackedMonsters.delete(monster);
-    weaponTargets.forEach((target, weaponId) => {
-        if (target === monster) {
-            weaponTargets.delete(weaponId);
-        }
-    });
-    
     monsters.splice(index, 1);
     
     player.weapons.forEach(weapon => {
@@ -3213,8 +3056,6 @@ function updateShopDisplay() {
                     else if (data.id === 'laser') tagClass = 'energy-tag';
                     else if (data.id === 'boomerang') tagClass = 'boomerang-tag';
                     else if (data.id === 'throwing_knives') tagClass = 'throwing-tag';
-                    else if (data.id === 'sniper') tagClass = 'sniper-tag';
-                    else if (data.id === 'crossbow') tagClass = 'crossbow-tag';
                     else tagClass = 'ranged-tag';
                 }
             } else if (shopItem.type === 'tower') {
@@ -3227,8 +3068,6 @@ function updateShopDisplay() {
                 else if (data.id === 'laser') typeText = 'ENERGY';
                 else if (data.id === 'boomerang') typeText = 'BOOMERANG';
                 else if (data.id === 'throwing_knives') typeText = 'THROWING';
-                else if (data.id === 'sniper') typeText = 'SNIPER';
-                else if (data.id === 'crossbow') typeText = 'CROSSBOW';
                 else if (data.type === 'melee') typeText = data.meleeType.toUpperCase();
                 else typeText = 'RANGED';
             } else if (shopItem.type === 'tower') {
@@ -3958,10 +3797,6 @@ function drawProjectiles() {
             drawMachinegunProjectile(ctx, projectile, currentTime);
         } else if (projectile.animation === 'knife') {
             drawThrowingKnife(ctx, projectile, currentTime);
-        } else if (projectile.weaponId === 'sniper') {
-            drawSniperProjectile(ctx, projectile, currentTime);
-        } else if (projectile.weaponId === 'crossbow') {
-            drawCrossbowProjectile(ctx, projectile, currentTime);
         } else {
             ctx.shadowColor = projectile.color;
             ctx.shadowBlur = 15;
@@ -3982,92 +3817,6 @@ function drawProjectiles() {
         
         ctx.restore();
     });
-}
-
-function drawSniperProjectile(ctx, projectile, currentTime) {
-    ctx.save();
-    ctx.translate(projectile.x, projectile.y);
-    
-    // Sniper bullet trail
-    const trailLength = 15;
-    ctx.shadowColor = '#FF4500';
-    ctx.shadowBlur = 20;
-    
-    // Bullet head
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.arc(0, 0, 5, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Trail
-    ctx.strokeStyle = '#FF4500';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(-Math.cos(projectile.angle) * trailLength, -Math.sin(projectile.angle) * trailLength);
-    ctx.lineTo(0, 0);
-    ctx.stroke();
-    
-    // Muzzle flash effect (at start of flight)
-    const age = currentTime - projectile.startTime;
-    if (age < 100) {
-        ctx.fillStyle = `rgba(255, 200, 0, ${1 - age/100})`;
-        ctx.shadowBlur = 30;
-        ctx.beginPath();
-        ctx.arc(-Math.cos(projectile.angle) * 10, -Math.sin(projectile.angle) * 10, 8, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    ctx.restore();
-}
-
-function drawCrossbowProjectile(ctx, projectile, currentTime) {
-    ctx.save();
-    ctx.translate(projectile.x, projectile.y);
-    ctx.rotate(projectile.angle);
-    
-    ctx.shadowColor = '#8B4513';
-    ctx.shadowBlur = 15;
-    
-    // Bolt shaft
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(-15, -2, 30, 4);
-    
-    // Bolt head (tip)
-    ctx.fillStyle = '#C0C0C0';
-    ctx.beginPath();
-    ctx.moveTo(15, -3);
-    ctx.lineTo(25, 0);
-    ctx.lineTo(15, 3);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Fletching (feathers at back)
-    ctx.fillStyle = '#FF0000';
-    ctx.beginPath();
-    ctx.moveTo(-15, -4);
-    ctx.lineTo(-25, -8);
-    ctx.lineTo(-15, -2);
-    ctx.closePath();
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.moveTo(-15, 4);
-    ctx.lineTo(-25, 8);
-    ctx.lineTo(-15, 2);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Glow effect when penetrating
-    if (projectile.pierceCount && projectile.pierceCount < 3) {
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 2;
-        ctx.shadowColor = '#FFD700';
-        ctx.beginPath();
-        ctx.arc(0, 0, 8, 0, Math.PI * 2);
-        ctx.stroke();
-    }
-    
-    ctx.restore();
 }
 
 function drawThrowingKnife(ctx, projectile, currentTime) {
@@ -5317,9 +5066,6 @@ function updateGame(deltaTime) {
 function updateWeapons() {
     const currentTime = Date.now();
     
-    // Clear weapon targets for this frame
-    weaponTargets.clear();
-    
     player.weapons.forEach(weapon => {
         if (!weapon || monsters.length === 0) return;
         
@@ -5329,14 +5075,22 @@ function updateWeapons() {
         weapon.attackSpeed = originalAttackSpeed;
         
         if (canAttack) {
-            // Use the priority targeting system
-            const targetMonster = selectTargetForWeapon(weapon, currentTime);
+            let closestMonster = null;
+            let closestDistance = Infinity;
             
-            if (targetMonster) {
-                // Record this weapon's target
-                weaponTargets.set(weapon.id, targetMonster);
+            monsters.forEach(monster => {
+                const dx = monster.x - player.x;
+                const dy = monster.y - player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                const attack = weapon.attack(player.x, player.y, targetMonster.x, targetMonster.y);
+                if (distance < closestDistance && distance < weapon.range) {
+                    closestDistance = distance;
+                    closestMonster = monster;
+                }
+            });
+            
+            if (closestMonster) {
+                const attack = weapon.attack(player.x, player.y, closestMonster.x, closestMonster.y);
                 
                 if (weapon.id === 'shotgun') {
                     player.projectiles.push(...attack);
@@ -5350,9 +5104,6 @@ function updateWeapons() {
                         player.meleeAttacks.push(secondAttack);
                     }
                 }
-                
-                // Mark this monster as attacked
-                attackedMonsters.add(targetMonster);
             }
         }
     });
@@ -5606,128 +5357,69 @@ function updateProjectiles() {
             }
         }
         
-        // Handle crossbow piercing
-        if (projectile.weaponId === 'crossbow' && projectile.pierceCount > 0) {
-            if (!projectile.piercedEnemies) projectile.piercedEnemies = [];
+        for (let j = monsters.length - 1; j >= 0; j--) {
+            const monster = monsters[j];
             
-            for (let j = monsters.length - 1; j >= 0; j--) {
-                const monster = monsters[j];
+            const dx = projectile.x - monster.x;
+            const dy = projectile.y - monster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < (projectile.size || 4) + monster.radius) {
+                let damage = projectile.damage;
+                let isCritical = false;
                 
-                if (projectile.piercedEnemies.includes(monster)) continue;
+                if (Math.random() < player.criticalChance) {
+                    damage *= 2;
+                    isCritical = true;
+                }
                 
-                const dx = projectile.x - monster.x;
-                const dy = projectile.y - monster.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+                damage = Math.floor(damage * player.damageMultiplier);
                 
-                if (distance < 8 + monster.radius) {
-                    let damage = projectile.damage;
-                    let isCritical = false;
-                    
-                    if (Math.random() < player.criticalChance) {
-                        damage *= 2;
-                        isCritical = true;
-                    }
-                    
-                    damage = Math.floor(damage * player.damageMultiplier);
-                    monster.health -= damage;
-                    
-                    if (projectile.weaponRef && projectile.weaponRef.isThrowable) {
-                        projectile.weaponRef.trackKnifeHit(monster);
-                    }
-                    
-                    createDamageIndicator(monster.x, monster.y, damage, isCritical);
-                    
-                    projectile.piercedEnemies.push(monster);
-                    projectile.pierceCount--;
-                    
-                    if (player.lifeSteal > 0) {
-                        const healAmount = damage * player.lifeSteal;
-                        applyHealing(healAmount);
-                    }
-                    
-                    if (monster.isBoss && monster.lifeSteal) {
-                        const bossHeal = Math.floor(damage * monster.lifeSteal);
-                        if (bossHeal > 0) {
-                            monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                            createHealthPopup(monster.x, monster.y, bossHeal);
-                        }
-                    }
-                    
-                    if (monster.health <= 0) {
-                        handleMonsterDeath(monster, j);
-                    }
-                    
-                    if (projectile.pierceCount <= 0) {
-                        player.projectiles.splice(i, 1);
-                        break;
+                monster.health -= damage;
+                
+                if (projectile.weaponRef && projectile.weaponRef.isThrowable) {
+                    projectile.weaponRef.trackKnifeHit(monster);
+                }
+                
+                createDamageIndicator(monster.x, monster.y, damage, isCritical);
+                
+                if (player.lifeSteal > 0) {
+                    const healAmount = damage * player.lifeSteal;
+                    applyHealing(healAmount);
+                }
+                
+                if (monster.isBoss && monster.lifeSteal) {
+                    const bossHeal = Math.floor(damage * monster.lifeSteal);
+                    if (bossHeal > 0) {
+                        monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
+                        createHealthPopup(monster.x, monster.y, bossHeal);
                     }
                 }
-            }
-        } else {
-            for (let j = monsters.length - 1; j >= 0; j--) {
-                const monster = monsters[j];
                 
-                const dx = projectile.x - monster.x;
-                const dy = projectile.y - monster.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (projectile.isBoomerang) {
+                    if (!projectile.targetsHit.includes(monster)) {
+                        projectile.targetsHit.push(monster);
+                    }
+                }
                 
-                if (distance < (projectile.size || 4) + monster.radius) {
-                    let damage = projectile.damage;
-                    let isCritical = false;
-                    
-                    if (Math.random() < player.criticalChance) {
-                        damage *= 2;
-                        isCritical = true;
-                    }
-                    
-                    damage = Math.floor(damage * player.damageMultiplier);
-                    
-                    monster.health -= damage;
-                    
-                    if (projectile.weaponRef && projectile.weaponRef.isThrowable) {
-                        projectile.weaponRef.trackKnifeHit(monster);
-                    }
-                    
-                    createDamageIndicator(monster.x, monster.y, damage, isCritical);
-                    
-                    if (player.lifeSteal > 0) {
-                        const healAmount = damage * player.lifeSteal;
-                        applyHealing(healAmount);
-                    }
-                    
-                    if (monster.isBoss && monster.lifeSteal) {
-                        const bossHeal = Math.floor(damage * monster.lifeSteal);
-                        if (bossHeal > 0) {
-                            monster.health = Math.min(monster.maxHealth, monster.health + bossHeal);
-                            createHealthPopup(monster.x, monster.y, bossHeal);
-                        }
-                    }
-                    
-                    if (projectile.isBoomerang) {
+                if (!projectile.isBoomerang) {
+                    if (!projectile.bounceCount || !projectile.targetsHit) {
+                        player.projectiles.splice(i, 1);
+                    } else {
                         if (!projectile.targetsHit.includes(monster)) {
                             projectile.targetsHit.push(monster);
                         }
                     }
-                    
-                    if (!projectile.isBoomerang) {
-                        if (!projectile.bounceCount || !projectile.targetsHit) {
-                            player.projectiles.splice(i, 1);
-                        } else {
-                            if (!projectile.targetsHit.includes(monster)) {
-                                projectile.targetsHit.push(monster);
-                            }
-                        }
-                    } else if (projectile.isBoomerang && projectile.targetsHit.length >= projectile.maxTargets) {
-                        player.projectiles.splice(i, 1);
-                        break;
-                    }
-                    
-                    if (monster.health <= 0) {
-                        handleMonsterDeath(monster, j);
-                    }
-                    
+                } else if (projectile.isBoomerang && projectile.targetsHit.length >= projectile.maxTargets) {
+                    player.projectiles.splice(i, 1);
                     break;
                 }
+                
+                if (monster.health <= 0) {
+                    handleMonsterDeath(monster, j);
+                }
+                
+                break;
             }
         }
     }
