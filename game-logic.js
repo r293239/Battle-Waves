@@ -7018,7 +7018,6 @@ controlHint.className = 'control-hint';
 controlHint.innerHTML = 'Joystick | WASD | Space: Next Wave | 📊 Stats | R: Reload | Ctrl+S: Save | Ctrl+L: Load';
 document.body.appendChild(controlHint);
 
-loadMap('ARENA');
 createMessageContainer();
 createJoystick();
 createStatsPanel();
