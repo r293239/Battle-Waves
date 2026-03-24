@@ -881,6 +881,44 @@ player.updateHealthDisplay = function() {
 };
 
 // ============================================
+// HEALING FUNCTIONS - FIXED
+// ============================================
+
+function applyHealing(amount) {
+    if (player.health >= player.maxHealth) return;
+    if (amount <= 0) return;
+    
+    pendingHealing += amount;
+    
+    // Calculate how much we can actually heal
+    const healAmount = Math.min(pendingHealing, player.maxHealth - player.health);
+    
+    if (healAmount > 0) {
+        player.health += healAmount;
+        pendingHealing -= healAmount;
+        
+        // Show a single popup for the total heal amount
+        createHealthPopup(player.x, player.y, healAmount);
+        
+        // Add visual effect
+        addVisualEffect({
+            type: 'heal',
+            x: player.x,
+            y: player.y,
+            radius: 20,
+            color: '#00FF00',
+            startTime: Date.now(),
+            duration: 400
+        });
+    }
+    
+    // Update UI
+    if (player.updateHealthDisplay) {
+        player.updateHealthDisplay();
+    }
+}
+
+// ============================================
 // WEAPON PRIORITY TARGETING SYSTEM
 // ============================================
 
@@ -980,22 +1018,6 @@ function selectTargetForWeapon(weapon, currentTime) {
     });
     
     return bestMonster;
-}
-
-// ============================================
-// HEALING FUNCTIONS
-// ============================================
-
-function applyHealing(amount) {
-    if (player.health >= player.maxHealth) return;
-    
-    pendingHealing += amount;
-    
-    while (pendingHealing >= 1) {
-        player.health = Math.min(player.maxHealth, player.health + 1);
-        pendingHealing -= 1;
-        createHealthPopup(player.x, player.y, 1);
-    }
 }
 
 // ============================================
@@ -1166,18 +1188,7 @@ function updateHealingTowers(currentTime) {
     playerTowers.healingTowers.active.forEach(tower => {
         if (currentTime - tower.lastHeal >= 2000) {
             if (player.health < player.maxHealth) {
-                player.health = Math.min(player.maxHealth, player.health + tower.healAmount);
-                createHealthPopup(player.x, player.y, tower.healAmount);
-                
-                addVisualEffect({
-                    type: 'heal',
-                    x: player.x,
-                    y: player.y,
-                    radius: 15,
-                    color: '#00FF00',
-                    startTime: currentTime,
-                    duration: 200
-                });
+                applyHealing(tower.healAmount);
             }
             tower.lastHeal = currentTime;
         }
