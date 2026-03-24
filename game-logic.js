@@ -43,8 +43,8 @@ const MONSTER_TYPES = {
         icon: '💥',
         explosive: true,
         explosionRadius: 100,
-        explosionDamage: 3.0,
-        goldDrop: { min: 10, max: 25 }
+        explosionDamage: 1.0,
+        goldDrop: { min: 7, max: 25 }
     },
     GUNNER: {
         name: 'Gunner',
