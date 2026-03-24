@@ -57,7 +57,7 @@ const GAME_DATA = {
         { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400, isBoss: false },
         
         // Wave 30: Third Boss Wave
-        { number: 30, monsters: 1, monsterHealth: 12000, monsterDamage: 40, goldReward: 1000, isBoss: true },
+        { number: 30, monsters: 1, monsterHealth: 10000, monsterDamage: 40, goldReward: 1000, isBoss: true },
         
         { number: 31, monsters: 100, monsterHealth: 300, monsterDamage: 28, goldReward: 450, isBoss: false }
     ],
