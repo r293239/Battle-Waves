@@ -151,7 +151,7 @@ const GAME_DATA = {
         {
             id: 'shotgun',
             name: 'Shotgun',
-            icon: '💥',
+            icon: 'assets/shotgun.png',
             type: 'ranged',
             baseDamage: 4,
             attackSpeed: 0.8,
