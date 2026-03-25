@@ -133,7 +133,7 @@ const GAME_DATA = {
         {
             id: 'handgun',
             name: 'Handgun',
-            icon: assets/handgun.png,  // PNG FILE PATH
+            icon: 'assets/handgun.png',  // PNG FILE PATH
             type: 'ranged',
             baseDamage: 7,
             attackSpeed: 1.0,
