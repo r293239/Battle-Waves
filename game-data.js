@@ -2,6 +2,49 @@
 // GAME DATA - Weapons, Items, and Stat Buffs
 // ============================================
 
+// Preload weapon images
+const weaponImages = {};
+
+function preloadWeaponImages() {
+    const weaponsWithImages = GAME_DATA.WEAPONS.filter(w => w.icon && w.icon.startsWith('assets/'));
+    weaponsWithImages.forEach(weapon => {
+        const img = new Image();
+        img.src = weapon.icon;
+        weaponImages[weapon.id] = img;
+    });
+}
+
+// Function to draw weapon icon (use this in your shop/UI rendering)
+function drawWeaponIcon(ctx, weapon, x, y, size) {
+    // Check if weapon has an image path
+    if (weapon.icon && weapon.icon.startsWith('assets/') && weapon.icon.includes('.png')) {
+        const img = weaponImages[weapon.id];
+        if (img && img.complete && img.naturalWidth > 0) {
+            // Image loaded successfully, draw it
+            ctx.drawImage(img, x, y, size, size);
+        } else if (img) {
+            // Image still loading, draw placeholder
+            ctx.fillStyle = '#444';
+            ctx.fillRect(x, y, size, size);
+            ctx.fillStyle = '#888';
+            ctx.font = `${size * 0.4}px Arial`;
+            ctx.fillText('Loading...', x + size * 0.2, y + size * 0.6);
+        } else {
+            // No image object, draw fallback
+            ctx.fillStyle = '#666';
+            ctx.fillRect(x, y, size, size);
+            ctx.fillStyle = '#fff';
+            ctx.font = `${size * 0.5}px Arial`;
+            ctx.fillText('🔫', x + size * 0.25, y + size * 0.7);
+        }
+    } else {
+        // Text emoji icon
+        ctx.font = `${size}px Arial`;
+        ctx.fillStyle = '#fff';
+        ctx.fillText(weapon.icon, x, y + size);
+    }
+}
+
 const GAME_DATA = {
     // Starting player stats
     PLAYER_START: {
@@ -128,7 +171,7 @@ const GAME_DATA = {
         {
             id: 'handgun',
             name: 'Handgun',
-            icon: 'assets/handgun.png',
+            icon: 'assets/handgun.png',  // File path
             type: 'ranged',
             baseDamage: 7,
             attackSpeed: 1.0,
@@ -151,7 +194,7 @@ const GAME_DATA = {
         {
             id: 'shotgun',
             name: 'Shotgun',
-            icon: 'assets/shotgun.png',
+            icon: 'assets/shotgun.png',  // File path
             type: 'ranged',
             baseDamage: 4,
             attackSpeed: 0.8,
@@ -177,7 +220,7 @@ const GAME_DATA = {
         {
             id: 'machinegun',
             name: 'Machine Gun',
-            icon: 'assets/machinegun.png',
+            icon: 'assets/machinegun.png',  // File path
             type: 'ranged',
             baseDamage: 3,
             attackSpeed: 5.0,
@@ -226,7 +269,7 @@ const GAME_DATA = {
         {
             id: 'boomerang',
             name: 'Boomerang',
-            icon: '🪃',
+            icon: 'assets/boomerang.png',  // File path
             type: 'ranged',
             baseDamage: 5,
             attackSpeed: 1.2,
@@ -284,7 +327,7 @@ const GAME_DATA = {
         {
             id: 'sniper',
             name: 'Sniper Rifle',
-            icon: 'assets/sniper.png',
+            icon: 'assets/sniper.png',  // File path
             type: 'ranged',
             baseDamage: 35,
             attackSpeed: 0.5,
@@ -298,7 +341,7 @@ const GAME_DATA = {
             magazineSize: 3,
             reloadTime: 2500,
             spread: 0,
-            sniper: true, // Special flag for sniper behavior
+            sniper: true,
             tierMultipliers: {
                 damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -310,7 +353,7 @@ const GAME_DATA = {
         {
             id: 'crossbow',
             name: 'Crossbow',
-            icon: 'assets/crossbow.png',
+            icon: 'assets/crossbow.png',  // File path
             type: 'ranged',
             baseDamage: 18,
             attackSpeed: 1.2,
@@ -324,7 +367,7 @@ const GAME_DATA = {
             magazineSize: 1,
             reloadTime: 1200,
             spread: 0,
-            pierceCount: 3, // Can pierce through multiple enemies
+            pierceCount: 3,
             tierMultipliers: {
                 damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
                 attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
@@ -690,7 +733,11 @@ const TOWER_DATA = {
     }
 };
 
+// Preload all weapon images
+preloadWeaponImages();
+
 // Verify data is loaded
 console.log('GAME_DATA loaded with', GAME_DATA.WAVES.length, 'waves');
 console.log('Total weapons:', GAME_DATA.WEAPONS.length);
 console.log('Total items:', GAME_DATA.ITEMS.length);
+console.log('Preloaded weapon images:', Object.keys(weaponImages).length);
