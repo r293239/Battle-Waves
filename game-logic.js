@@ -103,17 +103,17 @@ const MONSTER_TYPES = {
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
-        speed: 0.7,
-        healthMultiplier: 15,
-        damageMultiplier: 2.0,
+        speed: 0.9,
+        healthMultiplier: 10,
+        damageMultiplier: 1.5,
         sizeMultiplier: 2.2,
         icon: '👑',
         isBoss: true,
         lifeSteal: 0.1,
         projectileSpeed: 5,
-        projectileDamage: 15,
+        projectileDamage: 12,
         projectileCooldown: 2000,
-        goldDrop: { min: 100, max: 300 }
+        goldDrop: { min: 150, max: 300 }
     }
 };
 
@@ -124,7 +124,7 @@ const BOSS_WEAPONS = {
         type: 'melee',
         meleeType: 'pierce',
         baseDamage: 25,
-        attackSpeed: 2.0,
+        attackSpeed: 3,
         range: 150,
         description: 'Quick stabbing attacks',
         swingColor: '#8B0000',
@@ -5483,14 +5483,14 @@ function shootBossProjectiles(boss) {
     
     if (wave === 10) {
         const baseAngle = Math.atan2(player.y - boss.y, player.x - boss.x);
-        for (let i = -3; i <= 4; i++) {
+        for (let i = -2; i <= 2; i++) {
             const angle = baseAngle + (i * 0.2);
             bossProjectiles.push({
                 x: boss.x,
                 y: boss.y,
-                vx: Math.cos(angle) * 6,
-                vy: Math.sin(angle) * 6,
-                damage: 10,
+                vx: Math.cos(angle) * 5,
+                vy: Math.sin(angle) * 5,
+                damage: 7,
                 radius: 5,
                 color: '#ff8888',
                 startTime: currentTime,
