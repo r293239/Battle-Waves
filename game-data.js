@@ -29,7 +29,7 @@ const GAME_DATA = {
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130, isBoss: false },
         
         // Wave 10: First Boss Wave
-        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 400, isBoss: true, minions: 8 },
+        { number: 10, monsters: 1, monsterHealth: 2000, monsterDamage: 10, goldReward: 400, isBoss: true, minions: 8 },
 
         // Waves 11-19: Regular waves
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140, isBoss: false },
