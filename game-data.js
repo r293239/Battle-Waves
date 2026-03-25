@@ -128,7 +128,7 @@ const GAME_DATA = {
         {
             id: 'handgun',
             name: 'Handgun',
-            icon: '🔫',
+            icon: 'assets/handgun.png',
             type: 'ranged',
             baseDamage: 7,
             attackSpeed: 1.0,
@@ -177,7 +177,7 @@ const GAME_DATA = {
         {
             id: 'machinegun',
             name: 'Machine Gun',
-            icon: '🔫',
+            icon: 'assets/machinegun.png',
             type: 'ranged',
             baseDamage: 3,
             attackSpeed: 5.0,
@@ -284,7 +284,7 @@ const GAME_DATA = {
         {
             id: 'sniper',
             name: 'Sniper Rifle',
-            icon: '🔭',
+            icon: 'assets/sniper.png',
             type: 'ranged',
             baseDamage: 35,
             attackSpeed: 0.5,
@@ -310,7 +310,7 @@ const GAME_DATA = {
         {
             id: 'crossbow',
             name: 'Crossbow',
-            icon: '🏹',
+            icon: 'assets/crossbow.png',
             type: 'ranged',
             baseDamage: 18,
             attackSpeed: 1.2,
