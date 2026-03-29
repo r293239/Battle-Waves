@@ -2,6 +2,71 @@
 // GAME DATA - Weapons, Items, and Stat Buffs
 // ============================================
 
+// Image cache for weapon icons
+const weaponImageCache = {};
+let imagesLoaded = false;
+let imagesToLoad = 0;
+let imagesLoadedCount = 0;
+
+// Function to load weapon images
+function loadWeaponImages(callback) {
+    const weaponsWithImages = GAME_DATA.WEAPONS.filter(w => w.icon && w.icon.startsWith('assets/') && w.icon.endsWith('.png'));
+    imagesToLoad = weaponsWithImages.length;
+    imagesLoadedCount = 0;
+    
+    if (imagesToLoad === 0) {
+        if (callback) callback(true);
+        return;
+    }
+    
+    weaponsWithImages.forEach(weapon => {
+        const img = new Image();
+        img.onload = () => {
+            imagesLoadedCount++;
+            weaponImageCache[weapon.id] = img;
+            console.log(`Loaded: ${weapon.icon} (${imagesLoadedCount}/${imagesToLoad})`);
+            if (imagesLoadedCount === imagesToLoad && callback) {
+                imagesLoaded = true;
+                callback(true);
+            }
+        };
+        img.onerror = () => {
+            console.error(`Failed to load: ${weapon.icon}`);
+            imagesLoadedCount++;
+            weaponImageCache[weapon.id] = null;
+            if (imagesLoadedCount === imagesToLoad && callback) {
+                imagesLoaded = true;
+                callback(false);
+            }
+        };
+        img.src = weapon.icon;
+    });
+}
+
+// Function to draw weapon icon in shop/inventory
+function drawWeaponIcon(ctx, weapon, x, y, size) {
+    // Check if this weapon uses an image file
+    if (weapon.icon && weapon.icon.startsWith('assets/') && weapon.icon.endsWith('.png')) {
+        const img = weaponImageCache[weapon.id];
+        
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, x, y, size, size);
+        } else {
+            // Fallback while loading or if failed
+            ctx.fillStyle = '#666';
+            ctx.fillRect(x, y, size, size);
+            ctx.fillStyle = '#fff';
+            ctx.font = `${Math.floor(size * 0.5)}px Arial`;
+            ctx.fillText('🔫', x + size * 0.25, y + size * 0.7);
+        }
+    } else {
+        // Text emoji icon
+        ctx.font = `${Math.floor(size * 0.7)}px Arial`;
+        ctx.fillStyle = '#fff';
+        ctx.fillText(weapon.icon, x + size * 0.25, y + size * 0.75);
+    }
+}
+
 const GAME_DATA = {
     // Starting player stats
     PLAYER_START: {
@@ -17,7 +82,6 @@ const GAME_DATA = {
 
     // Wave configurations - 30 waves, boss every 10th wave
     WAVES: [
-        // Wave 1-9: Regular waves
         { number: 1, monsters: 5, monsterHealth: 20, monsterDamage: 2, goldReward: 50, isBoss: false },
         { number: 2, monsters: 7, monsterHealth: 25, monsterDamage: 3, goldReward: 60, isBoss: false },
         { number: 3, monsters: 9, monsterHealth: 30, monsterDamage: 4, goldReward: 70, isBoss: false },
@@ -27,11 +91,7 @@ const GAME_DATA = {
         { number: 7, monsters: 17, monsterHealth: 50, monsterDamage: 8, goldReward: 110, isBoss: false },
         { number: 8, monsters: 19, monsterHealth: 55, monsterDamage: 9, goldReward: 120, isBoss: false },
         { number: 9, monsters: 21, monsterHealth: 60, monsterDamage: 10, goldReward: 130, isBoss: false },
-        
-        // Wave 10: First Boss Wave
-        { number: 10, monsters: 1, monsterHealth: 2000, monsterDamage: 10, goldReward: 400, isBoss: true, minions: 8 },
-
-        // Waves 11-19: Regular waves
+        { number: 10, monsters: 1, monsterHealth: 3000, monsterDamage: 15, goldReward: 400, isBoss: true, minions: 8 },
         { number: 11, monsters: 30, monsterHealth: 70, monsterDamage: 11, goldReward: 140, isBoss: false },
         { number: 12, monsters: 32, monsterHealth: 75, monsterDamage: 12, goldReward: 150, isBoss: false },
         { number: 13, monsters: 34, monsterHealth: 80, monsterDamage: 13, goldReward: 160, isBoss: false },
@@ -41,11 +101,7 @@ const GAME_DATA = {
         { number: 17, monsters: 42, monsterHealth: 100, monsterDamage: 17, goldReward: 200, isBoss: false },
         { number: 18, monsters: 44, monsterHealth: 110, monsterDamage: 18, goldReward: 210, isBoss: false },
         { number: 19, monsters: 46, monsterHealth: 120, monsterDamage: 19, goldReward: 220, isBoss: false },
-        
-        // Wave 20: Second Boss Wave
         { number: 20, monsters: 1, monsterHealth: 5000, monsterDamage: 25, goldReward: 500, isBoss: true },
-
-        // Waves 21-29: Regular waves
         { number: 21, monsters: 55, monsterHealth: 130, monsterDamage: 20, goldReward: 240, isBoss: false },
         { number: 22, monsters: 60, monsterHealth: 140, monsterDamage: 21, goldReward: 260, isBoss: false },
         { number: 23, monsters: 65, monsterHealth: 150, monsterDamage: 22, goldReward: 280, isBoss: false },
@@ -55,80 +111,29 @@ const GAME_DATA = {
         { number: 27, monsters: 85, monsterHealth: 200, monsterDamage: 26, goldReward: 360, isBoss: false },
         { number: 28, monsters: 90, monsterHealth: 220, monsterDamage: 27, goldReward: 380, isBoss: false },
         { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400, isBoss: false },
-        
-        // Wave 30: Third Boss Wave
         { number: 30, monsters: 1, monsterHealth: 10000, monsterDamage: 40, goldReward: 1000, isBoss: true },
-        
         { number: 31, monsters: 100, monsterHealth: 300, monsterDamage: 28, goldReward: 450, isBoss: false }
     ],
 
     // Stat buffs that appear after each wave
     STAT_BUFFS: [
-        {
-            id: 'health_boost',
-            name: 'Health Boost',
-            description: 'Increase max health by 10%',
-            icon: '❤️',
-            effect: { maxHealthPercent: 0.1, healthPercent: 0.1 }
-        },
-        {
-            id: 'damage_boost',
-            name: 'Damage Boost',
-            description: 'Increase damage by 10%',
-            icon: '⚔️',
-            effect: { damagePercent: 0.1 }
-        },
-        {
-            id: 'speed_boost',
-            name: 'Speed Boost',
-            description: 'Increase speed by 10%',
-            icon: '👟',
-            effect: { speedPercent: 0.1 }
-        },
-        {
-            id: 'life_steal',
-            name: 'Life Steal',
-            description: 'Heal for 1% of damage dealt',
-            icon: '🦇',
-            effect: { lifeSteal: 0.01 }
-        },
-        {
-            id: 'critical_chance',
-            name: 'Critical Strike',
-            description: '5% chance for double damage',
-            icon: '🎯',
-            effect: { criticalChance: 0.05 }
-        },
-        {
-            id: 'gold_bonus',
-            name: 'Gold Bonus',
-            description: 'Earn 10% more gold',
-            icon: '💰',
-            effect: { goldMultiplier: 0.1 }
-        },
-        {
-            id: 'regen',
-            name: 'Health Regen',
-            description: 'Regenerate 1% HP per second',
-            icon: '🔄',
-            effect: { healthRegenPercent: 0.01 }
-        },
-        {
-            id: 'armor',
-            name: 'Armor',
-            description: 'Reduce damage taken by 3%',
-            icon: '🛡️',
-            effect: { damageReduction: 0.03 }
-        }
+        { id: 'health_boost', name: 'Health Boost', description: 'Increase max health by 10%', icon: '❤️', effect: { maxHealthPercent: 0.1, healthPercent: 0.1 } },
+        { id: 'damage_boost', name: 'Damage Boost', description: 'Increase damage by 10%', icon: '⚔️', effect: { damagePercent: 0.1 } },
+        { id: 'speed_boost', name: 'Speed Boost', description: 'Increase speed by 10%', icon: '👟', effect: { speedPercent: 0.1 } },
+        { id: 'life_steal', name: 'Life Steal', description: 'Heal for 1% of damage dealt', icon: '🦇', effect: { lifeSteal: 0.01 } },
+        { id: 'critical_chance', name: 'Critical Strike', description: '5% chance for double damage', icon: '🎯', effect: { criticalChance: 0.05 } },
+        { id: 'gold_bonus', name: 'Gold Bonus', description: 'Earn 10% more gold', icon: '💰', effect: { goldMultiplier: 0.1 } },
+        { id: 'regen', name: 'Health Regen', description: 'Regenerate 1% HP per second', icon: '🔄', effect: { healthRegenPercent: 0.01 } },
+        { id: 'armor', name: 'Armor', description: 'Reduce damage taken by 3%', icon: '🛡️', effect: { damageReduction: 0.03 } }
     ],
 
-    // Weapons available in shop
+    // Weapons available in shop - USING FILE PATHS FOR PNG IMAGES
     WEAPONS: [
-        // Ranged weapons
+        // Ranged weapons with PNG images
         {
             id: 'handgun',
             name: 'Handgun',
-            icon: '🔫',
+            icon: 'assets/handgun.png',  // PNG FILE PATH
             type: 'ranged',
             baseDamage: 7,
             attackSpeed: 1.0,
@@ -142,23 +147,19 @@ const GAME_DATA = {
             magazineSize: 8,
             reloadTime: 1500,
             spread: 0.05,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.7, 2.1, 2.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
-            }
+            tierMultipliers: { damage: [1, 1.2, 1.4, 1.7, 2.1, 2.5], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0] }
         },
         {
             id: 'shotgun',
             name: 'Shotgun',
-            icon: '💥',
+            icon: 'assets/shotgun.png',  // PNG FILE PATH
             type: 'ranged',
             baseDamage: 4,
             attackSpeed: 0.8,
             range: 200,
             projectileSpeed: 8,
             cost: 95,
-            description: '10 pellets in wide arc, 3 damage each',
+            description: '10 pellets in wide arc',
             projectileColor: '#FF6B6B',
             animation: 'shotgun',
             pelletCount: 10,
@@ -167,17 +168,12 @@ const GAME_DATA = {
             magazineSize: 6,
             reloadTime: 2000,
             spread: 0.2,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
-                attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
-                pelletCount: [1, 1, 1, 1.2, 1.4, 1.6],
-                magazine: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
+            tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25], pelletCount: [1, 1, 1, 1.2, 1.4, 1.6], magazine: [1, 1.1, 1.2, 1.3, 1.4, 1.5] }
         },
         {
             id: 'machinegun',
             name: 'Machine Gun',
-            icon: '🔫',
+            icon: 'assets/machinegun.png',  // PNG FILE PATH
             type: 'ranged',
             baseDamage: 3,
             attackSpeed: 5.0,
@@ -191,16 +187,12 @@ const GAME_DATA = {
             magazineSize: 50,
             reloadTime: 2500,
             spread: 0.75,
-            tierMultipliers: {
-                damage: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                magazine: [1, 1.3, 1.6, 1.9, 2.2, 2.5]
-            }
+            tierMultipliers: { damage: [1, 1.1, 1.2, 1.3, 1.4, 1.5], attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0], magazine: [1, 1.3, 1.6, 1.9, 2.2, 2.5] }
         },
         {
             id: 'laser',
             name: 'Energy Gun',
-            icon: '⚡',
+            icon: '⚡',  // Emoji - no PNG needed
             type: 'ranged',
             baseDamage: 8,
             attackSpeed: 2.0,
@@ -216,17 +208,12 @@ const GAME_DATA = {
             magazineSize: 15,
             reloadTime: 1800,
             spread: 0,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                bounceCount: [1, 1, 2, 2, 3, 4],
-                magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
-            }
+            tierMultipliers: { damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], bounceCount: [1, 1, 2, 2, 3, 4], magazine: [1, 1.2, 1.4, 1.6, 1.8, 2.0] }
         },
         {
             id: 'boomerang',
             name: 'Boomerang',
-            icon: '🪃',
+            icon: 'assets/boomerang.png',  // PNG FILE PATH
             type: 'ranged',
             baseDamage: 5,
             attackSpeed: 1.2,
@@ -234,34 +221,25 @@ const GAME_DATA = {
             projectileSpeed: 10,
             returnSpeed: 15,
             cost: 95,
-            description: 'Throws a returning boomerang that hits on both paths',
+            description: 'Throws a returning boomerang',
             projectileColor: '#8B4513',
             animation: 'boomerang',
             usesAmmo: false,
             maxTargets: 4,
-            useImage: true,
-            imagePath: 'assets/boomerang.png',
             spread: 0,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                maxTargets: [1, 1, 2, 2, 3, 4]
-            }
+            tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.4, 2.9], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5], maxTargets: [1, 1, 2, 2, 3, 4] }
         },
-        
-        // Throwing Knives
         {
             id: 'throwing_knives',
             name: 'Throwing Knives',
-            icon: '🔪',
+            icon: '🔪',  // Emoji
             type: 'ranged',
             baseDamage: 7,
             attackSpeed: 2.0,
             range: 250,
             projectileSpeed: 12,
             cost: 55,
-            description: 'Limited knives per round, higher tier = more knives',
+            description: 'Limited knives per round',
             projectileColor: '#C0C0C0',
             animation: 'knife',
             usesAmmo: true,
@@ -269,70 +247,51 @@ const GAME_DATA = {
             reloadTime: 0,
             isThrowable: true,
             resetEachRound: true,
-            projectileSize: 6,
-            spinSpeed: 0,
             spread: 0.02,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                magazine: [1, 1.4, 1.8, 2.2, 2.6, 3.0],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
+            tierMultipliers: { damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], magazine: [1, 1.4, 1.8, 2.2, 2.6, 3.0], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] }
         },
-        
-        // NEW: Sniper Rifle
         {
             id: 'sniper',
             name: 'Sniper Rifle',
-            icon: '🔭',
+            icon: 'assets/sniper.png',  // PNG FILE PATH
             type: 'ranged',
             baseDamage: 35,
             attackSpeed: 0.5,
             range: 500,
             projectileSpeed: 20,
             cost: 180,
-            description: 'Long range weapon that targets the highest HP enemy',
+            description: 'Long range, targets highest HP',
             projectileColor: '#FF4500',
             animation: 'sniper',
             usesAmmo: true,
             magazineSize: 3,
             reloadTime: 2500,
             spread: 0,
-            sniper: true, // Special flag for sniper behavior
-            tierMultipliers: {
-                damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                magazine: [1, 1, 1.2, 1.4, 1.6, 1.8]
-            }
+            sniper: true,
+            tierMultipliers: { damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], magazine: [1, 1, 1.2, 1.4, 1.6, 1.8] }
         },
-        
-        // NEW: Crossbow
         {
             id: 'crossbow',
             name: 'Crossbow',
-            icon: '🏹',
+            icon: 'assets/crossbow.png',  // PNG FILE PATH
             type: 'ranged',
             baseDamage: 18,
             attackSpeed: 1.2,
             range: 350,
             projectileSpeed: 15,
             cost: 120,
-            description: 'Heavy bolt that pierces through enemies',
+            description: 'Pierces through enemies',
             projectileColor: '#8B4513',
             animation: 'bolt',
             usesAmmo: true,
             magazineSize: 1,
             reloadTime: 1200,
             spread: 0,
-            pierceCount: 3, // Can pierce through multiple enemies
-            tierMultipliers: {
-                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                pierceCount: [1, 2, 2, 3, 3, 4]
-            }
+            pierceCount: 3,
+            tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], pierceCount: [1, 2, 2, 3, 3, 4] }
         },
         
-        // Melee weapons
+        // Melee weapons (emojis only - no PNGs)
         {
             id: 'sword',
             name: 'Iron Sword',
@@ -344,19 +303,8 @@ const GAME_DATA = {
             range: 100,
             cost: 60,
             description: 'Swing a longsword in an arc',
-            swingColor: '#C0C0C0',
-            swingAngle: 90,
-            animation: 'swordSwing',
-            trailColor: '#FFFFFF',
-            sparkleColor: '#FFD700',
-            bladeColor: '#C0C0C0',
-            hiltColor: '#8B4513',
             usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
+            tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] }
         },
         {
             id: 'axe',
@@ -368,26 +316,10 @@ const GAME_DATA = {
             attackSpeed: 0.8,
             range: 80,
             cost: 100,
-            description: '360° spinning axe with shockwave',
-            swingColor: '#8B4513',
-            swingAngle: 360,
-            animation: 'axeSpin',
-            trailColor: '#8B4513',
-            bladeColor: '#8B4513',
-            edgeColor: '#CD7F32',
-            handleColor: '#654321',
-            shockwaveColor: '#FFA500',
-            shockwaveIntensity: 1.75,
+            description: '360° spinning axe',
             usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5],
-                attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25],
-                range: [1, 1.1, 1.2, 1.3, 1.3, 1.3],
-                shockwaveIntensity: [1, 1.2, 1.4, 1.6, 1.8, 2.0]
-            }
+            tierMultipliers: { damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5], attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25], range: [1, 1.1, 1.2, 1.3, 1.3, 1.3] }
         },
-        
-        // Dual Daggers
         {
             id: 'dual_daggers',
             name: 'Dual Daggers',
@@ -398,22 +330,10 @@ const GAME_DATA = {
             attackSpeed: 3.0,
             range: 60,
             cost: 90,
-            description: 'Two fast daggers that strike twice per attack',
-            swingColor: '#4682B4',
-            swingAngle: 45,
-            animation: 'dualDaggers',
-            trailColor: '#87CEEB',
-            bladeColor: '#4682B4',
-            hiltColor: '#2F4F4F',
-            gripColor: '#8B4513',
-            sparkleColor: '#00FFFF',
+            description: 'Two fast daggers',
             usesAmmo: false,
             dualStrike: true,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4],
-                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                range: [1, 1.05, 1.1, 1.15, 1.2, 1.2]
-            }
+            tierMultipliers: { damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4], attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0], range: [1, 1.05, 1.1, 1.15, 1.2, 1.2] }
         },
         {
             id: 'dagger',
@@ -426,20 +346,8 @@ const GAME_DATA = {
             range: 50,
             cost: 70,
             description: 'Quick stabbing dagger',
-            swingColor: '#4682B4',
-            swingAngle: 30,
-            animation: 'daggerStab',
-            trailColor: '#4682B4',
-            bladeColor: '#4682B4',
-            hiltColor: '#2F4F4F',
-            gripColor: '#8B4513',
-            sparkleColor: '#00FFFF',
             usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0],
-                range: [1, 1.05, 1.1, 1.15, 1.2, 1.25]
-            }
+            tierMultipliers: { damage: [1, 1.2, 1.4, 1.6, 1.8, 2.0], attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0], range: [1, 1.05, 1.1, 1.15, 1.2, 1.25] }
         },
         {
             id: 'hammer',
@@ -452,21 +360,8 @@ const GAME_DATA = {
             range: 80,
             cost: 130,
             description: 'Massive overhead smash',
-            swingColor: '#D2691E',
-            swingAngle: 360,
-            animation: 'hammerSmash',
-            trailColor: '#D2691E',
-            headColor: '#696969',
-            handleColor: '#8B4513',
-            shockwaveColor: '#FF4500',
-            shockwaveIntensity: 2.0,
             usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.5, 2.0, 2.6, 3.3, 4.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                range: [1, 1.15, 1.3, 1.45, 1.6, 1.75],
-                shockwaveIntensity: [1, 1.3, 1.6, 1.9, 2.2, 2.5]
-            }
+            tierMultipliers: { damage: [1, 1.5, 2.0, 2.6, 3.3, 4.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.15, 1.3, 1.45, 1.6, 1.75] }
         },
         {
             id: 'spear',
@@ -478,219 +373,53 @@ const GAME_DATA = {
             attackSpeed: 1.0,
             range: 100,
             cost: 110,
-            description: 'Three-pronged thrust that pierces',
-            swingColor: '#32CD32',
-            swingAngle: 0,
-            animation: 'spearThrust',
-            trailColor: '#32CD32',
-            shaftColor: '#8B4513',
-            prongColor: '#CD7F32',
-            tipColor: '#FFD700',
-            pierceCount: 3,
+            description: 'Three-pronged thrust',
             usesAmmo: false,
-            tierMultipliers: {
-                damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0],
-                attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5],
-                pierceCount: [1, 1, 2, 2, 3, 4],
-                range: [1, 1.1, 1.2, 1.3, 1.4, 1.5]
-            }
+            pierceCount: 3,
+            tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], pierceCount: [1, 1, 2, 2, 3, 4], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] }
         }
     ],
 
     // Items available in shop
     ITEMS: [
-        // Consumable Items
-        {
-            id: 'health_potion',
-            name: 'Health Potion',
-            icon: '❤️',
-            type: 'consumable',
-            cost: 50,
-            description: 'Restore 25% of max health'
-        },
-        {
-            id: 'ammo_pack',
-            name: 'Ammo Pack',
-            icon: '📦',
-            type: 'consumable',
-            cost: 40,
-            description: 'Fully reload all ranged weapons (except throwables)'
-        },
-        
-        // Rage Potion
-        {
-            id: 'rage_potion',
-            name: 'Rage Potion',
-            icon: '🔥',
-            type: 'consumable',
-            cost: 60,
-            description: '+50% damage for 10 seconds'
-        },
-        
-        // Bomb
-        {
-            id: 'bomb',
-            name: 'Bomb',
-            icon: '💣',
-            type: 'consumable',
-            cost: 75,
-            description: 'Large area explosion dealing 100 damage to all enemies'
-        },
-        
-        // Experience Scroll
-        {
-            id: 'exp_scroll',
-            name: 'Experience Scroll',
-            icon: '📜✨',
-            type: 'consumable',
-            cost: 500,
-            description: 'Instantly upgrade a random weapon by one tier'
-        },
-        
-        // Healing Tower
-        {
-            id: 'healing_tower',
-            name: 'Healing Tower',
-            icon: '🏥',
-            type: 'tower',
-            category: 'tower',
-            cost: 50,
-            maxPerGame: 3,
-            description: 'Place a tower that heals you for 1 HP every 2 seconds. Enemies will target it. Has 30 HP.'
-        },
-        
-        // Landmine Tower
-        {
-            id: 'landmine',
-            name: 'Landmine',
-            icon: '💥',
-            type: 'tower',
-            category: 'tower',
-            cost: 75,
-            maxPerGame: 5,
-            description: 'Place a landmine. One spawns randomly each wave, max 5 total. Deals 80 damage in an area when triggered.'
-        },
-        
-        // Permanent Items
-        {
-            id: 'damage_orb',
-            name: 'Damage Orb',
-            icon: '💎',
-            type: 'permanent',
-            cost: 100,
-            description: 'Permanently +15% damage'
-        },
-        {
-            id: 'speed_boots',
-            name: 'Speed Boots',
-            icon: '👟',
-            type: 'permanent',
-            cost: 80,
-            description: 'Permanently +15% speed'
-        },
-        {
-            id: 'health_upgrade',
-            name: 'Health Upgrade',
-            icon: '🛡️',
-            type: 'permanent',
-            cost: 140,
-            description: 'Permanently +25% max health'
-        },
-        {
-            id: 'vampire_teeth',
-            name: 'Vampire Teeth',
-            icon: '🦷',
-            type: 'permanent',
-            cost: 320,
-            description: 'Permanently +5% life steal'
-        },
-        {
-            id: 'berserker_ring',
-            name: 'Berserker Ring',
-            icon: '💍',
-            type: 'permanent',
-            cost: 250,
-            description: 'Damage increases as health decreases'
-        },
-        {
-            id: 'ninja_scroll',
-            name: 'Ninja Scroll',
-            icon: '📜',
-            type: 'permanent',
-            cost: 145,
-            description: '+15% chance to dodge attacks'
-        },
-        {
-            id: 'alchemist_stone',
-            name: 'Alchemist Stone',
-            icon: '🪨',
-            type: 'permanent',
-            cost: 150,
-            description: 'Earn 20% more gold'
-        },
-        {
-            id: 'thorns_armor',
-            name: 'Thorns Armor',
-            icon: '🌵',
-            type: 'permanent',
-            cost: 120,
-            description: 'Reflect 25% of damage back to attackers'
-        },
-        {
-            id: 'wind_charm',
-            name: 'Wind Charm',
-            icon: '🍃',
-            type: 'permanent',
-            cost: 110,
-            description: '+15% attack speed'
-        },
-        {
-            id: 'runic_plate',
-            name: 'Runic Plate',
-            icon: '🔰',
-            type: 'permanent',
-            cost: 260,
-            description: 'First hit in each wave deals 50% less damage'
-        },
-        {
-            id: 'guardian_angel',
-            name: 'Guardian Angel',
-            icon: '😇',
-            type: 'permanent',
-            cost: 200,
-            description: 'Once per game, survive fatal damage with 50% health'
-        },
-        {
-            id: 'blood_contract',
-            name: 'Blood Contract',
-            icon: '📜🩸',
-            type: 'permanent',
-            cost: 150,
-            description: '+3% lifesteal per stack, but lose 1% HP per second per stack (stacks)'
-        }
+        { id: 'health_potion', name: 'Health Potion', icon: '❤️', type: 'consumable', cost: 50, description: 'Restore 25% of max health' },
+        { id: 'ammo_pack', name: 'Ammo Pack', icon: '📦', type: 'consumable', cost: 40, description: 'Fully reload all ranged weapons' },
+        { id: 'rage_potion', name: 'Rage Potion', icon: '🔥', type: 'consumable', cost: 60, description: '+50% damage for 10 seconds' },
+        { id: 'bomb', name: 'Bomb', icon: '💣', type: 'consumable', cost: 75, description: 'Large area explosion' },
+        { id: 'exp_scroll', name: 'Experience Scroll', icon: '📜✨', type: 'consumable', cost: 500, description: 'Upgrade a random weapon' },
+        { id: 'healing_tower', name: 'Healing Tower', icon: '🏥', type: 'tower', category: 'tower', cost: 50, maxPerGame: 3, description: 'Heals 1 HP every 2 seconds' },
+        { id: 'landmine', name: 'Landmine', icon: '💥', type: 'tower', category: 'tower', cost: 75, maxPerGame: 5, description: 'Deals 80 damage when triggered' },
+        { id: 'damage_orb', name: 'Damage Orb', icon: '💎', type: 'permanent', cost: 100, description: 'Permanently +15% damage' },
+        { id: 'speed_boots', name: 'Speed Boots', icon: '👟', type: 'permanent', cost: 80, description: 'Permanently +15% speed' },
+        { id: 'health_upgrade', name: 'Health Upgrade', icon: '🛡️', type: 'permanent', cost: 140, description: 'Permanently +25% max health' },
+        { id: 'vampire_teeth', name: 'Vampire Teeth', icon: '🦷', type: 'permanent', cost: 320, description: 'Permanently +5% life steal' },
+        { id: 'berserker_ring', name: 'Berserker Ring', icon: '💍', type: 'permanent', cost: 250, description: 'Damage increases as health decreases' },
+        { id: 'ninja_scroll', name: 'Ninja Scroll', icon: '📜', type: 'permanent', cost: 145, description: '+15% chance to dodge attacks' },
+        { id: 'alchemist_stone', name: 'Alchemist Stone', icon: '🪨', type: 'permanent', cost: 150, description: 'Earn 20% more gold' },
+        { id: 'thorns_armor', name: 'Thorns Armor', icon: '🌵', type: 'permanent', cost: 120, description: 'Reflect 25% of damage' },
+        { id: 'wind_charm', name: 'Wind Charm', icon: '🍃', type: 'permanent', cost: 110, description: '+15% attack speed' },
+        { id: 'runic_plate', name: 'Runic Plate', icon: '🔰', type: 'permanent', cost: 260, description: 'First hit each wave deals 50% less' },
+        { id: 'guardian_angel', name: 'Guardian Angel', icon: '😇', type: 'permanent', cost: 200, description: 'Survive fatal damage once' },
+        { id: 'blood_contract', name: 'Blood Contract', icon: '📜🩸', type: 'permanent', cost: 150, description: '+3% lifesteal per stack, lose 1% HP/sec' }
     ]
 };
 
-// Tower tracking object (for use in game logic)
 const TOWER_DATA = {
-    landmine: {
-        maxPerGame: 5,
-        damage: 80,
-        radius: 60,
-        triggerRadius: 15,
-        color: '#8B4513'
-    },
-    healingTower: {
-        maxPerGame: 3,
-        health: 30,
-        healAmount: 1,
-        healInterval: 2000,
-        radius: 20,
-        color: '#4CAF50'
-    }
+    landmine: { maxPerGame: 5, damage: 80, radius: 60, triggerRadius: 15, color: '#8B4513' },
+    healingTower: { maxPerGame: 3, health: 30, healAmount: 1, healInterval: 2000, radius: 20, color: '#4CAF50' }
 };
 
-// Verify data is loaded
+// Load images when the page loads
+window.addEventListener('DOMContentLoaded', () => {
+    loadWeaponImages((success) => {
+        if (success) {
+            console.log('All weapon images loaded successfully!');
+        } else {
+            console.log('Some weapon images failed to load, using fallback icons');
+        }
+    });
+});
+
 console.log('GAME_DATA loaded with', GAME_DATA.WAVES.length, 'waves');
 console.log('Total weapons:', GAME_DATA.WEAPONS.length);
 console.log('Total items:', GAME_DATA.ITEMS.length);
