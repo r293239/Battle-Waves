@@ -104,16 +104,16 @@ const MONSTER_TYPES = {
         name: 'BOSS',
         color: '#ffd700',
         speed: 0.9,
-        healthMultiplier: 10,
-        damageMultiplier: 1.5,
+        healthMultiplier: 15,
+        damageMultiplier: 2.0,
         sizeMultiplier: 2.2,
         icon: '👑',
         isBoss: true,
         lifeSteal: 0.1,
         projectileSpeed: 5,
-        projectileDamage: 12,
+        projectileDamage: 15,
         projectileCooldown: 2000,
-        goldDrop: { min: 150, max: 300 }
+        goldDrop: { min: 100, max: 300 }
     }
 };
 
@@ -124,7 +124,7 @@ const BOSS_WEAPONS = {
         type: 'melee',
         meleeType: 'pierce',
         baseDamage: 25,
-        attackSpeed: 3,
+        attackSpeed: 2.0,
         range: 150,
         description: 'Quick stabbing attacks',
         swingColor: '#8B0000',
@@ -881,14 +881,17 @@ player.updateHealthDisplay = function() {
 };
 
 // ============================================
-// HEALING FUNCTIONS - FIXED
+// HEALING FUNCTIONS - FIXED (ALWAYS ROUND UP)
 // ============================================
 
 function applyHealing(amount) {
     if (player.health >= player.maxHealth) return;
     if (amount <= 0) return;
     
-    pendingHealing += amount;
+    // Round up healing amount to ensure at least 1 HP is healed
+    const roundedAmount = Math.ceil(amount);
+    
+    pendingHealing += roundedAmount;
     
     // Calculate how much we can actually heal
     const healAmount = Math.min(pendingHealing, player.maxHealth - player.health);
@@ -919,7 +922,7 @@ function applyHealing(amount) {
 }
 
 // ============================================
-// WEAPON PRIORITY TARGETING SYSTEM
+// WEAPON PRIORITY TARGETING SYSTEM - ENHANCED
 // ============================================
 
 function getTargetPriority(monster, player, weapon, currentTime) {
@@ -930,8 +933,8 @@ function getTargetPriority(monster, player, weapon, currentTime) {
     // Skip if out of range
     if (distance > weapon.range) return -Infinity;
     
-    // Base score starts with distance (closer is better)
-    let score = 1000 - distance;
+    // BIGGEST PRIORITY: CLOSEST MONSTER (distance is the most important factor)
+    let score = 10000 - distance;
     
     // Calculate angle to monster relative to player's facing direction
     const angleToMonster = Math.atan2(dy, dx);
@@ -962,8 +965,12 @@ function getTargetPriority(monster, player, weapon, currentTime) {
     
     // Special priorities based on weapon type
     if (weapon.sniper) {
-        // Sniper prioritizes high HP enemies
-        score += monster.health * 2;
+        // Sniper prioritizes high HP enemies (farther away but high HP)
+        score += monster.health * 1.5;
+        // Sniper prefers enemies at medium range
+        if (distance > 200 && distance < 500) {
+            score += 200;
+        }
     } else if (weapon.id === 'shotgun') {
         // Shotgun prefers groups - bonus for monsters near others
         let nearbyCount = 0;
@@ -974,14 +981,50 @@ function getTargetPriority(monster, player, weapon, currentTime) {
             const odist = Math.sqrt(odx * odx + ody * ody);
             if (odist < 100) nearbyCount++;
         });
-        score += nearbyCount * 50;
+        score += nearbyCount * 80;
+        // Shotgun prefers closer enemies
+        if (distance < 150) {
+            score += 300;
+        }
     } else if (weapon.id === 'crossbow') {
         // Crossbow prefers lined-up enemies
-        score += angleScore * 200;
+        score += angleScore * 250;
+        // Crossbow prefers enemies that are in a line with others
+        let linedUpCount = 0;
+        monsters.forEach(other => {
+            if (other === monster) return;
+            const cross = Math.abs(Math.sin(angleDiff) * 100);
+            if (cross < 50) linedUpCount++;
+        });
+        score += linedUpCount * 100;
     } else if (weapon.id === 'throwing_knives') {
-        // Throwing knives prefer low HP enemies
+        // Throwing knives prefer low HP enemies (finishing blows)
         const healthPercent = monster.health / monster.maxHealth;
-        score += (1 - healthPercent) * 200;
+        score += (1 - healthPercent) * 400;
+        // Also prefer closer enemies
+        if (distance < 150) {
+            score += 200;
+        }
+    } else if (weapon.id === 'boomerang') {
+        // Boomerang prefers multiple targets
+        let nearbyCount = 0;
+        monsters.forEach(other => {
+            if (other === monster) return;
+            const odx = other.x - monster.x;
+            const ody = other.y - monster.y;
+            const odist = Math.sqrt(odx * odx + ody * ody);
+            if (odist < 150) nearbyCount++;
+        });
+        score += nearbyCount * 120;
+    } else if (weapon.id === 'laser') {
+        // Laser prefers enemies in a straight line
+        let linedUpCount = 0;
+        monsters.forEach(other => {
+            if (other === monster) return;
+            const cross = Math.abs(Math.sin(angleDiff) * 100);
+            if (cross < 30) linedUpCount++;
+        });
+        score += linedUpCount * 150;
     } else if (weapon.meleeType === 'aoe') {
         // AOE melee weapons (axe, hammer) prefer groups
         let nearbyCount = 0;
@@ -993,11 +1036,52 @@ function getTargetPriority(monster, player, weapon, currentTime) {
             if (odist < weapon.range * 1.5) nearbyCount++;
         });
         score += nearbyCount * 100;
+        // AOE weapons prefer being in the middle of groups
+        if (distance < weapon.range) {
+            score += 150;
+        }
+    } else if (weapon.meleeType === 'pierce') {
+        // Pierce weapons (spear, dagger) prefer enemies in a line
+        score += angleScore * 200;
+        // Also prefer enemies at max range
+        if (distance > weapon.range * 0.7) {
+            score += 100;
+        }
+    } else if (weapon.meleeType === 'single') {
+        // Single target melee prefers the closest enemy
+        if (distance < 80) {
+            score += 500;
+        }
     }
     
-    // Emergency override: if monster is very close (within 50 pixels), prioritize it
+    // Emergency override: if monster is very close (within 50 pixels), prioritize it heavily
     if (distance < 50) {
-        score += 1000;
+        score += 2000;
+    }
+    
+    // Priority for bosses (always target boss if in range)
+    if (monster.isBoss) {
+        score += 3000;
+    }
+    
+    // Priority for splitter monsters (they create more enemies)
+    if (monster.isSplitter) {
+        score += 500;
+    }
+    
+    // Priority for explosive monsters (they can damage player when killed)
+    if (monster.explosive) {
+        score += 400;
+    }
+    
+    // Priority for gunners (ranged attackers)
+    if (monster.isGunner) {
+        score += 300;
+    }
+    
+    // Priority for dashers (fast enemies)
+    if (monster.isDasher) {
+        score += 250;
     }
     
     return score;
@@ -3999,18 +4083,15 @@ function drawSniperProjectile(ctx, projectile, currentTime) {
     ctx.save();
     ctx.translate(projectile.x, projectile.y);
     
-    // Sniper bullet trail
     const trailLength = 15;
     ctx.shadowColor = '#FF4500';
     ctx.shadowBlur = 20;
     
-    // Bullet head
     ctx.fillStyle = '#FFD700';
     ctx.beginPath();
     ctx.arc(0, 0, 5, 0, Math.PI * 2);
     ctx.fill();
     
-    // Trail
     ctx.strokeStyle = '#FF4500';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -4018,7 +4099,6 @@ function drawSniperProjectile(ctx, projectile, currentTime) {
     ctx.lineTo(0, 0);
     ctx.stroke();
     
-    // Muzzle flash effect (at start of flight)
     const age = currentTime - projectile.startTime;
     if (age < 100) {
         ctx.fillStyle = `rgba(255, 200, 0, ${1 - age/100})`;
@@ -4039,11 +4119,9 @@ function drawCrossbowProjectile(ctx, projectile, currentTime) {
     ctx.shadowColor = '#8B4513';
     ctx.shadowBlur = 15;
     
-    // Bolt shaft
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(-15, -2, 30, 4);
     
-    // Bolt head (tip)
     ctx.fillStyle = '#C0C0C0';
     ctx.beginPath();
     ctx.moveTo(15, -3);
@@ -4052,7 +4130,6 @@ function drawCrossbowProjectile(ctx, projectile, currentTime) {
     ctx.closePath();
     ctx.fill();
     
-    // Fletching (feathers at back)
     ctx.fillStyle = '#FF0000';
     ctx.beginPath();
     ctx.moveTo(-15, -4);
@@ -4068,7 +4145,6 @@ function drawCrossbowProjectile(ctx, projectile, currentTime) {
     ctx.closePath();
     ctx.fill();
     
-    // Glow effect when penetrating
     if (projectile.pierceCount && projectile.pierceCount < 3) {
         ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 2;
@@ -5483,14 +5559,14 @@ function shootBossProjectiles(boss) {
     
     if (wave === 10) {
         const baseAngle = Math.atan2(player.y - boss.y, player.x - boss.x);
-        for (let i = -2; i <= 2; i++) {
+        for (let i = -3; i <= 4; i++) {
             const angle = baseAngle + (i * 0.2);
             bossProjectiles.push({
                 x: boss.x,
                 y: boss.y,
-                vx: Math.cos(angle) * 5,
-                vy: Math.sin(angle) * 5,
-                damage: 7,
+                vx: Math.cos(angle) * 6,
+                vy: Math.sin(angle) * 6,
+                damage: 10,
                 radius: 5,
                 color: '#ff8888',
                 startTime: currentTime,
