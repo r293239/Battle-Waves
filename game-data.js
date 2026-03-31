@@ -8,9 +8,14 @@ let imagesLoaded = false;
 let imagesToLoad = 0;
 let imagesLoadedCount = 0;
 
+// Function to check if a string is a file path (ends with .png)
+function isFilePath(icon) {
+    return icon && typeof icon === 'string' && (icon.endsWith('.png') || icon.endsWith('.jpg') || icon.endsWith('.jpeg') || icon.endsWith('.gif'));
+}
+
 // Function to load weapon images
 function loadWeaponImages(callback) {
-    const weaponsWithImages = GAME_DATA.WEAPONS.filter(w => w.icon && w.icon.startsWith('assets/') && w.icon.endsWith('.png'));
+    const weaponsWithImages = GAME_DATA.WEAPONS.filter(w => isFilePath(w.icon));
     imagesToLoad = weaponsWithImages.length;
     imagesLoadedCount = 0;
     
@@ -23,17 +28,17 @@ function loadWeaponImages(callback) {
         const img = new Image();
         img.onload = () => {
             imagesLoadedCount++;
-            weaponImageCache[weapon.id] = img;
-            console.log(`Loaded: ${weapon.icon} (${imagesLoadedCount}/${imagesToLoad})`);
+            weaponImageCache[weapon.id] = { loaded: true, img: img };
+            console.log(`✓ Loaded: ${weapon.icon} (${imagesLoadedCount}/${imagesToLoad})`);
             if (imagesLoadedCount === imagesToLoad && callback) {
                 imagesLoaded = true;
                 callback(true);
             }
         };
         img.onerror = () => {
-            console.error(`Failed to load: ${weapon.icon}`);
+            console.warn(`✗ Failed to load: ${weapon.icon} - using fallback emoji`);
             imagesLoadedCount++;
-            weaponImageCache[weapon.id] = null;
+            weaponImageCache[weapon.id] = { loaded: false, img: null, fallback: getFallbackEmoji(weapon.id) };
             if (imagesLoadedCount === imagesToLoad && callback) {
                 imagesLoaded = true;
                 callback(false);
@@ -43,27 +48,62 @@ function loadWeaponImages(callback) {
     });
 }
 
-// Function to draw weapon icon in shop/inventory
-function drawWeaponIcon(ctx, weapon, x, y, size) {
+// Get fallback emoji based on weapon ID
+function getFallbackEmoji(weaponId) {
+    const fallbacks = {
+        'handgun': '🔫',
+        'shotgun': '🔫',
+        'machinegun': '🔫',
+        'boomerang': '🪃',
+        'sniper': '🎯',
+        'crossbow': '🏹'
+    };
+    return fallbacks[weaponId] || '🔫';
+}
+
+// Function to draw weapon icon (smart fallback)
+function drawWeaponIcon(ctx, weapon, x, y, size, isShop = true) {
+    // Draw background
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(x, y, size, size);
+    ctx.strokeStyle = '#ecf0f1';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, size, size);
+    
     // Check if this weapon uses an image file
-    if (weapon.icon && weapon.icon.startsWith('assets/') && weapon.icon.endsWith('.png')) {
-        const img = weaponImageCache[weapon.id];
+    if (isFilePath(weapon.icon)) {
+        const cached = weaponImageCache[weapon.id];
         
-        if (img && img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, x, y, size, size);
+        // Try to load if not cached yet
+        if (!cached) {
+            // Still loading - show loading indicator
+            ctx.fillStyle = '#7f8c8d';
+            ctx.font = `${Math.floor(size * 0.3)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('Loading...', x + size/2, y + size/2);
+            ctx.textAlign = 'left';
+            return;
+        }
+        
+        // Check if image loaded successfully
+        if (cached.loaded && cached.img) {
+            // Draw the loaded image
+            ctx.drawImage(cached.img, x + 2, y + 2, size - 4, size - 4);
         } else {
-            // Fallback while loading or if failed
-            ctx.fillStyle = '#666';
-            ctx.fillRect(x, y, size, size);
-            ctx.fillStyle = '#fff';
-            ctx.font = `${Math.floor(size * 0.5)}px Arial`;
-            ctx.fillText('🔫', x + size * 0.25, y + size * 0.7);
+            // Image failed to load - use fallback emoji
+            ctx.font = `${Math.floor(size * 0.6)}px Arial`;
+            ctx.fillStyle = '#ecf0f1';
+            ctx.textAlign = 'center';
+            ctx.fillText(cached.fallback || getFallbackEmoji(weapon.id), x + size/2, y + size/2 + 5);
+            ctx.textAlign = 'left';
         }
     } else {
-        // Text emoji icon
-        ctx.font = `${Math.floor(size * 0.7)}px Arial`;
-        ctx.fillStyle = '#fff';
-        ctx.fillText(weapon.icon, x + size * 0.25, y + size * 0.75);
+        // Text emoji icon - draw directly
+        ctx.font = `${Math.floor(size * 0.6)}px Arial`;
+        ctx.fillStyle = '#ecf0f1';
+        ctx.textAlign = 'center';
+        ctx.fillText(weapon.icon, x + size/2, y + size/2 + 5);
+        ctx.textAlign = 'left';
     }
 }
 
@@ -152,7 +192,7 @@ const GAME_DATA = {
         {
             id: 'shotgun',
             name: 'Shotgun',
-            icon: 'assets/shotgun.png',  // PNG FILE PATH
+            icon: 'assets/shotgun.png',  // PNG FILE PATH (FIXED - was 💥)
             type: 'ranged',
             baseDamage: 4,
             attackSpeed: 0.8,
@@ -413,9 +453,9 @@ const TOWER_DATA = {
 window.addEventListener('DOMContentLoaded', () => {
     loadWeaponImages((success) => {
         if (success) {
-            console.log('All weapon images loaded successfully!');
+            console.log('✓ All weapon images loaded successfully!');
         } else {
-            console.log('Some weapon images failed to load, using fallback icons');
+            console.log('⚠ Some weapon images failed to load, using fallback emojis');
         }
     });
 });
