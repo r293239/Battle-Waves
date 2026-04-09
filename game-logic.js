@@ -43,8 +43,8 @@ const MONSTER_TYPES = {
         icon: '💥',
         explosive: true,
         explosionRadius: 70,
-        explosionDamage: 1.0,
-        goldDrop: { min: 7, max: 25 }
+        explosionDamage: 0.7,
+        goldDrop: { min: 10, max: 25 }
     },
     GUNNER: {
         name: 'Gunner',
@@ -103,7 +103,7 @@ const MONSTER_TYPES = {
     BOSS: {
         name: 'BOSS',
         color: '#ffd700',
-        speed: 0.9,
+        speed: 0.7,
         healthMultiplier: 15,
         damageMultiplier: 2.0,
         sizeMultiplier: 2.2,
@@ -1105,6 +1105,82 @@ function selectTargetForWeapon(weapon, currentTime) {
 }
 
 // ============================================
+// SHOP ITEM FILTERING - PREVENT MAXED ITEMS
+// ============================================
+
+function isItemMaxed(itemData) {
+    // Check for landmines (max 5)
+    if (itemData.id === 'landmine') {
+        return playerTowers.landmines.count >= playerTowers.landmines.max;
+    }
+    
+    // Check for weapons - if player already has tier 5 of this weapon
+    if (itemData.type === 'weapon') {
+        const existingWeapon = player.weapons.find(w => w.id === itemData.id && w.tier >= 5);
+        if (existingWeapon) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+function generateShopItems() {
+    const shopItems = [];
+    
+    // Filter out weapons that are already at max tier 5
+    let availableWeapons = GAME_DATA.WEAPONS.filter(w => {
+        if (w.id === 'handgun') return false;
+        // Check if player already has this weapon at tier 5
+        const hasMaxTier = player.weapons.some(pw => pw.id === w.id && pw.tier >= 5);
+        return !hasMaxTier;
+    });
+    
+    for (let i = 0; i < 2; i++) {
+        if (availableWeapons.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableWeapons.length);
+            const weapon = {...availableWeapons[randomIndex]};
+            
+            const tier = Math.random() < 0.3 ? 2 : 1;
+            
+            const weaponInstance = new WeaponInstance(weapon, tier);
+            
+            shopItems.push({
+                type: 'weapon',
+                data: weapon,
+                tier: tier,
+                instance: weaponInstance
+            });
+            availableWeapons.splice(randomIndex, 1);
+        }
+    }
+    
+    // Filter out items that are maxed out
+    let availableItems = [...GAME_DATA.ITEMS];
+    availableItems = availableItems.filter(item => {
+        // Skip landmines if already at max count
+        if (item.id === 'landmine' && playerTowers.landmines.count >= playerTowers.landmines.max) {
+            return false;
+        }
+        return true;
+    });
+    
+    for (let i = 0; i < 2; i++) {
+        if (availableItems.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            const item = {...availableItems[randomIndex]};
+            shopItems.push({
+                type: item.type === 'tower' ? 'tower' : 'item',
+                data: item
+            });
+            availableItems.splice(randomIndex, 1);
+        }
+    }
+    
+    return shopItems.sort(() => Math.random() - 0.5);
+}
+
+// ============================================
 // TOWER FUNCTIONS
 // ============================================
 
@@ -1489,13 +1565,16 @@ function useExpScroll() {
         return;
     }
     
-    const randomIndex = Math.floor(Math.random() * player.weapons.length);
-    const weapon = player.weapons[randomIndex];
+    // Filter out weapons that are already at max tier (5)
+    const upgradableWeapons = player.weapons.filter(w => w.tier < 5);
     
-    if (weapon.tier >= 5) {
-        queueMessage(`${weapon.name} is already max tier!`);
+    if (upgradableWeapons.length === 0) {
+        queueMessage("All weapons are already max tier (5)!");
         return;
     }
+    
+    const randomIndex = Math.floor(Math.random() * upgradableWeapons.length);
+    const weapon = upgradableWeapons[randomIndex];
     
     const oldTier = weapon.tier;
     weapon.tier++;
@@ -2091,45 +2170,6 @@ function getMonsterTypeForWave(waveNumber) {
     for (let i = 0; i < comp.dasher; i++) types.push(MONSTER_TYPES.DASHER);
     
     return types;
-}
-
-function generateShopItems() {
-    const shopItems = [];
-    
-    const availableWeapons = GAME_DATA.WEAPONS.filter(w => w.id !== 'handgun');
-    
-    for (let i = 0; i < 2; i++) {
-        if (availableWeapons.length > 0) {
-            const randomIndex = Math.floor(Math.random() * availableWeapons.length);
-            const weapon = {...availableWeapons[randomIndex]};
-            
-            const tier = Math.random() < 0.3 ? 2 : 1;
-            
-            const weaponInstance = new WeaponInstance(weapon, tier);
-            
-            shopItems.push({
-                type: 'weapon',
-                data: weapon,
-                tier: tier,
-                instance: weaponInstance
-            });
-            availableWeapons.splice(randomIndex, 1);
-        }
-    }
-    
-    const availableItems = [...GAME_DATA.ITEMS];
-    for (let i = 0; i < 2; i++) {
-        if (availableItems.length > 0) {
-            const randomIndex = Math.floor(Math.random() * availableItems.length);
-            const item = {...availableItems[randomIndex]};
-            shopItems.push({
-                type: item.type === 'tower' ? 'tower' : 'item',
-                data: item
-            });
-        }
-    }
-    
-    return shopItems.sort(() => Math.random() - 0.5);
 }
 
 function refreshShop() {
