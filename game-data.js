@@ -2,111 +2,6 @@
 // GAME DATA - Weapons, Items, and Stat Buffs
 // ============================================
 
-// Image cache for weapon icons
-const weaponImageCache = {};
-let imagesLoaded = false;
-let imagesToLoad = 0;
-let imagesLoadedCount = 0;
-
-// Function to check if a string is a file path (ends with .png)
-function isFilePath(icon) {
-    return icon && typeof icon === 'string' && (icon.endsWith('.png') || icon.endsWith('.jpg') || icon.endsWith('.jpeg') || icon.endsWith('.gif'));
-}
-
-// Function to load weapon images
-function loadWeaponImages(callback) {
-    const weaponsWithImages = GAME_DATA.WEAPONS.filter(w => isFilePath(w.icon));
-    imagesToLoad = weaponsWithImages.length;
-    imagesLoadedCount = 0;
-    
-    if (imagesToLoad === 0) {
-        if (callback) callback(true);
-        return;
-    }
-    
-    weaponsWithImages.forEach(weapon => {
-        const img = new Image();
-        img.onload = () => {
-            imagesLoadedCount++;
-            weaponImageCache[weapon.id] = { loaded: true, img: img };
-            console.log(`✓ Loaded: ${weapon.icon} (${imagesLoadedCount}/${imagesToLoad})`);
-            if (imagesLoadedCount === imagesToLoad && callback) {
-                imagesLoaded = true;
-                callback(true);
-            }
-        };
-        img.onerror = () => {
-            console.warn(`✗ Failed to load: ${weapon.icon} - using fallback emoji`);
-            imagesLoadedCount++;
-            weaponImageCache[weapon.id] = { loaded: false, img: null, fallback: getFallbackEmoji(weapon.id) };
-            if (imagesLoadedCount === imagesToLoad && callback) {
-                imagesLoaded = true;
-                callback(false);
-            }
-        };
-        img.src = weapon.icon;
-    });
-}
-
-// Get fallback emoji based on weapon ID
-function getFallbackEmoji(weaponId) {
-    const fallbacks = {
-        'handgun': '🔫',
-        'shotgun': '🔫',
-        'machinegun': '🔫',
-        'boomerang': '🪃',
-        'sniper': '🎯',
-        'crossbow': '🏹'
-    };
-    return fallbacks[weaponId] || '🔫';
-}
-
-// Function to draw weapon icon (smart fallback)
-function drawWeaponIcon(ctx, weapon, x, y, size, isShop = true) {
-    // Draw background
-    ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(x, y, size, size);
-    ctx.strokeStyle = '#ecf0f1';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, size, size);
-    
-    // Check if this weapon uses an image file
-    if (isFilePath(weapon.icon)) {
-        const cached = weaponImageCache[weapon.id];
-        
-        // Try to load if not cached yet
-        if (!cached) {
-            // Still loading - show loading indicator
-            ctx.fillStyle = '#7f8c8d';
-            ctx.font = `${Math.floor(size * 0.3)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.fillText('Loading...', x + size/2, y + size/2);
-            ctx.textAlign = 'left';
-            return;
-        }
-        
-        // Check if image loaded successfully
-        if (cached.loaded && cached.img) {
-            // Draw the loaded image
-            ctx.drawImage(cached.img, x + 2, y + 2, size - 4, size - 4);
-        } else {
-            // Image failed to load - use fallback emoji
-            ctx.font = `${Math.floor(size * 0.6)}px Arial`;
-            ctx.fillStyle = '#ecf0f1';
-            ctx.textAlign = 'center';
-            ctx.fillText(cached.fallback || getFallbackEmoji(weapon.id), x + size/2, y + size/2 + 5);
-            ctx.textAlign = 'left';
-        }
-    } else {
-        // Text emoji icon - draw directly
-        ctx.font = `${Math.floor(size * 0.6)}px Arial`;
-        ctx.fillStyle = '#ecf0f1';
-        ctx.textAlign = 'center';
-        ctx.fillText(weapon.icon, x + size/2, y + size/2 + 5);
-        ctx.textAlign = 'left';
-    }
-}
-
 const GAME_DATA = {
     // Starting player stats
     PLAYER_START: {
@@ -167,13 +62,13 @@ const GAME_DATA = {
         { id: 'armor', name: 'Armor', description: 'Reduce damage taken by 3%', icon: '🛡️', effect: { damageReduction: 0.03 } }
     ],
 
-    // Weapons available in shop - USING FILE PATHS FOR PNG IMAGES
+    // Weapons available in shop - ALL EMOJIS (no PNG files)
     WEAPONS: [
-        // Ranged weapons with PNG images
+        // Ranged weapons
         {
             id: 'handgun',
             name: 'Handgun',
-            icon: 'assets/handgun.png',  // PNG FILE PATH
+            icon: '🔫',
             type: 'ranged',
             baseDamage: 7,
             attackSpeed: 1.0,
@@ -192,7 +87,7 @@ const GAME_DATA = {
         {
             id: 'shotgun',
             name: 'Shotgun',
-            icon: 'assets/shotgun.png',  // PNG FILE PATH (FIXED - was 💥)
+            icon: '🔫',
             type: 'ranged',
             baseDamage: 4,
             attackSpeed: 0.8,
@@ -213,7 +108,7 @@ const GAME_DATA = {
         {
             id: 'machinegun',
             name: 'Machine Gun',
-            icon: 'assets/machinegun.png',  // PNG FILE PATH
+            icon: '🔫',
             type: 'ranged',
             baseDamage: 3,
             attackSpeed: 5.0,
@@ -232,7 +127,7 @@ const GAME_DATA = {
         {
             id: 'laser',
             name: 'Energy Gun',
-            icon: '⚡',  // Emoji - no PNG needed
+            icon: '⚡',
             type: 'ranged',
             baseDamage: 8,
             attackSpeed: 2.0,
@@ -253,7 +148,7 @@ const GAME_DATA = {
         {
             id: 'boomerang',
             name: 'Boomerang',
-            icon: 'assets/boomerang.png',  // PNG FILE PATH
+            icon: '🪃',
             type: 'ranged',
             baseDamage: 5,
             attackSpeed: 1.2,
@@ -272,7 +167,7 @@ const GAME_DATA = {
         {
             id: 'throwing_knives',
             name: 'Throwing Knives',
-            icon: '🔪',  // Emoji
+            icon: '🔪',
             type: 'ranged',
             baseDamage: 7,
             attackSpeed: 2.0,
@@ -293,7 +188,7 @@ const GAME_DATA = {
         {
             id: 'sniper',
             name: 'Sniper Rifle',
-            icon: 'assets/sniper.png',  // PNG FILE PATH
+            icon: '🎯',
             type: 'ranged',
             baseDamage: 35,
             attackSpeed: 0.5,
@@ -313,7 +208,7 @@ const GAME_DATA = {
         {
             id: 'crossbow',
             name: 'Crossbow',
-            icon: 'assets/crossbow.png',  // PNG FILE PATH
+            icon: '🏹',
             type: 'ranged',
             baseDamage: 18,
             attackSpeed: 1.2,
@@ -331,7 +226,7 @@ const GAME_DATA = {
             tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], pierceCount: [1, 2, 2, 3, 3, 4] }
         },
         
-        // Melee weapons (emojis only - no PNGs)
+        // Melee weapons
         {
             id: 'sword',
             name: 'Iron Sword',
@@ -449,17 +344,7 @@ const TOWER_DATA = {
     healingTower: { maxPerGame: 3, health: 30, healAmount: 1, healInterval: 2000, radius: 20, color: '#4CAF50' }
 };
 
-// Load images when the page loads
-window.addEventListener('DOMContentLoaded', () => {
-    loadWeaponImages((success) => {
-        if (success) {
-            console.log('✓ All weapon images loaded successfully!');
-        } else {
-            console.log('⚠ Some weapon images failed to load, using fallback emojis');
-        }
-    });
-});
-
+// Verify data is loaded
 console.log('GAME_DATA loaded with', GAME_DATA.WAVES.length, 'waves');
 console.log('Total weapons:', GAME_DATA.WEAPONS.length);
 console.log('Total items:', GAME_DATA.ITEMS.length);
