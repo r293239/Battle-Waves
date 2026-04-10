@@ -1,5 +1,5 @@
 // ============================================
-// MONSTER TYPES
+// MONSTER TYPES - ADD VAMPIRE
 // ============================================
 
 const MONSTER_TYPES = {
@@ -42,8 +42,8 @@ const MONSTER_TYPES = {
         sizeMultiplier: 1,
         icon: '💥',
         explosive: true,
-        explosionRadius: 70,
-        explosionDamage: 0.7,
+        explosionRadius: 100,
+        explosionDamage: 3.0,
         goldDrop: { min: 10, max: 25 }
     },
     GUNNER: {
@@ -99,6 +99,18 @@ const MONSTER_TYPES = {
         dashCooldown: 3000,
         dashRange: 300,
         goldDrop: { min: 20, max: 35 }
+    },
+    VAMPIRE: {
+        name: 'Vampire',
+        color: '#8B008B',
+        speed: 1.2,
+        healthMultiplier: 1.2,
+        damageMultiplier: 1.1,
+        sizeMultiplier: 0.9,
+        icon: '🧛',
+        isVampire: true,
+        lifeSteal: 0.2,
+        goldDrop: { min: 15, max: 35 }
     },
     BOSS: {
         name: 'BOSS',
@@ -965,14 +977,13 @@ function getTargetPriority(monster, player, weapon, currentTime) {
     
     // Special priorities based on weapon type
     if (weapon.sniper) {
-        // Sniper prioritizes high HP enemies (farther away but high HP)
+        // Sniper prioritizes high HP enemies
         score += monster.health * 1.5;
-        // Sniper prefers enemies at medium range
         if (distance > 200 && distance < 500) {
             score += 200;
         }
     } else if (weapon.id === 'shotgun') {
-        // Shotgun prefers groups - bonus for monsters near others
+        // Shotgun prefers groups
         let nearbyCount = 0;
         monsters.forEach(other => {
             if (other === monster) return;
@@ -982,14 +993,11 @@ function getTargetPriority(monster, player, weapon, currentTime) {
             if (odist < 100) nearbyCount++;
         });
         score += nearbyCount * 80;
-        // Shotgun prefers closer enemies
         if (distance < 150) {
             score += 300;
         }
     } else if (weapon.id === 'crossbow') {
-        // Crossbow prefers lined-up enemies
         score += angleScore * 250;
-        // Crossbow prefers enemies that are in a line with others
         let linedUpCount = 0;
         monsters.forEach(other => {
             if (other === monster) return;
@@ -998,15 +1006,12 @@ function getTargetPriority(monster, player, weapon, currentTime) {
         });
         score += linedUpCount * 100;
     } else if (weapon.id === 'throwing_knives') {
-        // Throwing knives prefer low HP enemies (finishing blows)
         const healthPercent = monster.health / monster.maxHealth;
         score += (1 - healthPercent) * 400;
-        // Also prefer closer enemies
         if (distance < 150) {
             score += 200;
         }
     } else if (weapon.id === 'boomerang') {
-        // Boomerang prefers multiple targets
         let nearbyCount = 0;
         monsters.forEach(other => {
             if (other === monster) return;
@@ -1017,7 +1022,6 @@ function getTargetPriority(monster, player, weapon, currentTime) {
         });
         score += nearbyCount * 120;
     } else if (weapon.id === 'laser') {
-        // Laser prefers enemies in a straight line
         let linedUpCount = 0;
         monsters.forEach(other => {
             if (other === monster) return;
@@ -1026,7 +1030,6 @@ function getTargetPriority(monster, player, weapon, currentTime) {
         });
         score += linedUpCount * 150;
     } else if (weapon.meleeType === 'aoe') {
-        // AOE melee weapons (axe, hammer) prefer groups
         let nearbyCount = 0;
         monsters.forEach(other => {
             if (other === monster) return;
@@ -1036,52 +1039,43 @@ function getTargetPriority(monster, player, weapon, currentTime) {
             if (odist < weapon.range * 1.5) nearbyCount++;
         });
         score += nearbyCount * 100;
-        // AOE weapons prefer being in the middle of groups
         if (distance < weapon.range) {
             score += 150;
         }
     } else if (weapon.meleeType === 'pierce') {
-        // Pierce weapons (spear, dagger) prefer enemies in a line
         score += angleScore * 200;
-        // Also prefer enemies at max range
         if (distance > weapon.range * 0.7) {
             score += 100;
         }
     } else if (weapon.meleeType === 'single') {
-        // Single target melee prefers the closest enemy
         if (distance < 80) {
             score += 500;
         }
     }
     
-    // Emergency override: if monster is very close (within 50 pixels), prioritize it heavily
+    // Emergency override: if monster is very close
     if (distance < 50) {
         score += 2000;
     }
     
-    // Priority for bosses (always target boss if in range)
+    // Priority for special monster types
     if (monster.isBoss) {
         score += 3000;
     }
-    
-    // Priority for splitter monsters (they create more enemies)
     if (monster.isSplitter) {
         score += 500;
     }
-    
-    // Priority for explosive monsters (they can damage player when killed)
     if (monster.explosive) {
         score += 400;
     }
-    
-    // Priority for gunners (ranged attackers)
     if (monster.isGunner) {
         score += 300;
     }
-    
-    // Priority for dashers (fast enemies)
     if (monster.isDasher) {
         score += 250;
+    }
+    if (monster.isVampire) {
+        score += 350; // Vampires are high priority because they heal
     }
     
     return score;
@@ -1109,12 +1103,10 @@ function selectTargetForWeapon(weapon, currentTime) {
 // ============================================
 
 function isItemMaxed(itemData) {
-    // Check for landmines (max 5)
     if (itemData.id === 'landmine') {
         return playerTowers.landmines.count >= playerTowers.landmines.max;
     }
     
-    // Check for weapons - if player already has tier 5 of this weapon
     if (itemData.type === 'weapon') {
         const existingWeapon = player.weapons.find(w => w.id === itemData.id && w.tier >= 5);
         if (existingWeapon) {
@@ -1128,10 +1120,8 @@ function isItemMaxed(itemData) {
 function generateShopItems() {
     const shopItems = [];
     
-    // Filter out weapons that are already at max tier 5
     let availableWeapons = GAME_DATA.WEAPONS.filter(w => {
         if (w.id === 'handgun') return false;
-        // Check if player already has this weapon at tier 5
         const hasMaxTier = player.weapons.some(pw => pw.id === w.id && pw.tier >= 5);
         return !hasMaxTier;
     });
@@ -1140,9 +1130,7 @@ function generateShopItems() {
         if (availableWeapons.length > 0) {
             const randomIndex = Math.floor(Math.random() * availableWeapons.length);
             const weapon = {...availableWeapons[randomIndex]};
-            
             const tier = Math.random() < 0.3 ? 2 : 1;
-            
             const weaponInstance = new WeaponInstance(weapon, tier);
             
             shopItems.push({
@@ -1155,10 +1143,8 @@ function generateShopItems() {
         }
     }
     
-    // Filter out items that are maxed out
     let availableItems = [...GAME_DATA.ITEMS];
     availableItems = availableItems.filter(item => {
-        // Skip landmines if already at max count
         if (item.id === 'landmine' && playerTowers.landmines.count >= playerTowers.landmines.max) {
             return false;
         }
@@ -1565,7 +1551,6 @@ function useExpScroll() {
         return;
     }
     
-    // Filter out weapons that are already at max tier (5)
     const upgradableWeapons = player.weapons.filter(w => w.tier < 5);
     
     if (upgradableWeapons.length === 0) {
@@ -2115,39 +2100,39 @@ function getWaveConfig(waveNumber) {
     }
 }
 
-// Wave-specific monster compositions
+// Wave-specific monster compositions (updated with Vampire)
 const WAVE_COMPOSITIONS = {
-    1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
-    2: { normal: 5, fast: 2, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
-    3: { normal: 6, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
-    4: { normal: 6, fast: 3, tank: 1, explosive: 1, gunner: 0, splitter: 0, dasher: 0 },
-    5: { normal: 7, fast: 3, tank: 2, explosive: 1, gunner: 0, splitter: 0, dasher: 0 },
-    6: { normal: 7, fast: 4, tank: 2, explosive: 1, gunner: 1, splitter: 0, dasher: 0 },
-    7: { normal: 8, fast: 4, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0 },
-    8: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 1, splitter: 0, dasher: 0 },
-    9: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 0, dasher: 0 },
-    10: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
-    11: { normal: 10, fast: 6, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 2 },
-    12: { normal: 11, fast: 6, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 3 },
-    13: { normal: 11, fast: 7, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2 },
-    14: { normal: 12, fast: 7, tank: 5, explosive: 4, gunner: 4, splitter: 2, dasher: 2 },
-    15: { normal: 12, fast: 8, tank: 5, explosive: 4, gunner: 4, splitter: 3, dasher: 2 },
-    16: { normal: 13, fast: 8, tank: 6, explosive: 5, gunner: 4, splitter: 2, dasher: 2 },
-    17: { normal: 13, fast: 9, tank: 6, explosive: 5, gunner: 5, splitter: 2, dasher: 2 },
-    18: { normal: 14, fast: 9, tank: 7, explosive: 5, gunner: 5, splitter: 2, dasher: 2 },
-    19: { normal: 14, fast: 10, tank: 7, explosive: 6, gunner: 5, splitter: 2, dasher: 2 },
-    20: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
-    21: { normal: 15, fast: 10, tank: 8, explosive: 6, gunner: 6, splitter: 4, dasher: 4 },
-    22: { normal: 16, fast: 11, tank: 8, explosive: 7, gunner: 6, splitter: 4, dasher: 4 },
-    23: { normal: 16, fast: 11, tank: 9, explosive: 7, gunner: 7, splitter: 5, dasher: 4 },
-    24: { normal: 17, fast: 12, tank: 9, explosive: 8, gunner: 7, splitter: 5, dasher: 4 },
-    25: { normal: 17, fast: 12, tank: 10, explosive: 8, gunner: 8, splitter: 4, dasher: 4 },
-    26: { normal: 18, fast: 13, tank: 10, explosive: 9, gunner: 8, splitter: 4, dasher: 4 },
-    27: { normal: 18, fast: 13, tank: 11, explosive: 9, gunner: 9, splitter: 4, dasher: 4 },
-    28: { normal: 19, fast: 14, tank: 11, explosive: 10, gunner: 9, splitter: 4, dasher: 4 },
-    29: { normal: 19, fast: 14, tank: 12, explosive: 10, gunner: 10, splitter: 4, dasher: 4 },
-    30: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0 },
-    31: { normal: 20, fast: 15, tank: 13, explosive: 12, gunner: 12, splitter: 8, dasher: 8 }
+    1: { normal: 5, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    2: { normal: 5, fast: 2, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    3: { normal: 6, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    4: { normal: 6, fast: 3, tank: 1, explosive: 1, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    5: { normal: 7, fast: 3, tank: 2, explosive: 1, gunner: 0, splitter: 0, dasher: 0, vampire: 1 },
+    6: { normal: 7, fast: 4, tank: 2, explosive: 1, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
+    7: { normal: 8, fast: 4, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
+    8: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
+    9: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 0, dasher: 0, vampire: 2 },
+    10: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 }, // Boss wave
+    11: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 2, dasher: 2, vampire: 2 },
+    12: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 2, dasher: 3, vampire: 2 },
+    13: { normal: 9, fast: 6, tank: 4, explosive: 3, gunner: 2, splitter: 2, dasher: 2, vampire: 2 },
+    14: { normal: 10, fast: 6, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 2, vampire: 2 },
+    15: { normal: 10, fast: 7, tank: 4, explosive: 3, gunner: 3, splitter: 3, dasher: 2, vampire: 3 },
+    16: { normal: 11, fast: 7, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2, vampire: 3 },
+    17: { normal: 11, fast: 8, tank: 5, explosive: 4, gunner: 4, splitter: 2, dasher: 2, vampire: 3 },
+    18: { normal: 12, fast: 8, tank: 6, explosive: 4, gunner: 4, splitter: 2, dasher: 2, vampire: 3 },
+    19: { normal: 12, fast: 9, tank: 6, explosive: 5, gunner: 4, splitter: 2, dasher: 2, vampire: 4 },
+    20: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 }, // Boss wave
+    21: { normal: 13, fast: 9, tank: 7, explosive: 5, gunner: 5, splitter: 4, dasher: 4, vampire: 3 },
+    22: { normal: 14, fast: 10, tank: 7, explosive: 6, gunner: 5, splitter: 4, dasher: 4, vampire: 3 },
+    23: { normal: 14, fast: 10, tank: 8, explosive: 6, gunner: 5, splitter: 5, dasher: 4, vampire: 3 },
+    24: { normal: 15, fast: 11, tank: 8, explosive: 7, gunner: 5, splitter: 5, dasher: 4, vampire: 3 },
+    25: { normal: 15, fast: 11, tank: 9, explosive: 7, gunner: 6, splitter: 4, dasher: 4, vampire: 4 },
+    26: { normal: 16, fast: 12, tank: 9, explosive: 8, gunner: 6, splitter: 4, dasher: 4, vampire: 4 },
+    27: { normal: 16, fast: 12, tank: 10, explosive: 8, gunner: 7, splitter: 4, dasher: 4, vampire: 4 },
+    28: { normal: 17, fast: 13, tank: 10, explosive: 9, gunner: 7, splitter: 4, dasher: 4, vampire: 4 },
+    29: { normal: 17, fast: 13, tank: 11, explosive: 9, gunner: 8, splitter: 4, dasher: 4, vampire: 5 },
+    30: { normal: 0, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 }, // Boss wave
+    31: { normal: 18, fast: 14, tank: 12, explosive: 10, gunner: 10, splitter: 8, dasher: 8, vampire: 6 }
 };
 
 function getMonsterTypeForWave(waveNumber) {
@@ -2168,6 +2153,7 @@ function getMonsterTypeForWave(waveNumber) {
     for (let i = 0; i < comp.gunner; i++) types.push(MONSTER_TYPES.GUNNER);
     for (let i = 0; i < comp.splitter; i++) types.push(MONSTER_TYPES.SPLITTER);
     for (let i = 0; i < comp.dasher; i++) types.push(MONSTER_TYPES.DASHER);
+    for (let i = 0; i < comp.vampire; i++) types.push(MONSTER_TYPES.VAMPIRE);
     
     return types;
 }
@@ -2362,10 +2348,7 @@ function showSpawnIndicators() {
     
     let totalMonsters = waveConfig.monsters;
     if (waveConfig.isBoss) {
-        totalMonsters = 1;
-        if (waveConfig.minions) {
-            totalMonsters += waveConfig.minions;
-        }
+        totalMonsters = 1 + waveConfig.monsters; // Boss + regular wave monsters
     }
     
     const numClusters = Math.min(5, Math.max(2, Math.floor(totalMonsters / 8)));
@@ -2386,12 +2369,10 @@ function showSpawnIndicators() {
             y = canvas.height / 2;
         } else {
             const cluster = clusterCenters[Math.floor(Math.random() * clusterCenters.length)];
-            
             const angle = Math.random() * Math.PI * 2;
             const distance = 30 + Math.random() * 70;
             x = cluster.x + Math.cos(angle) * distance;
             y = cluster.y + Math.sin(angle) * distance;
-            
             x = Math.max(50, Math.min(canvas.width - 50, x));
             y = Math.max(50, Math.min(canvas.height - 50, y));
         }
@@ -2401,43 +2382,18 @@ function showSpawnIndicators() {
             timer: 2000,
             startTime: Date.now(),
             isBoss: waveConfig.isBoss && i === 0,
-            isMinion: waveConfig.isBoss && i > 0,
+            isMinion: false,
             index: i
         });
     }
 }
 
 function spawnMinions(count, centerX, centerY) {
-    for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const distance = 80 + Math.random() * 60;
-        const x = centerX + Math.cos(angle) * distance;
-        const y = centerY + Math.sin(angle) * distance;
-        
-        const minion = createMonster(MONSTER_TYPES.MINION, false, x, y);
-        if (minion) {
-            minion.isMinion = true;
-            minion.health = minion.maxHealth * 0.5;
-            monsters.push(minion);
-        }
-    }
+    // No longer used - boss waves now spawn regular monsters instead
 }
 
 function startMinionSpawning(boss) {
-    if (minionSpawnInterval) {
-        clearInterval(minionSpawnInterval);
-    }
-    
-    minionSpawnInterval = setInterval(() => {
-        if (waveActive && boss && boss.health > 0) {
-            const minionCount = 3 + Math.floor(Math.random() * 3);
-            spawnMinions(minionCount, boss.x, boss.y);
-            queueMessage("Minions spawned!");
-        } else {
-            clearInterval(minionSpawnInterval);
-            minionSpawnInterval = null;
-        }
-    }, 5000);
+    // No longer used - boss waves now spawn regular monsters instead
 }
 
 function startWave() {
@@ -2569,6 +2525,7 @@ function startWave() {
         }, baseSpawnDelay);
         
     } else {
+        // Boss wave - spawn boss AND regular monsters
         const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
         if (boss) {
             boss.lifeSteal = 0.1;
@@ -2591,8 +2548,6 @@ function startWave() {
             
             monsters.push(boss);
             
-            startMinionSpawning(boss);
-            
             addVisualEffect({
                 type: 'bossSpawn',
                 x: boss.x,
@@ -2603,23 +2558,53 @@ function startWave() {
                 color: boss.color
             });
             
-            if (waveConfig.minions > 0) {
-                let minionCount = 0;
-                const minionInterval = setInterval(() => {
-                    if (gameState !== 'wave' || !boss || boss.health <= 0) {
-                        clearInterval(minionInterval);
-                        return;
+            // Spawn regular monsters for boss wave
+            const monsterCount = waveConfig.monsters;
+            const monsterTypes = getMonsterTypeForWave(wave);
+            const baseSpawnDelay = waveConfig.spawnDelay || 400;
+            
+            let spawnedCount = 0;
+            
+            const spawnInterval = setInterval(() => {
+                if (gameState !== 'wave') {
+                    clearInterval(spawnInterval);
+                    return;
+                }
+                
+                if (spawnedCount >= monsterCount) {
+                    clearInterval(spawnInterval);
+                    return;
+                }
+                
+                const monsterType = monsterTypes[spawnedCount] || MONSTER_TYPES.NORMAL;
+                
+                // Skip the boss index (index 0 is the boss)
+                const indicatorIndex = spawnedCount + 1;
+                if (spawnIndicators.length > indicatorIndex) {
+                    const indicator = spawnIndicators[indicatorIndex];
+                    const monster = createMonster(monsterType, false, indicator.x, indicator.y);
+                    if (monster) {
+                        monsters.push(monster);
+                        if (monsterType === MONSTER_TYPES.DASHER) {
+                            dashers.push(monster);
+                        }
                     }
-                    
-                    if (minionCount >= waveConfig.minions) {
-                        clearInterval(minionInterval);
-                        return;
+                } else {
+                    const monster = createMonster(monsterType, false);
+                    if (monster) {
+                        monsters.push(monster);
+                        if (monsterType === MONSTER_TYPES.DASHER) {
+                            dashers.push(monster);
+                        }
                     }
-                    
-                    spawnMinions(1, boss.x, boss.y);
-                    minionCount++;
-                }, 800);
-            }
+                }
+                
+                spawnedCount++;
+                
+                if (spawnedCount >= monsterCount) {
+                    spawnIndicators = [];
+                }
+            }, baseSpawnDelay);
             
             if (wave === 10) {
                 bossAbilities.shotgun = true;
@@ -2758,6 +2743,7 @@ function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null
         isMinion: monsterType.isMinion || false,
         isSplitter: monsterType.isSplitter || false,
         isDasher: monsterType.isDasher || false,
+        isVampire: monsterType.isVampire || false,
         lifeSteal: monsterType.lifeSteal || 0,
         
         splitCount: monsterType.splitCount || 0,
@@ -3991,22 +3977,6 @@ function drawSpawnIndicators() {
             ctx.lineTo(30, 30);
             ctx.moveTo(30, -30);
             ctx.lineTo(-30, 30);
-            ctx.stroke();
-        } else if (indicator.isMinion) {
-            ctx.strokeStyle = `rgba(147, 112, 219, ${alpha})`;
-            ctx.lineWidth = 3;
-            ctx.shadowColor = '#9370db';
-            ctx.shadowBlur = 10 * alpha;
-            
-            ctx.beginPath();
-            ctx.arc(0, 0, 20 * pulseScale, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.moveTo(-10, -10);
-            ctx.lineTo(10, 10);
-            ctx.moveTo(10, -10);
-            ctx.lineTo(-10, 10);
             ctx.stroke();
         } else {
             ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
@@ -6048,6 +6018,13 @@ function updateMonsters(currentTime) {
                     
                     player.health -= actualDamage;
                     
+                    // Vampire lifesteal
+                    if (monster.isVampire && monster.lifeSteal > 0) {
+                        const healAmount = Math.floor(actualDamage * monster.lifeSteal);
+                        monster.health = Math.min(monster.maxHealth, monster.health + healAmount);
+                        createHealthPopup(monster.x, monster.y, healAmount);
+                    }
+                    
                     if (player.thornsDamage > 0) {
                         const thornsDamage = Math.floor(actualDamage * player.thornsDamage);
                         if (thornsDamage > 0) {
@@ -6395,6 +6372,16 @@ function drawMonsters() {
             ctx.shadowBlur = 15;
             ctx.beginPath();
             ctx.arc(0, 0, monster.radius + 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
+        if (monster.isVampire) {
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#FF0000';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius + 3, 0, Math.PI * 2);
             ctx.stroke();
         }
         
