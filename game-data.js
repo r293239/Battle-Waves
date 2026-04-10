@@ -50,7 +50,7 @@ const GAME_DATA = {
         { number: 31, monsters: 100, monsterHealth: 300, monsterDamage: 28, goldReward: 450, isBoss: false }
     ],
 
-    // Stat buffs that appear after each wave
+    // Stat buffs that appear after each wave - ADDED RELOAD SPEED
     STAT_BUFFS: [
         { id: 'health_boost', name: 'Health Boost', description: 'Increase max health by 10%', icon: '❤️', effect: { maxHealthPercent: 0.1, healthPercent: 0.1 } },
         { id: 'damage_boost', name: 'Damage Boost', description: 'Increase damage by 10%', icon: '⚔️', effect: { damagePercent: 0.1 } },
@@ -59,10 +59,11 @@ const GAME_DATA = {
         { id: 'critical_chance', name: 'Critical Strike', description: '5% chance for double damage', icon: '🎯', effect: { criticalChance: 0.05 } },
         { id: 'gold_bonus', name: 'Gold Bonus', description: 'Earn 10% more gold', icon: '💰', effect: { goldMultiplier: 0.1 } },
         { id: 'regen', name: 'Health Regen', description: 'Regenerate 1% HP per second', icon: '🔄', effect: { healthRegenPercent: 0.01 } },
-        { id: 'armor', name: 'Armor', description: 'Reduce damage taken by 3%', icon: '🛡️', effect: { damageReduction: 0.03 } }
+        { id: 'armor', name: 'Armor', description: 'Reduce damage taken by 3%', icon: '🛡️', effect: { damageReduction: 0.03 } },
+        { id: 'reload_speed', name: 'Quick Hands', description: 'Reload weapons 15% faster (stacks)', icon: '⚡', effect: { reloadSpeedMultiplier: 0.15 } }
     ],
 
-    // Weapons available in shop - ALL EMOJIS (no PNG files)
+    // Weapons available in shop
     WEAPONS: [
         // Ranged weapons
         {
