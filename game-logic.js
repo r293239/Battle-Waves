@@ -27,6 +27,7 @@ let refreshCount = 0;
 let refreshCost = 5;
 let waveActive = false;
 let waveStartTime = 0;
+let pendingSpawns = 0; // Track pending monster spawns
 
 let bossAbilities = {
     shotgun: false, asteroids: [], slowField: null, enraged: false,
@@ -387,14 +388,14 @@ function scheduleWaveSpawns(waveConfig, isBossWave) {
     const tasks = [];
     for (let i = 0; i < totalMonsters; i++) {
         const monsterType = monsterTypes[i % monsterTypes.length];
-        // Random spawn position: choose a side or cluster center
+        // Random spawn position: choose a side
         const side = Math.floor(Math.random() * 4);
         let x, y;
         switch(side) {
-            case 0: x = 50 + Math.random() * (canvas.width - 100); y = 50; break; // top
-            case 1: x = canvas.width - 50; y = 50 + Math.random() * (canvas.height - 100); break; // right
-            case 2: x = 50 + Math.random() * (canvas.width - 100); y = canvas.height - 50; break; // bottom
-            default: x = 50; y = 50 + Math.random() * (canvas.height - 100); // left
+            case 0: x = 50 + Math.random() * (canvas.width - 100); y = 50; break;
+            case 1: x = canvas.width - 50; y = 50 + Math.random() * (canvas.height - 100); break;
+            case 2: x = 50 + Math.random() * (canvas.width - 100); y = canvas.height - 50; break;
+            default: x = 50; y = 50 + Math.random() * (canvas.height - 100); break;
         }
         const delay = Math.random() * 3000; // spread over 3 seconds
         tasks.push({ monsterType, x, y, delay });
@@ -405,8 +406,12 @@ function scheduleWaveSpawns(waveConfig, isBossWave) {
     
     // Schedule each spawn
     tasks.forEach(task => {
+        pendingSpawns++;
         setTimeout(() => {
-            if (gameState !== 'wave') return;
+            if (gameState !== 'wave') {
+                pendingSpawns--;
+                return;
+            }
             
             // Create indicator first
             const indicator = {
@@ -419,7 +424,12 @@ function scheduleWaveSpawns(waveConfig, isBossWave) {
             
             // Spawn monster after indicator delay
             setTimeout(() => {
-                if (gameState !== 'wave') return;
+                if (gameState !== 'wave') {
+                    pendingSpawns--;
+                    const idx = spawnIndicators.indexOf(indicator);
+                    if (idx > -1) spawnIndicators.splice(idx, 1);
+                    return;
+                }
                 // Remove indicator
                 const idx = spawnIndicators.indexOf(indicator);
                 if (idx > -1) spawnIndicators.splice(idx, 1);
@@ -429,6 +439,7 @@ function scheduleWaveSpawns(waveConfig, isBossWave) {
                     monsters.push(monster);
                     if (task.monsterType === MONSTER_TYPES.DASHER) dashers.push(monster);
                 }
+                pendingSpawns--;
             }, 1000);
         }, task.delay);
     });
@@ -482,6 +493,7 @@ function startWave() {
     gameState = 'wave';
     waveActive = true;
     waveStartTime = Date.now();
+    pendingSpawns = 0;
     if (player.firstHitReduction) player.firstHitActive = true;
     player.inSlowField = false;
     player.slowFieldTicks = 0;
@@ -528,9 +540,10 @@ function startWave() {
     setTimeout(() => { if (playerTowers.landmines.count > 0) spawnRandomLandmine(); }, 500);
     
     if (waveConfig.isBoss) {
-        // Spawn boss immediately with a big indicator
+        // Spawn boss with indicator
         const bossX = canvas.width / 2;
         const bossY = canvas.height / 2;
+        pendingSpawns++;
         const bossIndicator = {
             x: bossX, y: bossY,
             timer: 2000,
@@ -540,7 +553,12 @@ function startWave() {
         spawnIndicators.push(bossIndicator);
         
         setTimeout(() => {
-            if (gameState !== 'wave') return;
+            if (gameState !== 'wave') {
+                pendingSpawns--;
+                const idx = spawnIndicators.indexOf(bossIndicator);
+                if (idx > -1) spawnIndicators.splice(idx, 1);
+                return;
+            }
             const idx = spawnIndicators.indexOf(bossIndicator);
             if (idx > -1) spawnIndicators.splice(idx, 1);
             
@@ -589,6 +607,7 @@ function startWave() {
                 monsters.push(boss);
                 addVisualEffect({ type: 'bossSpawn', x: boss.x, y: boss.y, radius: 100, startTime: Date.now(), duration: 800, color: boss.color });
             }
+            pendingSpawns--;
         }, 2000);
         
         // Schedule normal monsters with mixed types and individual indicators
@@ -1140,6 +1159,7 @@ function initGame() {
     refreshCost = 5;
     refreshCostSpan.textContent = '5g';
     refreshCounter.textContent = 'Refreshes: 0';
+    pendingSpawns = 0;
     
     groundFire = [];
     poisonClouds = [];
@@ -1793,7 +1813,7 @@ function updateGame(deltaTime) {
     updateGroundEffects(currentTime);
     updateVisualEffects();
     
-    if (waveActive && monsters.length === 0 && spawnIndicators.length === 0) { wave++; endWave(); }
+    if (waveActive && monsters.length === 0 && spawnIndicators.length === 0 && pendingSpawns === 0) { wave++; endWave(); }
     updateUI();
 }
 
