@@ -36,7 +36,16 @@ const GAME_DATA = {
         { number: 28, monsters: 90, monsterHealth: 220, monsterDamage: 27, goldReward: 380, isBoss: false },
         { number: 29, monsters: 95, monsterHealth: 250, monsterDamage: 28, goldReward: 400, isBoss: false },
         { number: 30, monsters: 35, monsterHealth: 100, monsterDamage: 25, goldReward: 1000, isBoss: true, bossHealth: 10000 },
-        { number: 31, monsters: 100, monsterHealth: 300, monsterDamage: 28, goldReward: 450, isBoss: false }
+        { number: 31, monsters: 100, monsterHealth: 300, monsterDamage: 28, goldReward: 450, isBoss: false },
+        { number: 32, monsters: 105, monsterHealth: 320, monsterDamage: 29, goldReward: 470, isBoss: false },
+        { number: 33, monsters: 110, monsterHealth: 340, monsterDamage: 30, goldReward: 490, isBoss: false },
+        { number: 34, monsters: 115, monsterHealth: 360, monsterDamage: 31, goldReward: 510, isBoss: false },
+        { number: 35, monsters: 120, monsterHealth: 380, monsterDamage: 32, goldReward: 530, isBoss: false },
+        { number: 36, monsters: 125, monsterHealth: 400, monsterDamage: 33, goldReward: 550, isBoss: false },
+        { number: 37, monsters: 130, monsterHealth: 430, monsterDamage: 34, goldReward: 570, isBoss: false },
+        { number: 38, monsters: 135, monsterHealth: 460, monsterDamage: 35, goldReward: 590, isBoss: false },
+        { number: 39, monsters: 140, monsterHealth: 500, monsterDamage: 36, goldReward: 610, isBoss: false },
+        { number: 40, monsters: 45, monsterHealth: 150, monsterDamage: 40, goldReward: 2000, isBoss: true, bossHealth: 20000 }
     ],
     STAT_BUFFS: [
         { id: 'health_boost', name: 'Health Boost', description: 'Increase max health by 10%', icon: '❤️', effect: { maxHealthPercent: 0.1, healthPercent: 0.1 } },
@@ -112,11 +121,12 @@ const MONSTER_TYPES = {
 const BOSS_WEAPONS = {
     DAGGER: { name: 'Shadow Dagger', type: 'melee', meleeType: 'pierce', baseDamage: 25, attackSpeed: 2.0, range: 150, description: 'Quick stabbing attacks', swingColor: '#8B0000', swingAngle: 45, animation: 'daggerStab', trailColor: '#FF0000', bladeColor: '#8B0000', hiltColor: '#4A0404', sparkleColor: '#FF4444', pierceCount: 3 },
     WAR_HAMMER: { name: 'Crusher', type: 'melee', meleeType: 'aoe', baseDamage: 40, attackSpeed: 0.8, range: 180, description: 'Massive AOE slam', swingColor: '#8B4513', swingAngle: 360, animation: 'hammerSmash', trailColor: '#FF4500', headColor: '#696969', handleColor: '#8B4513', shockwaveColor: '#FF4500', shockwaveIntensity: 2.5 },
-    SCYTHE: { name: 'Soul Reaper', type: 'melee', meleeType: 'aoe', baseDamage: 35, attackSpeed: 1.2, range: 250, description: 'Dashing scythe slash with lifesteal', swingColor: '#4B0082', swingAngle: 270, animation: 'scytheSwing', trailColor: '#9400D3', bladeColor: '#4B0082', handleColor: '#2F4F4F', edgeColor: '#FF00FF', sparkleColor: '#FF69B4', dashRange: 500, dashSpeed: 15, lifeSteal: 0.15 }
+    SCYTHE: { name: 'Soul Reaper', type: 'melee', meleeType: 'aoe', baseDamage: 35, attackSpeed: 1.2, range: 250, description: 'Dashing scythe slash with lifesteal', swingColor: '#4B0082', swingAngle: 270, animation: 'scytheSwing', trailColor: '#9400D3', bladeColor: '#4B0082', handleColor: '#2F4F4F', edgeColor: '#FF00FF', sparkleColor: '#FF69B4', dashRange: 500, dashSpeed: 15, lifeSteal: 0.15 },
+    VOID_BLADE: { name: 'Void Blade', type: 'melee', meleeType: 'aoe', baseDamage: 50, attackSpeed: 1.5, range: 300, description: 'Teleporting slash with void zones', swingColor: '#1a1a2e', swingAngle: 360, animation: 'voidSlash', trailColor: '#4a4a9a', bladeColor: '#0f0f1f', edgeColor: '#6a0dad', sparkleColor: '#9b59b6', teleportRange: 400, voidZoneDamage: 20, voidZoneDuration: 4000 }
 };
 
 // ============================================
-// WAVE COMPOSITIONS (Normal monsters only for boss waves)
+// WAVE COMPOSITIONS (updated to wave 40 with varied boss waves)
 // ============================================
 
 const WAVE_COMPOSITIONS = {
@@ -129,7 +139,7 @@ const WAVE_COMPOSITIONS = {
     7: { normal: 8, fast: 4, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
     8: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
     9: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 0, dasher: 0, vampire: 2 },
-    10: { normal: 15, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    10: { normal: 6, fast: 3, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 1, vampire: 0 }, // 15 total
     11: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 2, dasher: 2, vampire: 2 },
     12: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 2, dasher: 3, vampire: 2 },
     13: { normal: 9, fast: 6, tank: 4, explosive: 3, gunner: 2, splitter: 2, dasher: 2, vampire: 2 },
@@ -139,7 +149,7 @@ const WAVE_COMPOSITIONS = {
     17: { normal: 11, fast: 8, tank: 5, explosive: 4, gunner: 4, splitter: 2, dasher: 2, vampire: 3 },
     18: { normal: 12, fast: 8, tank: 6, explosive: 4, gunner: 4, splitter: 2, dasher: 2, vampire: 3 },
     19: { normal: 12, fast: 9, tank: 6, explosive: 5, gunner: 4, splitter: 2, dasher: 2, vampire: 4 },
-    20: { normal: 25, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    20: { normal: 8, fast: 5, tank: 4, explosive: 3, gunner: 2, splitter: 1, dasher: 1, vampire: 1 }, // 25 total
     21: { normal: 13, fast: 9, tank: 7, explosive: 5, gunner: 5, splitter: 4, dasher: 4, vampire: 3 },
     22: { normal: 14, fast: 10, tank: 7, explosive: 6, gunner: 5, splitter: 4, dasher: 4, vampire: 3 },
     23: { normal: 14, fast: 10, tank: 8, explosive: 6, gunner: 5, splitter: 5, dasher: 4, vampire: 3 },
@@ -149,6 +159,15 @@ const WAVE_COMPOSITIONS = {
     27: { normal: 16, fast: 12, tank: 10, explosive: 8, gunner: 7, splitter: 4, dasher: 4, vampire: 4 },
     28: { normal: 17, fast: 13, tank: 10, explosive: 9, gunner: 7, splitter: 4, dasher: 4, vampire: 4 },
     29: { normal: 17, fast: 13, tank: 11, explosive: 9, gunner: 8, splitter: 4, dasher: 4, vampire: 5 },
-    30: { normal: 35, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
-    31: { normal: 18, fast: 14, tank: 12, explosive: 10, gunner: 10, splitter: 8, dasher: 8, vampire: 6 }
+    30: { normal: 10, fast: 6, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2, vampire: 3 }, // 35 total
+    31: { normal: 18, fast: 14, tank: 12, explosive: 10, gunner: 10, splitter: 8, dasher: 8, vampire: 6 },
+    32: { normal: 19, fast: 15, tank: 13, explosive: 11, gunner: 11, splitter: 8, dasher: 8, vampire: 6 },
+    33: { normal: 20, fast: 16, tank: 14, explosive: 12, gunner: 12, splitter: 8, dasher: 8, vampire: 6 },
+    34: { normal: 21, fast: 17, tank: 15, explosive: 13, gunner: 13, splitter: 8, dasher: 8, vampire: 6 },
+    35: { normal: 22, fast: 18, tank: 16, explosive: 14, gunner: 14, splitter: 8, dasher: 8, vampire: 6 },
+    36: { normal: 23, fast: 19, tank: 17, explosive: 15, gunner: 15, splitter: 8, dasher: 8, vampire: 6 },
+    37: { normal: 24, fast: 20, tank: 18, explosive: 16, gunner: 16, splitter: 8, dasher: 8, vampire: 6 },
+    38: { normal: 25, fast: 21, tank: 19, explosive: 17, gunner: 17, splitter: 8, dasher: 8, vampire: 6 },
+    39: { normal: 26, fast: 22, tank: 20, explosive: 18, gunner: 18, splitter: 8, dasher: 8, vampire: 6 },
+    40: { normal: 12, fast: 8, tank: 6, explosive: 5, gunner: 4, splitter: 3, dasher: 3, vampire: 4 } // 45 total
 };
