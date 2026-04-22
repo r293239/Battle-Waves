@@ -111,6 +111,9 @@ const healthFill = document.getElementById('healthFill');
 const boomerangImage = new Image();
 boomerangImage.src = 'assets/boomerang.png';
 
+const scytheImage = new Image();
+scytheImage.src = 'assets/scythe.png';
+
 player.updateHealthDisplay = function() {
     if (healthValue) healthValue.textContent = `${Math.floor(this.health)}/${this.maxHealth}`;
     if (healthFill) healthFill.style.width = `${(this.health / this.maxHealth) * 100}%`;
@@ -1942,6 +1945,30 @@ function drawBombs() {
         ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(`${Math.ceil(timeLeft / 1000)}s`, 0, bomb.radius + 15);
+        ctx.restore();
+    });
+}
+
+function drawHealingTowers() {
+    playerTowers.healingTowers.active.forEach(tower => {
+        ctx.save();
+        ctx.translate(tower.x, tower.y);
+        ctx.fillStyle = '#2E7D32';
+        ctx.shadowColor = '#4CAF50';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(0, 0, tower.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFF';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('+', 0, 0);
+        const healthPercent = tower.health / 30;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(-tower.radius, -tower.radius - 10, tower.radius * 2, 5);
+        ctx.fillStyle = '#0F0';
+        ctx.fillRect(-tower.radius, -tower.radius - 10, tower.radius * 2 * healthPercent, 5);
         ctx.restore();
     });
 }
