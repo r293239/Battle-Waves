@@ -33,7 +33,7 @@ let bossAbilities = {
     bossWeapon: null, bossWeaponAttack: 0, bossDash: false,
     bossDashTarget: { x: 0, y: 0 }, bossDashStart: 0, bossDashCooldown: 0,
     bossDashDirection: { x: 0, y: 0 }, bossDashDistance: 0, minionSpawnTimer: 0,
-    voidZones: [], teleportTimer: 0 // for wave 40 boss
+    voidZones: [], teleportTimer: 0
 };
 
 let asteroidTimer = null;
@@ -308,7 +308,6 @@ function getMonsterTypeForWave(waveNumber) {
     return types;
 }
 
-// Get an array of non-boss monster types for a given wave (includes boss waves)
 function getNonBossMonsterTypesForWave(waveNumber) {
     const comp = WAVE_COMPOSITIONS[waveNumber];
     if (!comp) return [MONSTER_TYPES.NORMAL];
@@ -321,7 +320,6 @@ function getNonBossMonsterTypesForWave(waveNumber) {
     for (let i = 0; i < comp.splitter; i++) types.push(MONSTER_TYPES.SPLITTER);
     for (let i = 0; i < comp.dasher; i++) types.push(MONSTER_TYPES.DASHER);
     for (let i = 0; i < comp.vampire; i++) types.push(MONSTER_TYPES.VAMPIRE);
-    // Shuffle for variety
     return types.sort(() => Math.random() - 0.5);
 }
 
@@ -508,7 +506,6 @@ function startWave() {
     let spawned = 0;
     
     if (waveConfig.isBoss) {
-        // Spawn boss first
         const boss = createMonster(MONSTER_TYPES.BOSS, true, canvas.width / 2, canvas.height / 2);
         if (boss) {
             boss.lifeSteal = 0.1;
@@ -537,18 +534,15 @@ function startWave() {
                 boss.color = '#0f0f1f';
                 bossAbilities.voidZones = [];
                 bossAbilities.teleportTimer = 0;
-                // Teleport every 5 seconds
                 setInterval(() => {
                     if (waveActive && monsters.some(m => m.isBoss)) {
                         const boss = monsters.find(m => m.isBoss);
                         if (boss) {
-                            // Teleport to random location near player
                             const angle = Math.random() * Math.PI * 2;
                             const dist = 150;
                             boss.x = Math.max(50, Math.min(canvas.width - 50, player.x + Math.cos(angle) * dist));
                             boss.y = Math.max(50, Math.min(canvas.height - 50, player.y + Math.sin(angle) * dist));
                             addVisualEffect({ type: 'teleport', x: boss.x, y: boss.y, radius: 50, color: '#6a0dad', startTime: Date.now(), duration: 300 });
-                            // Create void zone at teleport location
                             voidZones.push({ x: boss.x, y: boss.y, radius: 80, damage: BOSS_WEAPONS.VOID_BLADE.voidZoneDamage, startTime: Date.now(), duration: BOSS_WEAPONS.VOID_BLADE.voidZoneDuration });
                         }
                     }
@@ -558,7 +552,6 @@ function startWave() {
             addVisualEffect({ type: 'bossSpawn', x: boss.x, y: boss.y, radius: 100, startTime: Date.now(), duration: 800, color: boss.color });
         }
         
-        // Spawn a mix of monster types for boss waves
         const bossWaveMonsterTypes = getNonBossMonsterTypesForWave(wave);
         
         const spawnInterval = setInterval(() => {
@@ -577,7 +570,6 @@ function startWave() {
             spawned++;
         }, spawnDelay);
     } else {
-        // Normal wave - spawn all monster types
         const spawnInterval = setInterval(() => {
             if (gameState !== 'wave') { clearInterval(spawnInterval); return; }
             if (spawned >= totalMonsters) { clearInterval(spawnInterval); return; }
@@ -1724,7 +1716,7 @@ function updateGame(deltaTime) {
         }
     }
     
-    // Wave 40 boss: Void Blade (teleport handled by interval, melee attack here)
+    // Wave 40 boss: Void Blade
     if (wave === 40 && bossAbilities.bossWeapon) {
         const boss = monsters.find(m => m.isBoss);
         if (boss && Math.hypot(player.x - boss.x, player.y - boss.y) <= bossAbilities.bossWeapon.range && currentTime - (bossAbilities.bossWeapon.lastAttack || 0) > 1500) {
@@ -2071,6 +2063,1264 @@ function drawTowers() {
         ctx.restore();
     });
     drawHealingTowers();
+}
+
+function drawSpawnIndicators() {
+    const currentTime = Date.now();
+    for (let i = spawnIndicators.length - 1; i >= 0; i--) {
+        const indicator = spawnIndicators[i];
+        const elapsed = currentTime - indicator.startTime;
+        const progress = elapsed / indicator.timer;
+        if (elapsed > indicator.timer) { spawnIndicators.splice(i, 1); continue; }
+        const pulseScale = 1 + Math.sin(progress * Math.PI * 4) * 0.2;
+        const alpha = 1 - progress * 0.5;
+        ctx.save();
+        ctx.translate(indicator.x, indicator.y);
+        if (indicator.isBoss) {
+            ctx.strokeStyle = `rgba(255,215,0,${alpha})`;
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 20 * alpha;
+            ctx.rotate(elapsed * 0.002);
+            ctx.beginPath();
+            ctx.arc(0, 0, 40 * pulseScale, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.rotate(-elapsed * 0.002);
+            ctx.beginPath();
+            ctx.moveTo(-30, -30);
+            ctx.lineTo(30, 30);
+            ctx.moveTo(30, -30);
+            ctx.lineTo(-30, 30);
+            ctx.stroke();
+        } else {
+            ctx.strokeStyle = `rgba(255,0,0,${alpha})`;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#f00';
+            ctx.shadowBlur = 10 * alpha;
+            ctx.beginPath();
+            ctx.arc(0, 0, 25 * pulseScale, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(-15, -15);
+            ctx.lineTo(15, 15);
+            ctx.moveTo(15, -15);
+            ctx.lineTo(-15, 15);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+function drawSlowField() {
+    if (bossAbilities.slowField && bossAbilities.slowField.active) {
+        const boss = monsters.find(m => m.isBoss && wave === 30);
+        if (!boss) return;
+        ctx.save();
+        ctx.translate(boss.x, boss.y);
+        const pulse = Math.sin(Date.now() * 0.005) * 0.1 + 0.9;
+        ctx.fillStyle = `rgba(100,100,255,0.3)`;
+        ctx.shadowColor = '#6464ff';
+        ctx.shadowBlur = 30;
+        ctx.beginPath();
+        ctx.arc(0, 0, bossAbilities.slowField.radius * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(200,200,255,0.3)`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, bossAbilities.slowField.radius * 0.7, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('SLOW FIELD', 0, -bossAbilities.slowField.radius - 20);
+        if (player.inSlowField && player.slowFieldTicks > 0) {
+            ctx.fillStyle = 'rgba(255,100,100,0.9)';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(`Speed Lost: ${player.slowFieldTicks}`, 0, bossAbilities.slowField.radius + 30);
+        }
+        ctx.restore();
+    }
+}
+
+function drawProjectiles() {
+    const currentTime = Date.now();
+    player.projectiles.forEach(projectile => {
+        ctx.save();
+        if (projectile.isBoomerang) drawBoomerangProjectile(ctx, projectile, currentTime);
+        else if (projectile.weaponId === 'shotgun') drawShotgunPellet(ctx, projectile, currentTime);
+        else if (projectile.weaponId === 'laser') drawLaserProjectile(ctx, projectile, currentTime);
+        else if (projectile.weaponId === 'machinegun') drawMachinegunProjectile(ctx, projectile, currentTime);
+        else if (projectile.animation === 'knife') drawThrowingKnife(ctx, projectile, currentTime);
+        else if (projectile.weaponId === 'sniper') drawSniperProjectile(ctx, projectile, currentTime);
+        else if (projectile.weaponId === 'crossbow') drawCrossbowProjectile(ctx, projectile, currentTime);
+        else {
+            ctx.shadowColor = projectile.color;
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = projectile.color;
+            ctx.beginPath();
+            ctx.arc(projectile.x, projectile.y, projectile.size || 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = projectile.color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, projectile.y - Math.sin(projectile.angle) * 10);
+            ctx.lineTo(projectile.x, projectile.y);
+            ctx.stroke();
+        }
+        ctx.restore();
+    });
+}
+
+function drawSniperProjectile(ctx, projectile, currentTime) {
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.shadowColor = '#FF4500';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FF4500';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-Math.cos(projectile.angle) * 15, -Math.sin(projectile.angle) * 15);
+    ctx.lineTo(0, 0);
+    ctx.stroke();
+    const age = currentTime - projectile.startTime;
+    if (age < 100) {
+        ctx.fillStyle = `rgba(255,200,0,${1 - age/100})`;
+        ctx.shadowBlur = 30;
+        ctx.beginPath();
+        ctx.arc(-Math.cos(projectile.angle) * 10, -Math.sin(projectile.angle) * 10, 8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+function drawCrossbowProjectile(ctx, projectile, currentTime) {
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(projectile.angle);
+    ctx.shadowColor = '#8B4513';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-15, -2, 30, 4);
+    ctx.fillStyle = '#C0C0C0';
+    ctx.beginPath();
+    ctx.moveTo(15, -3);
+    ctx.lineTo(25, 0);
+    ctx.lineTo(15, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#F00';
+    ctx.beginPath();
+    ctx.moveTo(-15, -4);
+    ctx.lineTo(-25, -8);
+    ctx.lineTo(-15, -2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-15, 4);
+    ctx.lineTo(-25, 8);
+    ctx.lineTo(-15, 2);
+    ctx.closePath();
+    ctx.fill();
+    if (projectile.pierceCount && projectile.pierceCount < 3) {
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function drawThrowingKnife(ctx, projectile, currentTime) {
+    projectile.rotation = (projectile.rotation || 0) + (projectile.spinSpeed || 0);
+    ctx.save();
+    ctx.translate(projectile.x, projectile.y);
+    ctx.rotate(projectile.rotation);
+    ctx.shadowColor = '#C0C0C0';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#C0C0C0';
+    ctx.strokeStyle = '#808080';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -projectile.size);
+    ctx.lineTo(projectile.size, 0);
+    ctx.lineTo(0, projectile.size);
+    ctx.lineTo(-projectile.size, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-projectile.size * 0.3, -projectile.size * 0.8, projectile.size * 0.6, projectile.size * 1.6);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(-projectile.size * 0.2, -projectile.size * 0.5, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawMonsterProjectiles() {
+    monsterProjectiles.forEach(proj => {
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = proj.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFF';
+        ctx.beginPath();
+        ctx.arc(0, 0, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+}
+
+function drawBossProjectiles() {
+    const currentTime = Date.now();
+    bossProjectiles.forEach(proj => {
+        const age = currentTime - proj.startTime;
+        const alpha = Math.min(1, 1 - age / proj.lifetime);
+        ctx.save();
+        ctx.translate(proj.x, proj.y);
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur = 15 * alpha;
+        ctx.fillStyle = proj.color;
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.beginPath();
+        ctx.arc(0, 0, proj.radius + 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFF';
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(0, 0, proj.radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (proj.isHoming) {
+            ctx.strokeStyle = '#FF0';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = alpha * 0.8;
+            ctx.beginPath();
+            ctx.arc(0, 0, proj.radius + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(i * Math.PI * 2 / 3) * (proj.radius + 8), Math.sin(i * Math.PI * 2 / 3) * (proj.radius + 8));
+                ctx.lineTo(Math.cos((i + 0.5) * Math.PI * 2 / 3) * (proj.radius + 3), Math.sin((i + 0.5) * Math.PI * 2 / 3) * (proj.radius + 3));
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    });
+}
+
+function drawBoomerangProjectile(ctx, projectile, currentTime) {
+    projectile.rotation = (projectile.rotation || 0) + 0.1;
+    if (boomerangImage.complete && boomerangImage.naturalHeight) {
+        ctx.save();
+        ctx.translate(projectile.x, projectile.y);
+        ctx.rotate(projectile.rotation);
+        ctx.shadowColor = '#8B4513';
+        ctx.shadowBlur = 15;
+        ctx.drawImage(boomerangImage, -20, -20, 40, 40);
+        ctx.restore();
+        if (projectile.state === 'returning') {
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            for (let i = 1; i <= 3; i++) {
+                const trailX = projectile.x - Math.cos(projectile.angle) * i * 5;
+                const trailY = projectile.y - Math.sin(projectile.angle) * i * 5;
+                ctx.save();
+                ctx.translate(trailX, trailY);
+                ctx.rotate(projectile.rotation - i * 0.1);
+                ctx.drawImage(boomerangImage, -15, -15, 30, 30);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+    } else {
+        ctx.save();
+        ctx.translate(projectile.x, projectile.y);
+        ctx.rotate(projectile.rotation);
+        ctx.shadowColor = 'rgba(139,69,19,0.5)';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = '#8B4513';
+        ctx.strokeStyle = '#654321';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -5);
+        ctx.lineTo(20, -10);
+        ctx.lineTo(25, 0);
+        ctx.lineTo(20, 10);
+        ctx.lineTo(0, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        if (projectile.state === 'returning') {
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 10;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+function drawShotgunPellet(ctx, projectile, currentTime) {
+    ctx.shadowColor = projectile.color;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = projectile.color;
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(projectile.x - Math.cos(projectile.angle) * 5, projectile.y - Math.sin(projectile.angle) * 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawLaserProjectile(ctx, projectile, currentTime) {
+    const pulse = Math.sin(currentTime * 0.02) * 2;
+    ctx.shadowColor = '#0FF';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = '#0FF';
+    ctx.lineWidth = 4 + pulse;
+    ctx.beginPath();
+    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, projectile.y - Math.sin(projectile.angle) * 10);
+    ctx.lineTo(projectile.x, projectile.y);
+    ctx.stroke();
+    ctx.strokeStyle = '#FFF';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(projectile.x - Math.cos(projectile.angle) * 10, projectile.y - Math.sin(projectile.angle) * 10);
+    ctx.lineTo(projectile.x, projectile.y);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0,255,255,0.3)';
+    ctx.shadowBlur = 30;
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawMachinegunProjectile(ctx, projectile, currentTime) {
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    for (let i = 1; i <= 3; i++) {
+        ctx.fillStyle = `rgba(255,215,0,${0.3 - i * 0.1})`;
+        ctx.beginPath();
+        ctx.arc(projectile.x - Math.cos(projectile.angle) * i * 8, projectile.y - Math.sin(projectile.angle) * i * 8, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawMeleeAttacks() {
+    const currentTime = Date.now();
+    player.meleeAttacks.forEach(attack => {
+        const progress = (currentTime - attack.startTime) / attack.duration;
+        if (progress < 0 || progress > 1) return;
+        ctx.save();
+        ctx.translate(attack.x, attack.y);
+        const angle = attack.angle;
+        const distance = attack.radius * (progress * 1.2);
+        const alpha = 1 - progress * 0.7;
+        switch(attack.weaponId) {
+            case 'sword': drawSword(ctx, attack, angle, progress, distance, alpha); break;
+            case 'axe': drawAxe(ctx, attack, angle, progress, distance, alpha); break;
+            case 'dagger': drawDagger(ctx, attack, angle, progress, distance, alpha); break;
+            case 'hammer': drawHammer(ctx, attack, angle, progress, distance, alpha); break;
+            case 'spear': drawTrident(ctx, attack, angle, progress, distance, alpha); break;
+            case 'dual_daggers': drawDualDaggers(ctx, attack, angle, progress, distance, alpha); break;
+            default: drawDefaultMelee(ctx, attack, angle, progress, distance, alpha); break;
+        }
+        ctx.restore();
+    });
+}
+
+function drawDualDaggers(ctx, attack, angle, progress, distance, alpha) {
+    ctx.save();
+    ctx.rotate(angle - 0.2);
+    ctx.translate(distance * 0.8, 0);
+    ctx.shadowColor = 'rgba(70,130,180,0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    ctx.fillStyle = attack.bladeColor || '#4682B4';
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(30, -1);
+    ctx.lineTo(30, 1);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = attack.hiltColor || '#2F4F4F';
+    ctx.fillRect(-5, -4, 8, 8);
+    ctx.fillStyle = attack.sparkleColor || '#0FF';
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.beginPath();
+    ctx.arc(30, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.rotate(angle + 0.2);
+    ctx.translate(distance * 0.8, 0);
+    ctx.shadowColor = 'rgba(70,130,180,0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    ctx.fillStyle = attack.bladeColor || '#4682B4';
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(30, -1);
+    ctx.lineTo(30, 1);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = attack.hiltColor || '#2F4F4F';
+    ctx.fillRect(-5, -4, 8, 8);
+    ctx.fillStyle = attack.sparkleColor || '#0FF';
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.beginPath();
+    ctx.arc(30, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    if (progress < 0.5) {
+        ctx.save();
+        ctx.rotate(angle);
+        ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.3})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(40, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawBossMeleeAttacks() {
+    if (!bossAbilities.bossWeapon || !bossAbilities.bossWeaponAttack) return;
+    const currentTime = Date.now();
+    const attack = bossAbilities.bossWeaponAttack;
+    const progress = (currentTime - attack.startTime) / attack.duration;
+    if (progress < 0 || progress > 1) { bossAbilities.bossWeaponAttack = null; return; }
+    ctx.save();
+    ctx.translate(attack.x, attack.y);
+    const angle = attack.angle;
+    const distance = attack.radius * (progress * 1.2);
+    const alpha = 1 - progress * 0.7;
+    if (wave === 10) drawBossDagger(ctx, attack, angle, progress, distance, alpha);
+    else if (wave === 20) drawBossHammer(ctx, attack, angle, progress, distance, alpha);
+    else if (wave === 30) drawBossScythe(ctx, attack, angle, progress, distance, alpha);
+    else if (wave === 40) drawVoidBlade(ctx, attack, angle, progress, distance, alpha);
+    ctx.restore();
+}
+
+function drawBossDagger(ctx, attack, angle, progress, distance, alpha) {
+    const stabProgress = Math.min(progress * 2, 1);
+    const stabDistance = distance * 1.5;
+    ctx.rotate(angle);
+    ctx.translate(stabDistance, 0);
+    ctx.shadowColor = 'rgba(139,0,0,0.7)';
+    ctx.shadowBlur = 20 * alpha;
+    ctx.save();
+    const bladeGradient = ctx.createLinearGradient(0, -5, 60, -5);
+    bladeGradient.addColorStop(0, '#8B0000');
+    bladeGradient.addColorStop(1, '#F44');
+    ctx.fillStyle = bladeGradient;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(60, -3);
+    ctx.lineTo(60, 3);
+    ctx.lineTo(0, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(60, -3);
+    ctx.moveTo(0, 5);
+    ctx.lineTo(60, 3);
+    ctx.stroke();
+    ctx.restore();
+    if (progress > 0.7) {
+        ctx.save();
+        ctx.translate(60, 0);
+        ctx.fillStyle = `rgba(255,0,0,${alpha})`;
+        ctx.shadowColor = 'rgba(255,0,0,0.7)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 8 * (1 - progress), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    ctx.save();
+    ctx.fillStyle = '#4A0404';
+    ctx.fillRect(-12, -6, 20, 12);
+    ctx.fillStyle = '#8B0000';
+    ctx.beginPath();
+    ctx.arc(-18, 0, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawBossHammer(ctx, attack, angle, progress, distance, alpha) {
+    ctx.rotate(angle);
+    const lift = Math.sin(progress * Math.PI) * 50;
+    const smashY = progress < 0.3 ? -lift : (progress > 0.6 ? (progress - 0.6) * 60 : 0);
+    ctx.translate(30, -50 + lift - smashY);
+    ctx.shadowColor = 'rgba(105,105,105,0.7)';
+    ctx.shadowBlur = 30 * alpha;
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-5, 0, 10, 80);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(0, -25);
+    ctx.fillStyle = '#696969';
+    ctx.fillRect(-25, -25, 50, 35);
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(-30, -25, 10, 35);
+    ctx.fillRect(20, -25, 10, 35);
+    ctx.fillStyle = '#A9A9A9';
+    ctx.fillRect(-25, -35, 50, 10);
+    ctx.restore();
+    if (progress > 0.5 && progress < 0.8) {
+        ctx.save();
+        ctx.translate(0, 0);
+        ctx.rotate(0);
+        const shockProgress = (progress - 0.5) * 3.33;
+        ctx.strokeStyle = `rgba(255,69,0,${alpha * (1 - shockProgress)})`;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 50, attack.radius * shockProgress, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawBossScythe(ctx, attack, angle, progress, distance, alpha) {
+    const swingProgress = Math.sin(progress * Math.PI);
+    const currentAngle = angle - 1 + swingProgress * 2;
+    ctx.rotate(currentAngle);
+    ctx.shadowColor = 'rgba(75,0,130,0.7)';
+    ctx.shadowBlur = 20 * alpha;
+    if (scytheImage.complete && scytheImage.naturalHeight) {
+        ctx.save();
+        ctx.translate(40, -20);
+        ctx.rotate(-0.3);
+        ctx.scale(1.5, 1.5);
+        ctx.shadowColor = 'rgba(148,0,211,0.7)';
+        ctx.shadowBlur = 20;
+        ctx.drawImage(scytheImage, -25, -25, 50, 50);
+        ctx.restore();
+    } else {
+        ctx.save();
+        ctx.fillStyle = '#2F4F4F';
+        ctx.fillRect(-5, -attack.radius * 0.8, 10, attack.radius * 1.6);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(0, -attack.radius * 0.6);
+        ctx.rotate(-0.5);
+        const bladeGradient = ctx.createLinearGradient(0, -20, 80, -20);
+        bladeGradient.addColorStop(0, '#4B0082');
+        bladeGradient.addColorStop(1, '#9400D3');
+        ctx.fillStyle = bladeGradient;
+        ctx.shadowColor = 'rgba(148,0,211,0.7)';
+        ctx.beginPath();
+        ctx.moveTo(0, -15);
+        ctx.lineTo(80, -25);
+        ctx.lineTo(80, -5);
+        ctx.lineTo(0, 15);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255,105,180,${alpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(80, -25);
+        ctx.lineTo(80, -5);
+        ctx.stroke();
+        ctx.restore();
+    }
+    if (progress > 0.2 && progress < 0.8) {
+        ctx.save();
+        ctx.rotate(0);
+        ctx.strokeStyle = `rgba(148,0,211,${alpha * 0.3})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(20, -20);
+        ctx.lineTo(100, -40);
+        ctx.stroke();
+        ctx.restore();
+    }
+    if (bossAbilities.bossDash) {
+        ctx.save();
+        ctx.translate(-50, 0);
+        ctx.fillStyle = `rgba(255,105,180,${alpha * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function drawVoidBlade(ctx, attack, angle, progress, distance, alpha) {
+    const swingProgress = Math.sin(progress * Math.PI);
+    const currentAngle = angle - 1.5 + swingProgress * 3;
+    ctx.rotate(currentAngle);
+    ctx.shadowColor = '#6a0dad';
+    ctx.shadowBlur = 25 * alpha;
+    ctx.save();
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(-8, -attack.radius * 0.6, 16, attack.radius * 1.2);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(0, -attack.radius * 0.4);
+    ctx.rotate(-0.4);
+    const bladeGradient = ctx.createLinearGradient(0, -25, 90, -25);
+    bladeGradient.addColorStop(0, '#0f0f1f');
+    bladeGradient.addColorStop(1, '#6a0dad');
+    ctx.fillStyle = bladeGradient;
+    ctx.shadowColor = '#9b59b6';
+    ctx.beginPath();
+    ctx.moveTo(0, -20);
+    ctx.lineTo(90, -30);
+    ctx.lineTo(90, -10);
+    ctx.lineTo(0, 20);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(155,89,182,${alpha})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(90, -30);
+    ctx.lineTo(90, -10);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(106,13,173,${alpha * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(90, -20, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    if (progress > 0.3 && progress < 0.9) {
+        ctx.save();
+        ctx.rotate(0);
+        ctx.strokeStyle = `rgba(106,13,173,${alpha * 0.4})`;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(30, -30);
+        ctx.lineTo(110, -50);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawSword(ctx, attack, angle, progress, distance, alpha) {
+    const swingProgress = Math.sin(progress * Math.PI);
+    const currentAngle = angle - 0.5 + swingProgress * 1;
+    ctx.rotate(currentAngle);
+    ctx.shadowColor = 'rgba(255,255,255,0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    ctx.save();
+    ctx.translate(10, 0);
+    const gradient = ctx.createLinearGradient(0, -5, attack.radius * 0.9, -5);
+    gradient.addColorStop(0, '#C0C0C0');
+    gradient.addColorStop(1, '#E8E8E8');
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = 'rgba(192,192,192,0.5)';
+    ctx.shadowBlur = 15 * alpha;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(attack.radius * 0.9, -2);
+    ctx.lineTo(attack.radius * 0.9, 2);
+    ctx.lineTo(0, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(attack.radius * 0.9, -2);
+    ctx.moveTo(0, 5);
+    ctx.lineTo(attack.radius * 0.9, 2);
+    ctx.stroke();
+    ctx.fillStyle = '#FFD700';
+    ctx.shadowColor = 'rgba(255,215,0,0.7)';
+    ctx.beginPath();
+    ctx.arc(attack.radius * 0.9, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.shadowColor = 'rgba(139,69,19,0.5)';
+    ctx.fillRect(-5, -4, 15, 8);
+    ctx.fillStyle = '#B87333';
+    ctx.fillRect(-8, -8, 8, 16);
+    ctx.fillStyle = '#CD7F32';
+    ctx.beginPath();
+    ctx.arc(-10, 0, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    if (progress < 0.5) {
+        ctx.save();
+        ctx.rotate(-0.2);
+        ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.5})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(attack.radius * 0.7, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawAxe(ctx, attack, angle, progress, distance, alpha) {
+    const spinAngle = progress * Math.PI * 4;
+    ctx.rotate(spinAngle);
+    ctx.shadowColor = 'rgba(139,69,19,0.5)';
+    ctx.shadowBlur = 15 * alpha;
+    ctx.save();
+    ctx.fillStyle = '#654321';
+    ctx.fillRect(-3, -attack.radius * 0.8, 6, attack.radius * 1.6);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(0, -attack.radius * 0.4);
+    ctx.rotate(-0.3);
+    const bladeGradient = ctx.createLinearGradient(0, -15, 30, -15);
+    bladeGradient.addColorStop(0, '#8B4513');
+    bladeGradient.addColorStop(1, '#CD7F32');
+    ctx.fillStyle = bladeGradient;
+    ctx.shadowColor = 'rgba(205,127,50,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(35, -15);
+    ctx.lineTo(35, -5);
+    ctx.lineTo(0, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(35, -15);
+    ctx.lineTo(35, -5);
+    ctx.stroke();
+    ctx.restore();
+    if (attack.meleeType === 'aoe' && progress > 0.3 && progress < 0.7) {
+        ctx.save();
+        ctx.rotate(0);
+        ctx.strokeStyle = `rgba(255,165,0,${alpha * 0.5})`;
+        ctx.lineWidth = 3;
+        const ringScale = 1 + (progress - 0.3) * 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, attack.radius * ringScale, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawDagger(ctx, attack, angle, progress, distance, alpha) {
+    const stabProgress = Math.min(progress * 2, 1);
+    const stabDistance = distance * 1.5;
+    ctx.rotate(angle);
+    ctx.translate(stabDistance, 0);
+    ctx.shadowColor = 'rgba(70,130,180,0.5)';
+    ctx.shadowBlur = 10 * alpha;
+    ctx.save();
+    const bladeGradient = ctx.createLinearGradient(0, -3, 40, -3);
+    bladeGradient.addColorStop(0, '#4682B4');
+    bladeGradient.addColorStop(1, '#87CEEB');
+    ctx.fillStyle = bladeGradient;
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(40, -1);
+    ctx.lineTo(40, 1);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(40, -1);
+    ctx.moveTo(0, 3);
+    ctx.lineTo(40, 1);
+    ctx.stroke();
+    ctx.restore();
+    if (progress > 0.7) {
+        ctx.save();
+        ctx.translate(40, 0);
+        ctx.fillStyle = `rgba(0,255,255,${alpha})`;
+        ctx.shadowColor = 'rgba(0,255,255,0.7)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 3 * (1 - progress), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    ctx.save();
+    ctx.fillStyle = '#2F4F4F';
+    ctx.fillRect(-8, -4, 12, 8);
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-8, -3, 10, 6);
+    ctx.fillStyle = '#4682B4';
+    ctx.beginPath();
+    ctx.arc(-12, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawHammer(ctx, attack, angle, progress, distance, alpha) {
+    ctx.rotate(angle);
+    const lift = Math.sin(progress * Math.PI) * 30;
+    const smashY = progress < 0.3 ? -lift : (progress > 0.6 ? (progress - 0.6) * 40 : 0);
+    ctx.translate(20, -30 + lift - smashY);
+    ctx.shadowColor = 'rgba(105,105,105,0.7)';
+    ctx.shadowBlur = 20 * alpha;
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-3, 0, 6, 50);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(0, -15);
+    ctx.fillStyle = '#696969';
+    ctx.shadowColor = 'rgba(105,105,105,0.7)';
+    ctx.fillRect(-15, -15, 30, 20);
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(-18, -15, 6, 20);
+    ctx.fillRect(12, -15, 6, 20);
+    ctx.fillStyle = '#A9A9A9';
+    ctx.fillRect(-15, -20, 30, 5);
+    ctx.restore();
+    if (progress > 0.5 && progress < 0.8) {
+        ctx.save();
+        ctx.translate(0, 0);
+        ctx.rotate(0);
+        const shockProgress = (progress - 0.5) * 3.33;
+        ctx.strokeStyle = `rgba(255,69,0,${alpha * (1 - shockProgress)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 30, attack.radius * shockProgress, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawTrident(ctx, attack, angle, progress, distance, alpha) {
+    const thrustProgress = Math.min(progress * 1.5, 1);
+    const thrustDistance = distance * 1.3 * thrustProgress;
+    ctx.rotate(angle);
+    ctx.translate(thrustDistance, 0);
+    ctx.shadowColor = 'rgba(50,205,50,0.5)';
+    ctx.shadowBlur = 15 * alpha;
+    ctx.save();
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(-3, -3, attack.radius + 20, 6);
+    ctx.fillStyle = '#654321';
+    for (let i = 0; i < 3; i++) ctx.fillRect(i * 20, -4, 2, 8);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(attack.radius + 10, 0);
+    ctx.fillStyle = '#CD7F32';
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(20, -4);
+    ctx.lineTo(20, 4);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.save();
+    ctx.translate(0, -8);
+    ctx.rotate(-0.1);
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(18, -4);
+    ctx.lineTo(18, 4);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(0, 8);
+    ctx.rotate(0.1);
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(18, -4);
+    ctx.lineTo(18, 4);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#FFD700';
+    ctx.shadowColor = 'rgba(255,215,0,0.7)';
+    ctx.beginPath();
+    ctx.arc(20, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(18, -8, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(18, 8, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawDefaultMelee(ctx, attack, angle, progress, distance, alpha) {
+    ctx.rotate(angle);
+    ctx.translate(distance, 0);
+    ctx.fillStyle = attack.color || '#FFF';
+    ctx.shadowColor = attack.color || '#FFF';
+    ctx.shadowBlur = 15 * alpha;
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawGroundEffects() {
+    groundFire.forEach(fire => {
+        const progress = (Date.now() - fire.startTime) / fire.duration;
+        if (progress > 1) return;
+        ctx.save();
+        ctx.globalAlpha = 1 - progress * 0.5;
+        ctx.fillStyle = '#FF4500';
+        ctx.shadowColor = '#FF4500';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(fire.x, fire.y, fire.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#FFD700';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(fire.x, fire.y, fire.radius * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+    poisonClouds.forEach(cloud => {
+        const progress = (Date.now() - cloud.startTime) / cloud.duration;
+        if (progress > 1) return;
+        ctx.save();
+        ctx.globalAlpha = 0.4 * (1 - progress);
+        ctx.fillStyle = '#32CD32';
+        ctx.shadowColor = '#32CD32';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+    activeTraps.forEach(trap => {
+        if (!trap.active) return;
+        ctx.save();
+        ctx.fillStyle = '#F00';
+        ctx.shadowColor = '#F00';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(trap.x, trap.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFF';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(trap.x, trap.y, 20, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    });
+}
+
+function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    let moveX = 0, moveY = 0;
+    if (keys.w || keys.up) moveY -= 1;
+    if (keys.s || keys.down) moveY += 1;
+    if (keys.a || keys.left) moveX -= 1;
+    if (keys.d || keys.right) moveX += 1;
+    if (joystickActive) {
+        const strength = Math.min(1, Math.hypot(joystickCurrentX, joystickCurrentY) / joystickMaxDistance);
+        moveX += (joystickCurrentX / joystickMaxDistance) * strength;
+        moveY += (joystickCurrentY / joystickMaxDistance) * strength;
+    }
+    const isMoving = moveX !== 0 || moveY !== 0;
+    let facingAngle = player.lastFacingAngle || 0;
+    if (isMoving) { facingAngle = Math.atan2(moveY, moveX); player.lastFacingAngle = facingAngle; }
+    else facingAngle = Math.atan2(mouseY - player.y, mouseX - player.x);
+    player.facingAngle = facingAngle;
+    ctx.shadowColor = 'rgba(255,107,107,0.5)';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#FFF';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.save();
+    ctx.rotate(facingAngle);
+    ctx.fillStyle = '#FFF';
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#FFF';
+    ctx.beginPath();
+    ctx.arc(8, -5, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(8, 5, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.shadowBlur = 0;
+    let pupilX = 8, pupilY = -5;
+    if (isMoving) {
+        pupilX += Math.cos(facingAngle) * 1.5;
+        pupilY += Math.sin(facingAngle) * 1.5;
+    } else {
+        const mouseAngle = Math.atan2(mouseY - player.y, mouseX - player.x) - facingAngle;
+        pupilX += Math.cos(mouseAngle) * 1.5;
+        pupilY += Math.sin(mouseAngle) * 1.5;
+    }
+    ctx.beginPath();
+    ctx.arc(pupilX, pupilY - 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(pupilX, pupilY + 5, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    if (isMoving) {
+        ctx.beginPath();
+        ctx.moveTo(12, -2);
+        ctx.lineTo(18, 0);
+        ctx.lineTo(12, 2);
+        ctx.stroke();
+    } else {
+        ctx.beginPath();
+        ctx.moveTo(12, -1);
+        ctx.lineTo(18, 0);
+        ctx.moveTo(12, 1);
+        ctx.lineTo(18, 0);
+        ctx.stroke();
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.rotate(facingAngle);
+    ctx.strokeStyle = '#fc0';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#fc0';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(player.radius + 2, 0);
+    ctx.lineTo(player.radius + 15, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#fc0';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(player.radius + 18, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    if (player.firstHitReduction && player.firstHitActive) {
+        ctx.shadowColor = '#0FF';
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = '#0FF';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 10, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    if (player.bloodContract) {
+        ctx.shadowColor = '#8B0000';
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = '#8B0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 5 + Math.sin(Date.now() * 0.005) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#8B0000';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${player.bloodContractStacks}`, 0, -player.radius - 10);
+    }
+    if (activeBuffs.rage.active) {
+        ctx.shadowColor = '#F00';
+        ctx.shadowBlur = 30;
+        ctx.strokeStyle = '#F00';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 10 + Math.sin(Date.now() * 0.02) * 5, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    if (player.inSlowField) {
+        ctx.shadowColor = '#6464ff';
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = '#6464ff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, player.radius + 8 + Math.sin(Date.now() * 0.01) * 3, 0, Math.PI * 2);
+        ctx.stroke();
+        if (player.slowFieldTicks > 0) {
+            ctx.fillStyle = 'rgba(255,100,100,0.9)';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#f00';
+            ctx.shadowBlur = 10;
+            ctx.fillText(`-${player.slowFieldTicks} SPD`, 0, -player.radius - 20);
+        }
+    }
+    ctx.restore();
+}
+
+function drawMonsters() {
+    const currentTime = Date.now();
+    monsters.forEach(monster => {
+        ctx.save();
+        ctx.translate(monster.x, monster.y);
+        ctx.fillStyle = monster.color;
+        ctx.shadowColor = monster.color;
+        ctx.shadowBlur = monster.isBoss ? 20 : 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (monster.stunned && monster.stunnedUntil > currentTime) {
+            ctx.fillStyle = 'rgba(255,255,0,0.3)';
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (monster.frozen && monster.frozenUntil > currentTime) {
+            ctx.fillStyle = 'rgba(0,255,255,0.3)';
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (monster.isDasher && monster.isDashing) {
+            ctx.strokeStyle = '#0FF';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#0FF';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius + 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        if (monster.isVampire) {
+            ctx.strokeStyle = '#F00';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#F00';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(0, 0, monster.radius + 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, monster.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        if (monster.monsterType && monster.monsterType.icon) {
+            ctx.fillStyle = 'white';
+            ctx.font = `${monster.radius}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(monster.monsterType.icon, 0, 0);
+        }
+        const angleToPlayer = Math.atan2(player.y - monster.y, player.x - monster.x);
+        const eyeRadius = monster.radius * 0.2;
+        ctx.fillStyle = '#FFF';
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer - 0.3) * monster.radius * 0.6, Math.sin(angleToPlayer - 0.3) * monster.radius * 0.6, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer + 0.3) * monster.radius * 0.6, Math.sin(angleToPlayer + 0.3) * monster.radius * 0.6, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angleToPlayer) * monster.radius * 0.7, Math.sin(angleToPlayer) * monster.radius * 0.7, eyeRadius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        const healthPercent = Math.max(0, Math.min(1, monster.health / monster.maxHealth));
+        const barWidth = monster.radius * 2, barHeight = 4, barX = -monster.radius, barY = -monster.radius - 10;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        if (healthPercent > 0) {
+            ctx.fillStyle = healthPercent > 0.5 ? '#0F0' : (healthPercent > 0.2 ? '#FF0' : '#F00');
+            ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+        }
+        ctx.restore();
+    });
+}
+
+function drawVisualEffects() {
+    const currentTime = Date.now();
+    visualEffects.forEach(effect => {
+        const progress = (currentTime - effect.startTime) / effect.duration;
+        if (progress > 1) return;
+        const alpha = 1 - progress;
+        ctx.save();
+        switch(effect.type) {
+            case 'death':
+                ctx.fillStyle = `rgba(255,0,0,${alpha})`;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (Math.PI * 2 * i) / 8 + progress * Math.PI;
+                    const distance = progress * 30;
+                    ctx.beginPath();
+                    ctx.arc(effect.x + Math.cos(angle) * distance, effect.y + Math.sin(angle) * distance, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+            case 'spawn':
+                ctx.strokeStyle = effect.color || '#fff';
+                ctx.lineWidth = 3 * (1 - progress);
+                ctx.shadowColor = effect.color || '#fff';
+                ctx.shadowBlur = 15 * alpha;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(effect.x, effect.y, 15 + i * 10 + progress * 30, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                break;
+            case 'bossSpawn':
+                const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, effect.radius);
+                gradient.addColorStop(0, `rgba(${effect.color ? parseInt(effect.color.slice(1,3),16) : 255}, ${effect.color ? parseInt(effect.color.slice(3,5),16) : 215}, 0, ${alpha})`);
+                gradient.addColorStop(0.5, `rgba(255,100,0,${alpha * 0.7})`);
+                gradient.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = gradient;
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 50;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 - progress * 0.5), 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'explosion':
+                const explosionSize = (effect.radius || 40) * (1 - progress * 0.5);
+                const expGradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, explosionSize);
+                expGradient.addColorStop(0, `rgba(255,255,255,${alpha})`);
+                expGradient.addColorStop(0.3, `rgba(255,200,0,${alpha})`);
+                expGradient.addColorStop(0.6, `rgba(255,100,0,${alpha * 0.7})`);
+                expGradient.addColorStop(1, `rgba(255,0,0,0)`);
+                ctx.fillStyle = expGradient;
+                ctx.shadowColor = '#FF4500';
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, explosionSize, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'heal':
+                ctx.fillStyle = `rgba(0,255,0,${alpha * 0.3})`;
+                ctx.shadowColor = '#0F0';
+                ctx.shadowBlur = 15 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            default:
+                break;
+        }
+        ctx.restore();
+    });
 }
 
 // ============================================
