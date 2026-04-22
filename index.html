@@ -20,7 +20,6 @@
             padding: 20px;
         }
 
-        /* NEW: Scrollable layout wrapper */
         .app-layout {
             height: 100%;
             display: flex;
@@ -55,7 +54,6 @@
             font-size: 1.2rem;
         }
 
-        /* NEW: Main content with scrollable columns */
         .main-content {
             flex: 1;
             display: flex;
@@ -73,7 +71,6 @@
             scrollbar-color: #ff6b6b #1a1a2e;
         }
 
-        /* NEW: Scrollbar styling */
         .game-area::-webkit-scrollbar {
             width: 8px;
         }
@@ -147,7 +144,6 @@
             scrollbar-color: #ff6b6b #1a1a2e;
         }
 
-        /* NEW: Scrollbar styling for right panel */
         .ui-panel::-webkit-scrollbar {
             width: 8px;
         }
@@ -600,7 +596,6 @@
                 grid-template-columns: 1fr;
             }
             
-            /* Disable scrolling on mobile */
             .game-area, .ui-panel {
                 overflow-y: visible;
             }
@@ -949,7 +944,6 @@
             background: linear-gradient(45deg, #ffa726, #ff6b6b);
         }
 
-        /* Consumables Container Styles */
         .consumables-container {
             margin-top: 20px;
             padding: 10px;
@@ -1025,7 +1019,6 @@
             font-size: 0.9rem;
         }
         
-        /* New button position - above shop */
         .wave-button-container {
             margin-bottom: 15px;
         }
@@ -1040,14 +1033,12 @@
     <div class="merge-info" id="mergeInfo"></div>
     <div class="reload-indicator" id="reloadIndicator">RELOADING...</div>
     
-    <!-- NEW: Wrapper div for scrollable layout -->
     <div class="app-layout">
         <div class="game-header">
             <h1 class="game-title">Battle Waves</h1>
             <p class="game-subtitle">Survive waves of monsters, upgrade your stats, and buy powerful weapons!</p>
         </div>
 
-        <!-- NEW: Main content wrapper for side-by-side columns -->
         <div class="main-content">
             <div class="game-area">
                 <div class="canvas-container">
@@ -1109,13 +1100,11 @@
                     </div>
                 </div>
 
-                <!-- Consumables Section -->
                 <div class="consumables-container">
                     <h4>Consumables</h4>
                     <div class="consumables-grid" id="consumablesGrid"></div>
                 </div>
 
-                <!-- Start Wave Button moved above shop -->
                 <div class="wave-button-container">
                     <button class="btn btn-primary next-wave-btn" id="nextWaveBtn">
                         <span class="icon">⚔️</span> Start Next Wave
@@ -1142,7 +1131,6 @@
         </div>
     </div>
 
-    <!-- Start Screen Overlay -->
     <div class="overlay" id="startScreen">
         <div class="overlay-content start-screen">
             <h2 class="start-title">Battle Waves</h2>
@@ -1200,7 +1188,6 @@
         </div>
     </div>
 
-    <!-- Wave Complete Overlay (Stat Buffs) -->
     <div class="overlay" id="waveCompleteOverlay" style="display: none;">
         <div class="overlay-content">
             <h2 class="overlay-title">Wave Complete!</h2>
@@ -1209,7 +1196,6 @@
         </div>
     </div>
 
-    <!-- Game Over Overlay -->
     <div class="overlay" id="gameOverOverlay" style="display: none;">
         <div class="overlay-content">
             <h2 class="overlay-title">Game Over!</h2>
@@ -1221,25 +1207,23 @@
             </div>
         </div>
     </div>
-<script>
-    // Check if we need to load a saved game
-    (function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('load')) {
-            // Wait for game to initialize then load save
-            const checkGameLoaded = setInterval(() => {
-                if (typeof loadGame === 'function') {
-                    clearInterval(checkGameLoaded);
-                    setTimeout(() => {
-                        loadGame();
-                    }, 500);
-                }
-            }, 100);
-        }
-    })();
-</script>
+    <script>
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('load')) {
+                const checkGameLoaded = setInterval(() => {
+                    if (typeof loadGame === 'function') {
+                        clearInterval(checkGameLoaded);
+                        setTimeout(() => {
+                            loadGame();
+                        }, 500);
+                    }
+                }, 100);
+            }
+        })();
+    </script>
     <script src="game-data.js"></script>
-    <script src="game-obstacles.js"></script
+    <!-- game-obstacles.js is intentionally omitted -->
     <script src="game-logic.js"></script>
     <script src="combat-system.js"></script>
 </body>
