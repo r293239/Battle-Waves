@@ -500,15 +500,22 @@ function startWave() {
     player.speed = player.baseSpeed * player.speedMultiplier;
     player.weapons.forEach(w => { if (w.resetEachRound) w.resetAmmo(); });
     
+    // Clear any existing timers
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
+    }
+    
     bossAbilities = {
         shotgun: false, asteroids: [], slowField: null, enraged: false, bossWeapon: null,
         bossWeaponAttack: 0, bossDash: false, bossDashTarget: { x: 0, y: 0 }, bossDashStart: 0,
         bossDashCooldown: 0, bossDashDirection: { x: 0, y: 0 }, bossDashDistance: 0, minionSpawnTimer: 0,
         voidZones: [], teleportTimer: 0
     };
-    
-    if (asteroidTimer) clearInterval(asteroidTimer);
-    if (minionSpawnInterval) clearInterval(minionSpawnInterval);
     
     const waveConfig = getWaveConfig(wave);
     waveDisplay.textContent = `Wave ${wave}`;
@@ -570,14 +577,28 @@ function startWave() {
                     bossAbilities.bossWeapon.lastAttack = 0;
                     boss.color = '#8B0000';
                     bossAbilities.shotgun = true;
-                    boss.attackCooldown = 3500; // <-- CHANGE: Boss shoots less often
+                    boss.attackCooldown = 3500; // Wave 10 boss shoots less often
                 } else if (wave === 20) {
                     bossAbilities.bossWeapon = { ...BOSS_WEAPONS.WAR_HAMMER };
                     bossAbilities.bossWeapon.lastAttack = 0;
                     boss.color = '#8B4513';
+                    
+                    // FIX: Restart meteor shower for wave 20 boss
+                    if (asteroidTimer) clearInterval(asteroidTimer);
                     asteroidTimer = setInterval(() => {
+                        // Only spawn meteors if wave is active and boss exists
                         if (waveActive && monsters.some(m => m.isBoss)) {
-                            for (let i = 0; i < 5; i++) setTimeout(() => { if (waveActive) spawnAsteroid(); }, i * 200);
+                            for (let i = 0; i < 5; i++) {
+                                setTimeout(() => {
+                                    if (waveActive) spawnAsteroid();
+                                }, i * 200);
+                            }
+                        } else if (!waveActive) {
+                            // If wave ended, clear the timer
+                            if (asteroidTimer) {
+                                clearInterval(asteroidTimer);
+                                asteroidTimer = null;
+                            }
                         }
                     }, 4000);
                 } else if (wave === 30) {
@@ -730,8 +751,14 @@ function endWave() {
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
-    if (asteroidTimer) clearInterval(asteroidTimer);
-    if (minionSpawnInterval) clearInterval(minionSpawnInterval);
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
+    }
     bossAbilities = {
         shotgun: false, asteroids: [], slowField: null, enraged: false, bossWeapon: null,
         bossWeaponAttack: 0, bossDash: false, bossDashTarget: { x: 0, y: 0 }, bossDashStart: 0,
@@ -751,8 +778,14 @@ function gameOver() {
     player.inSlowField = false;
     player.slowFieldTicks = 0;
     player.speed = player.baseSpeed * player.speedMultiplier;
-    if (asteroidTimer) clearInterval(asteroidTimer);
-    if (minionSpawnInterval) clearInterval(minionSpawnInterval);
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
+    }
     if (player.bloodContractInterval) clearInterval(player.bloodContractInterval);
     clearSave();
     if (player.guardianAngel && !player.guardianAngelUsed && player.health <= 0) {
@@ -1122,7 +1155,14 @@ function showReloadIndicator(weaponName) {
 
 function initGame() {
     if (player.bloodContractInterval) clearInterval(player.bloodContractInterval);
-    if (minionSpawnInterval) clearInterval(minionSpawnInterval);
+    if (minionSpawnInterval) {
+        clearInterval(minionSpawnInterval);
+        minionSpawnInterval = null;
+    }
+    if (asteroidTimer) {
+        clearInterval(asteroidTimer);
+        asteroidTimer = null;
+    }
     pendingHealing = 0;
     
     Object.assign(player, {
@@ -1176,8 +1216,6 @@ function initGame() {
         bossDashCooldown: 0, bossDashDirection: { x: 0, y: 0 }, bossDashDistance: 0, minionSpawnTimer: 0,
         voidZones: [], teleportTimer: 0
     };
-    if (asteroidTimer) clearInterval(asteroidTimer);
-    if (minionSpawnInterval) clearInterval(minionSpawnInterval);
     
     monsters = [];
     player.projectiles = [];
@@ -1584,6 +1622,15 @@ function loadGame() {
                     createDamageIndicator(player.x, player.y, damageAmount, false);
                 }
             }, 1000);
+        }
+        // Clear any existing timers before starting new wave
+        if (asteroidTimer) {
+            clearInterval(asteroidTimer);
+            asteroidTimer = null;
+        }
+        if (minionSpawnInterval) {
+            clearInterval(minionSpawnInterval);
+            minionSpawnInterval = null;
         }
         startScreen.style.display = 'none';
         waveCompleteOverlay.style.display = 'none';
@@ -3347,6 +3394,111 @@ function drawVisualEffects() {
                 ctx.beginPath();
                 ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
                 ctx.fill();
+                break;
+            case 'asteroidWarning':
+                ctx.strokeStyle = `rgba(255, 69, 0, ${alpha})`;
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#FF4500';
+                ctx.shadowBlur = 20 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.fillStyle = `rgba(255, 69, 0, ${alpha * 0.2})`;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'asteroid':
+                ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
+                ctx.shadowColor = '#8B4513';
+                ctx.shadowBlur = 30 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = `rgba(160, 82, 45, ${alpha * 0.7})`;
+                ctx.beginPath();
+                ctx.arc(effect.x - 10, effect.y - 5, effect.radius * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(effect.x + 8, effect.y + 10, effect.radius * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'teleport':
+                ctx.strokeStyle = `rgba(106, 13, 173, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#6a0dad';
+                ctx.shadowBlur = 20 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 - progress), 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+            case 'landmineSpawn':
+                ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
+                ctx.shadowColor = '#8B4513';
+                ctx.shadowBlur = 15 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'towerSpawn':
+                ctx.fillStyle = `rgba(76, 175, 80, ${alpha * 0.5})`;
+                ctx.shadowColor = '#4CAF50';
+                ctx.shadowBlur = 20 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'guardianAngel':
+                ctx.fillStyle = `rgba(255, 255, 0, ${alpha * 0.3})`;
+                ctx.shadowColor = '#FF0';
+                ctx.shadowBlur = 30 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress * 2), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('😇', effect.x, effect.y - 10);
+                break;
+            case 'rage':
+                ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
+                ctx.lineWidth = 5;
+                ctx.shadowColor = '#F00';
+                ctx.shadowBlur = 25 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + Math.sin(progress * Math.PI * 8) * 0.1), 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+            case 'upgrade':
+                ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.5})`;
+                ctx.shadowColor = '#FFD700';
+                ctx.shadowBlur = 25 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('⬆️', effect.x, effect.y);
+                break;
+            case 'bombPlaced':
+                ctx.fillStyle = `rgba(255, 0, 0, ${alpha * 0.5})`;
+                ctx.shadowColor = '#F00';
+                ctx.shadowBlur = 20 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'shockwave':
+                ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#0FF';
+                ctx.shadowBlur = 15 * alpha;
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, effect.radius * (1 + progress * 2), 0, Math.PI * 2);
+                ctx.stroke();
                 break;
             default:
                 break;
