@@ -570,6 +570,7 @@ function startWave() {
                     bossAbilities.bossWeapon.lastAttack = 0;
                     boss.color = '#8B0000';
                     bossAbilities.shotgun = true;
+                    boss.attackCooldown = 3500; // <-- CHANGE: Boss shoots less often
                 } else if (wave === 20) {
                     bossAbilities.bossWeapon = { ...BOSS_WEAPONS.WAR_HAMMER };
                     bossAbilities.bossWeapon.lastAttack = 0;
