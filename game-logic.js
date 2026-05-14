@@ -334,7 +334,7 @@ function createDifficultySelector() {
         <button class="diff-btn" data-mode="easy" style="display:block;width:200px;margin:10px auto;padding:12px;background:linear-gradient(45deg,#4CAF50,#45a049);color:white;border:none;border-radius:8px;font-size:1.1rem;cursor:pointer;">🟢 Easy Mode</button>
         <button class="diff-btn" data-mode="normal" style="display:block;width:200px;margin:10px auto;padding:12px;background:linear-gradient(45deg,#ffd700,#ffaa00);color:black;border:none;border-radius:8px;font-size:1.1rem;cursor:pointer;">🟡 Normal Mode</button>
         <button class="diff-btn" data-mode="impossible" style="display:block;width:200px;margin:10px auto;padding:12px;background:linear-gradient(45deg,#ff416c,#ff4b2b);color:white;border:none;border-radius:8px;font-size:1.1rem;cursor:pointer;">🔴 Impossible Mode</button>
-        <div style="margin-top:15px;font-size:0.8rem;color:#aaa;">Easy: +15% dmg, -15% HP, +25% gold<br>Normal: Standard<br>Impossible: -10% dmg, +10% HP, -50% gold, more monsters</div>
+        <div style="margin-top:15px;font-size:0.8rem;color:#aaa;">Easy: +15% dmg, -15% HP, +25% gold, fewer enemies<br>Normal: Standard<br>Impossible: -10% dmg, +10% HP, -50% gold, harder enemies earlier</div>
     `;
     document.body.appendChild(container);
     container.querySelectorAll('.diff-btn').forEach(btn => {
@@ -345,6 +345,46 @@ function createDifficultySelector() {
 }
 
 // ============================================
+// DIFFICULTY-SCALED WAVE COMPOSITIONS
+// ============================================
+
+function getDifficultyWaveComposition(waveNumber) {
+    const baseComp = WAVE_COMPOSITIONS[waveNumber];
+    if (!baseComp) return { normal: 3, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 };
+    
+    if (difficulty === 'impossible') {
+        // Impossible: special enemies unlock MUCH earlier and are more numerous
+        return {
+            normal: baseComp.normal + 2 + Math.floor(waveNumber / 2),
+            fast: Math.max(baseComp.fast, (waveNumber >= 1 ? 1 : 0) + Math.floor(waveNumber / 3)),
+            tank: Math.max(baseComp.tank, (waveNumber >= 1 ? 1 : 0) + Math.floor(waveNumber / 3)),
+            explosive: Math.max(baseComp.explosive, (waveNumber >= 3 ? 1 : 0) + Math.floor(waveNumber / 5)),
+            gunner: Math.max(baseComp.gunner, (waveNumber >= 1 ? 1 : 0) + Math.floor(waveNumber / 3)),
+            splitter: Math.max(baseComp.splitter, (waveNumber >= 4 ? 1 : 0) + Math.floor(waveNumber / 5)),
+            dasher: Math.max(baseComp.dasher, (waveNumber >= 1 ? 1 : 0) + Math.floor(waveNumber / 4)),
+            vampire: Math.max(baseComp.vampire, (waveNumber >= 5 ? 1 : 0) + Math.floor(waveNumber / 6))
+        };
+    }
+    
+    if (difficulty === 'easy') {
+        // Easy: special enemies unlock later and are fewer
+        return {
+            normal: Math.max(1, baseComp.normal - 1),
+            fast: (waveNumber >= 4 ? Math.max(0, baseComp.fast - 1) : 0),
+            tank: (waveNumber >= 6 ? Math.max(0, baseComp.tank - 1) : 0),
+            explosive: (waveNumber >= 8 ? Math.max(0, baseComp.explosive - 1) : 0),
+            gunner: (waveNumber >= 7 ? Math.max(0, baseComp.gunner - 1) : 0),
+            splitter: (waveNumber >= 9 ? Math.max(0, baseComp.splitter - 1) : 0),
+            dasher: (waveNumber >= 5 ? Math.max(0, baseComp.dasher - 1) : 0),
+            vampire: (waveNumber >= 10 ? Math.max(0, baseComp.vampire - 1) : 0)
+        };
+    }
+    
+    // Normal: use base composition
+    return { ...baseComp };
+}
+
+// ============================================
 // UTILITY FUNCTIONS
 // ============================================
 
@@ -352,28 +392,15 @@ function getWeaponById(id) { return GAME_DATA.WEAPONS.find(w => w.id === id); }
 
 function getWaveConfig(waveNumber) {
     const baseConfig = GAME_DATA.WAVES[waveNumber - 1] || GAME_DATA.WAVES[GAME_DATA.WAVES.length - 1];
-    return { ...baseConfig, monsters: Math.max(1, baseConfig.monsters + difficultyMultipliers.extraMonsters), monsterHealth: Math.floor(baseConfig.monsterHealth * difficultyMultipliers.monsterHealth), goldReward: Math.floor(baseConfig.goldReward * difficultyMultipliers.goldGain) };
+    const comp = getDifficultyWaveComposition(waveNumber);
+    const totalSpecial = comp.fast + comp.tank + comp.explosive + comp.gunner + comp.splitter + comp.dasher + comp.vampire;
+    const totalMonsters = comp.normal + totalSpecial + difficultyMultipliers.extraMonsters;
+    return { ...baseConfig, monsters: Math.max(1, totalMonsters), monsterHealth: Math.floor(baseConfig.monsterHealth * difficultyMultipliers.monsterHealth), goldReward: Math.floor(baseConfig.goldReward * difficultyMultipliers.goldGain) };
 }
 
 function getMonsterTypeForWave(waveNumber) {
     if (waveNumber % 10 === 0) return MONSTER_TYPES.BOSS;
-    const comp = WAVE_COMPOSITIONS[waveNumber];
-    if (!comp) return MONSTER_TYPES.NORMAL;
-    if (difficulty === 'impossible') {
-        const types = [];
-        for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL);
-        for (let i = 0; i < Math.max(comp.tank || 1, 1); i++) types.push(MONSTER_TYPES.TANK);
-        for (let i = 0; i < Math.max(comp.dasher || 1, 1); i++) types.push(MONSTER_TYPES.DASHER);
-        for (let i = 0; i < Math.max(comp.gunner || 1, 1); i++) types.push(MONSTER_TYPES.GUNNER);
-        return types;
-    }
-    if (difficulty === 'easy') {
-        const types = [];
-        for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL);
-        if (comp.tank > 0 && waveNumber > 3) types.push(MONSTER_TYPES.TANK);
-        if (comp.fast > 0) types.push(MONSTER_TYPES.FAST);
-        return types;
-    }
+    const comp = getDifficultyWaveComposition(waveNumber);
     const types = [];
     for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL);
     for (let i = 0; i < comp.fast; i++) types.push(MONSTER_TYPES.FAST);
@@ -387,17 +414,7 @@ function getMonsterTypeForWave(waveNumber) {
 }
 
 function getNonBossMonsterTypesForWave(waveNumber) {
-    const comp = WAVE_COMPOSITIONS[waveNumber];
-    if (!comp) return [MONSTER_TYPES.NORMAL];
-    if (difficulty === 'impossible') {
-        const types = [];
-        for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL);
-        for (let i = 0; i < Math.max(comp.tank || 1, 1); i++) types.push(MONSTER_TYPES.TANK);
-        for (let i = 0; i < Math.max(comp.dasher || 1, 1); i++) types.push(MONSTER_TYPES.DASHER);
-        for (let i = 0; i < Math.max(comp.gunner || 1, 1); i++) types.push(MONSTER_TYPES.GUNNER);
-        return types.sort(() => Math.random() - 0.5);
-    }
-    if (difficulty === 'easy') { const types = []; for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL); return types.sort(() => Math.random() - 0.5); }
+    const comp = getDifficultyWaveComposition(waveNumber);
     const types = [];
     for (let i = 0; i < comp.normal; i++) types.push(MONSTER_TYPES.NORMAL);
     for (let i = 0; i < comp.fast; i++) types.push(MONSTER_TYPES.FAST);
@@ -491,7 +508,7 @@ function scheduleWaveSpawns(waveConfig, isBossWave) {
 function createMonster(monsterType, isBoss = false, spawnX = null, spawnY = null) {
     const waveConfig = getWaveConfig(wave); let health, damage;
     if (isBoss) { health = waveConfig.bossHealth || (waveConfig.monsterHealth * monsterType.healthMultiplier); damage = waveConfig.monsterDamage * monsterType.damageMultiplier; }
-    else { health = Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier * difficultyMultipliers.monsterHealth); damage = Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier); }
+    else { health = Math.floor(waveConfig.monsterHealth * monsterType.healthMultiplier); damage = Math.floor(waveConfig.monsterDamage * monsterType.damageMultiplier); }
     let x, y;
     if (spawnX !== null && spawnY !== null) { x = spawnX; y = spawnY; }
     else { const side = Math.floor(Math.random() * 4); switch(side) { case 0: x = 50; y = Math.random() * (canvas.height - 100) + 50; break; case 1: x = canvas.width - 50; y = Math.random() * (canvas.height - 100) + 50; break; case 2: x = Math.random() * (canvas.width - 100) + 50; y = 50; break; default: x = Math.random() * (canvas.width - 100) + 50; y = canvas.height - 50; } }
@@ -509,7 +526,7 @@ function startWave() {
     if (minionSpawnInterval) { clearInterval(minionSpawnInterval); minionSpawnInterval = null; }
     bossAbilities = { shotgun: false, asteroids: [], slowField: null, enraged: false, bossWeapon: null, bossWeaponAttack: 0, bossDash: false, bossDashTarget: { x: 0, y: 0 }, bossDashStart: 0, bossDashCooldown: 0, bossDashDirection: { x: 0, y: 0 }, bossDashDistance: 0, minionSpawnTimer: 0, voidZones: [], teleportTimer: 0 };
     const waveConfig = getWaveConfig(wave);
-    waveDisplay.textContent = `Wave ${wave}`; waveDisplay.classList.remove('boss-wave');
+    waveDisplay.textContent = `Wave ${wave} (${difficulty.toUpperCase()})`; waveDisplay.classList.remove('boss-wave');
     if (waveConfig.isBoss) {
         if (wave === 10) waveDisplay.textContent = `BOSS WAVE 10 - SHADOW DAGGER`; else if (wave === 20) waveDisplay.textContent = `BOSS WAVE 20 - WAR HAMMER`; else if (wave === 30) waveDisplay.textContent = `BOSS WAVE 30 - SOUL REAPER`; else if (wave === 40) waveDisplay.textContent = `BOSS WAVE 40 - VOID BLADE`; else waveDisplay.textContent = `BOSS WAVE ${wave}`;
         waveDisplay.classList.add('boss-wave');
@@ -952,14 +969,7 @@ function updateGame(deltaTime) {
     if (wave === 40 && bossAbilities.bossWeapon) { const boss = monsters.find(m => m.isBoss); if (boss && Math.hypot(player.x - boss.x, player.y - boss.y) <= bossAbilities.bossWeapon.range && currentTime - (bossAbilities.bossWeapon.lastAttack || 0) > 1500) { const angle = Math.atan2(player.y - boss.y, player.x - boss.x); bossAbilities.bossWeaponAttack = { type: 'melee', x: boss.x, y: boss.y, radius: bossAbilities.bossWeapon.range, damage: bossAbilities.bossWeapon.baseDamage, color: bossAbilities.bossWeapon.swingColor, startTime: currentTime, duration: 300, swingAngle: bossAbilities.bossWeapon.swingAngle, meleeType: bossAbilities.bossWeapon.meleeType, angle: angle, pierceCount: 5, voidBlade: true }; bossAbilities.bossWeapon.lastAttack = currentTime; } for (let i = voidZones.length - 1; i >= 0; i--) { const zone = voidZones[i]; if (currentTime - zone.startTime > zone.duration) { voidZones.splice(i, 1); continue; } if (Math.hypot(player.x - zone.x, player.y - zone.y) < zone.radius + player.radius) { if (!player.lastVoidTick || currentTime - player.lastVoidTick > 500) { player.health -= zone.damage; createDamageIndicator(player.x, player.y, zone.damage, true); player.lastVoidTick = currentTime; if (player.health <= 0) gameOver(); } } } }
     if (bossAbilities.bossWeapon && wave !== 30 && wave !== 40) { const boss = monsters.find(m => m.isBoss); if (boss && Math.hypot(player.x - boss.x, player.y - boss.y) <= bossAbilities.bossWeapon.range && currentTime - (bossAbilities.bossWeapon.lastAttack || 0) > 2000) { const angle = Math.atan2(player.y - boss.y, player.x - boss.x); bossAbilities.bossWeaponAttack = { type: 'melee', x: boss.x, y: boss.y, radius: bossAbilities.bossWeapon.range, damage: bossAbilities.bossWeapon.baseDamage, color: bossAbilities.bossWeapon.swingColor, startTime: currentTime, duration: 300, swingAngle: bossAbilities.bossWeapon.swingAngle, meleeType: bossAbilities.bossWeapon.meleeType, angle: angle, pierceCount: bossAbilities.bossWeapon.pierceCount || 1 }; bossAbilities.bossWeapon.lastAttack = currentTime; } }
     if ((player.healthRegen > 0 || player.healthRegenPercent > 0) && currentTime - player.lastRegen >= 1000) { let regenAmount = 0; if (player.healthRegen > 0) regenAmount += player.healthRegen; if (player.healthRegenPercent > 0) regenAmount += Math.floor(player.maxHealth * player.healthRegenPercent); if (regenAmount > 0 && player.health < player.maxHealth) applyHealing(Math.max(1, regenAmount)); player.lastRegen = currentTime; }
-    updateWeapons();
-    updateProjectiles();
-    updateMonsterProjectiles(currentTime);
-    updateBossProjectiles(currentTime);
-    updateMeleeAttacks();
-    updateMonsters(currentTime);
-    updateGroundEffects(currentTime);
-    updateVisualEffects();
+    updateWeapons(); updateProjectiles(); updateMonsterProjectiles(currentTime); updateBossProjectiles(currentTime); updateMeleeAttacks(); updateMonsters(currentTime); updateGroundEffects(currentTime); updateVisualEffects();
     if (waveActive && monsters.length === 0 && spawnIndicators.length === 0 && pendingSpawns === 0) { wave++; endWave(); }
     updateUI();
 }
