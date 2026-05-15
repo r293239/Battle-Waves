@@ -67,12 +67,12 @@ const GAME_DATA = {
         { id: 'throwing_knives', name: 'Throwing Knives', icon: '🔪', type: 'ranged', baseDamage: 7, attackSpeed: 2.0, range: 250, projectileSpeed: 12, cost: 55, description: 'Limited knives per round', projectileColor: '#C0C0C0', animation: 'knife', usesAmmo: true, magazineSize: 7, reloadTime: 0, isThrowable: true, resetEachRound: true, spread: 0.02, tierMultipliers: { damage: [1, 1.2, 1.4, 1.7, 2.0, 2.4], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], magazine: [1, 1.4, 1.8, 2.2, 2.6, 3.0], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] } },
         { id: 'sniper', name: 'Sniper Rifle', icon: '🎯', type: 'ranged', baseDamage: 35, attackSpeed: 0.5, range: 500, projectileSpeed: 20, cost: 180, description: 'Long range, targets highest HP', projectileColor: '#FF4500', animation: 'sniper', usesAmmo: true, magazineSize: 3, reloadTime: 2500, spread: 0, sniper: true, tierMultipliers: { damage: [1, 1.4, 1.8, 2.3, 2.9, 3.1], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.5], magazine: [1, 1, 1.2, 1.4, 1.6, 1.8, 1.8] } },
         { id: 'crossbow', name: 'Crossbow', icon: '🏹', type: 'ranged', baseDamage: 18, attackSpeed: 1.2, range: 350, projectileSpeed: 15, cost: 120, description: 'Pierces through enemies', projectileColor: '#8B4513', animation: 'bolt', usesAmmo: true, magazineSize: 1, reloadTime: 1200, spread: 0, pierceCount: 3, tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], pierceCount: [1, 2, 2, 3, 3, 4] } },
-        { id: 'sword', name: 'Iron Sword', icon: '⚔️', type: 'melee', meleeType: 'single', baseDamage: 10, attackSpeed: 1.2, range: 100, cost: 60, description: 'Swing a longsword in an arc', usesAmmo: false, tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] } },
-        { id: 'axe', name: 'Battle Axe', icon: '🪓', type: 'melee', meleeType: 'aoe', baseDamage: 12, attackSpeed: 0.8, range: 80, cost: 100, description: '360° spinning axe', usesAmmo: false, tierMultipliers: { damage: [1, 1.4, 1.8, 2.3, 2.9, 3.5], attackSpeed: [1, 1.05, 1.1, 1.15, 1.2, 1.25], range: [1, 1, 1, 1, 1, 1] } },
-        { id: 'dual_daggers', name: 'Dual Daggers', icon: '🗡️🗡️', type: 'melee', meleeType: 'single', baseDamage: 5, attackSpeed: 1.5, range: 50, cost: 95, description: 'Two fast daggers', usesAmmo: false, dualStrike: true, tierMultipliers: { damage: [1, 1.2, 1.4, 1.7, 2.0, 2.0], attackSpeed: [1, 1.2, 1.4, 1.4, 1.6, 1.8], range: [1, 1.05, 1.1, 1.15, 1.17, 1.2] } },
-        { id: 'dagger', name: 'Swift Dagger', icon: '🗡️', type: 'melee', meleeType: 'single', baseDamage: 6, attackSpeed: 2.0, range: 50, cost: 70, description: 'Quick stabbing dagger', usesAmmo: false, tierMultipliers: { damage: [1, 1.2, 1.4, 1.6, 1.8, 2.0], attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0], range: [1, 1.05, 1.1, 1.15, 1.2, 1.25] } },
-        { id: 'hammer', name: 'War Hammer', icon: '🔨', type: 'melee', meleeType: 'aoe', baseDamage: 15, attackSpeed: 0.5, range: 80, cost: 130, description: 'Massive overhead smash', usesAmmo: false, tierMultipliers: { damage: [1, 1.5, 2.0, 2.6, 3.3, 4.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.15, 1.3, 1.45, 1.6, 1.75] } },
-        { id: 'spear', name: 'Trident', icon: '🔱', type: 'melee', meleeType: 'pierce', baseDamage: 10, attackSpeed: 1.0, range: 100, cost: 110, description: 'Three-pronged thrust', usesAmmo: false, pierceCount: 3, tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], pierceCount: [1, 1, 2, 2, 3, 4], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] } }
+        { id: 'sword', name: 'Iron Sword', icon: '⚔️', type: 'melee', meleeType: 'single', baseDamage: 10, attackSpeed: 1.2, range: 100, cost: 60, description: 'Swing a longsword in an arc', swingColor: '#C0C0C0', swingAngle: 90, trailColor: '#FFFFFF', sparkleColor: '#FFD700', bladeColor: '#C0C0C0', hiltColor: '#8B4513', usesAmmo: false, tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] } },
+        { id: 'axe', name: 'Battle Axe', icon: '🪓', type: 'melee', meleeType: 'aoe', baseDamage: 9, attackSpeed: 0.9, range: 100, cost: 100, description: '360° swing with knockback', swingColor: '#8B4513', swingAngle: 360, trailColor: '#FF4500', sparkleColor: '#FFD700', shockwaveColor: '#FFA500', shockwaveIntensity: 1.5, bladeColor: '#8B4513', hiltColor: '#654321', edgeColor: '#CD7F32', usesAmmo: false, tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] } },
+        { id: 'dual_daggers', name: 'Dual Daggers', icon: '🗡️🗡️', type: 'melee', meleeType: 'single', baseDamage: 5, attackSpeed: 1.5, range: 50, cost: 95, description: 'Two fast daggers', swingColor: '#4682B4', swingAngle: 60, trailColor: '#87CEEB', sparkleColor: '#00FFFF', bladeColor: '#4682B4', hiltColor: '#2F4F4F', usesAmmo: false, dualStrike: true, tierMultipliers: { damage: [1, 1.2, 1.4, 1.7, 2.0, 2.0], attackSpeed: [1, 1.2, 1.4, 1.4, 1.6, 1.8], range: [1, 1.05, 1.1, 1.15, 1.17, 1.2] } },
+        { id: 'dagger', name: 'Swift Dagger', icon: '🗡️', type: 'melee', meleeType: 'single', baseDamage: 6, attackSpeed: 2.0, range: 50, cost: 70, description: 'Quick stabbing dagger', swingColor: '#4682B4', swingAngle: 30, trailColor: '#00FFFF', sparkleColor: '#00FFFF', bladeColor: '#4682B4', hiltColor: '#2F4F4F', usesAmmo: false, tierMultipliers: { damage: [1, 1.2, 1.4, 1.6, 1.8, 2.0], attackSpeed: [1, 1.2, 1.4, 1.6, 1.8, 2.0], range: [1, 1.05, 1.1, 1.15, 1.2, 1.25] } },
+        { id: 'hammer', name: 'War Hammer', icon: '🔨', type: 'melee', meleeType: 'aoe', baseDamage: 15, attackSpeed: 0.5, range: 80, cost: 130, description: 'Massive overhead smash', swingColor: '#696969', swingAngle: 360, trailColor: '#FF4500', sparkleColor: '#FFD700', shockwaveColor: '#FF4500', shockwaveIntensity: 2.5, headColor: '#696969', handleColor: '#8B4513', usesAmmo: false, tierMultipliers: { damage: [1, 1.5, 2.0, 2.6, 3.3, 4.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], range: [1, 1.15, 1.3, 1.45, 1.6, 1.75] } },
+        { id: 'spear', name: 'Trident', icon: '🔱', type: 'melee', meleeType: 'pierce', baseDamage: 10, attackSpeed: 1.0, range: 100, cost: 110, description: 'Three-pronged thrust', swingColor: '#CD7F32', swingAngle: 45, trailColor: '#50C878', sparkleColor: '#FFD700', prongColor: '#CD7F32', shaftColor: '#8B4513', tipColor: '#FFD700', usesAmmo: false, pierceCount: 3, tierMultipliers: { damage: [1, 1.3, 1.6, 2.0, 2.5, 3.0], attackSpeed: [1, 1.1, 1.2, 1.3, 1.4, 1.5], pierceCount: [1, 1, 2, 2, 3, 4], range: [1, 1.1, 1.2, 1.3, 1.4, 1.5] } }
     ],
     ITEMS: [
         { id: 'health_potion', name: 'Health Potion', icon: '❤️', type: 'consumable', cost: 50, description: 'Restore 25% of max health' },
@@ -126,7 +126,7 @@ const BOSS_WEAPONS = {
 };
 
 // ============================================
-// WAVE COMPOSITIONS (updated to wave 40 with varied boss waves)
+// WAVE COMPOSITIONS - NORMAL MODE
 // ============================================
 
 const WAVE_COMPOSITIONS = {
@@ -139,7 +139,7 @@ const WAVE_COMPOSITIONS = {
     7: { normal: 8, fast: 4, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
     8: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
     9: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 0, dasher: 0, vampire: 2 },
-    10: { normal: 6, fast: 3, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 1, vampire: 0 }, // 15 total
+    10: { normal: 6, fast: 3, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 1, vampire: 0 },
     11: { normal: 8, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 2, dasher: 2, vampire: 2 },
     12: { normal: 9, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 2, dasher: 3, vampire: 2 },
     13: { normal: 9, fast: 6, tank: 4, explosive: 3, gunner: 2, splitter: 2, dasher: 2, vampire: 2 },
@@ -149,7 +149,7 @@ const WAVE_COMPOSITIONS = {
     17: { normal: 11, fast: 8, tank: 5, explosive: 4, gunner: 4, splitter: 2, dasher: 2, vampire: 3 },
     18: { normal: 12, fast: 8, tank: 6, explosive: 4, gunner: 4, splitter: 2, dasher: 2, vampire: 3 },
     19: { normal: 12, fast: 9, tank: 6, explosive: 5, gunner: 4, splitter: 2, dasher: 2, vampire: 4 },
-    20: { normal: 8, fast: 5, tank: 4, explosive: 3, gunner: 2, splitter: 1, dasher: 1, vampire: 1 }, // 25 total
+    20: { normal: 8, fast: 5, tank: 4, explosive: 3, gunner: 2, splitter: 1, dasher: 1, vampire: 1 },
     21: { normal: 13, fast: 9, tank: 7, explosive: 5, gunner: 5, splitter: 4, dasher: 4, vampire: 3 },
     22: { normal: 14, fast: 10, tank: 7, explosive: 6, gunner: 5, splitter: 4, dasher: 4, vampire: 3 },
     23: { normal: 14, fast: 10, tank: 8, explosive: 6, gunner: 5, splitter: 5, dasher: 4, vampire: 3 },
@@ -159,7 +159,7 @@ const WAVE_COMPOSITIONS = {
     27: { normal: 16, fast: 12, tank: 10, explosive: 8, gunner: 7, splitter: 4, dasher: 4, vampire: 4 },
     28: { normal: 17, fast: 13, tank: 10, explosive: 9, gunner: 7, splitter: 4, dasher: 4, vampire: 4 },
     29: { normal: 17, fast: 13, tank: 11, explosive: 9, gunner: 8, splitter: 4, dasher: 4, vampire: 5 },
-    30: { normal: 10, fast: 6, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2, vampire: 3 }, // 35 total
+    30: { normal: 10, fast: 6, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2, vampire: 3 },
     31: { normal: 18, fast: 14, tank: 12, explosive: 10, gunner: 10, splitter: 8, dasher: 8, vampire: 6 },
     32: { normal: 19, fast: 15, tank: 13, explosive: 11, gunner: 11, splitter: 8, dasher: 8, vampire: 6 },
     33: { normal: 20, fast: 16, tank: 14, explosive: 12, gunner: 12, splitter: 8, dasher: 8, vampire: 6 },
@@ -169,5 +169,99 @@ const WAVE_COMPOSITIONS = {
     37: { normal: 24, fast: 20, tank: 18, explosive: 16, gunner: 16, splitter: 8, dasher: 8, vampire: 6 },
     38: { normal: 25, fast: 21, tank: 19, explosive: 17, gunner: 17, splitter: 8, dasher: 8, vampire: 6 },
     39: { normal: 26, fast: 22, tank: 20, explosive: 18, gunner: 18, splitter: 8, dasher: 8, vampire: 6 },
-    40: { normal: 12, fast: 8, tank: 6, explosive: 5, gunner: 4, splitter: 3, dasher: 3, vampire: 4 } // 45 total
+    40: { normal: 12, fast: 8, tank: 6, explosive: 5, gunner: 4, splitter: 3, dasher: 3, vampire: 4 }
+};
+
+// ============================================
+// WAVE COMPOSITIONS - EASY MODE (fewer/slower unlocks)
+// ============================================
+
+const WAVE_COMPOSITIONS_EASY = {
+    1: { normal: 3, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    2: { normal: 4, fast: 0, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    3: { normal: 5, fast: 1, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    4: { normal: 5, fast: 1, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    5: { normal: 6, fast: 2, tank: 0, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    6: { normal: 6, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    7: { normal: 7, fast: 2, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    8: { normal: 7, fast: 3, tank: 1, explosive: 0, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    9: { normal: 8, fast: 3, tank: 1, explosive: 1, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    10: { normal: 5, fast: 2, tank: 1, explosive: 1, gunner: 0, splitter: 0, dasher: 0, vampire: 0 },
+    11: { normal: 8, fast: 3, tank: 2, explosive: 1, gunner: 0, splitter: 0, dasher: 0, vampire: 1 },
+    12: { normal: 9, fast: 4, tank: 2, explosive: 1, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
+    13: { normal: 9, fast: 4, tank: 2, explosive: 1, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
+    14: { normal: 10, fast: 5, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
+    15: { normal: 10, fast: 5, tank: 3, explosive: 2, gunner: 1, splitter: 1, dasher: 0, vampire: 1 },
+    16: { normal: 11, fast: 5, tank: 3, explosive: 2, gunner: 2, splitter: 1, dasher: 0, vampire: 2 },
+    17: { normal: 11, fast: 6, tank: 3, explosive: 2, gunner: 2, splitter: 1, dasher: 0, vampire: 2 },
+    18: { normal: 12, fast: 6, tank: 3, explosive: 3, gunner: 2, splitter: 1, dasher: 0, vampire: 2 },
+    19: { normal: 12, fast: 7, tank: 4, explosive: 3, gunner: 2, splitter: 1, dasher: 0, vampire: 2 },
+    20: { normal: 7, fast: 4, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 0, vampire: 1 },
+    21: { normal: 13, fast: 7, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 1, vampire: 2 },
+    22: { normal: 13, fast: 8, tank: 4, explosive: 4, gunner: 3, splitter: 2, dasher: 1, vampire: 2 },
+    23: { normal: 14, fast: 8, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 1, vampire: 3 },
+    24: { normal: 14, fast: 9, tank: 5, explosive: 4, gunner: 4, splitter: 2, dasher: 1, vampire: 3 },
+    25: { normal: 15, fast: 9, tank: 5, explosive: 5, gunner: 4, splitter: 3, dasher: 2, vampire: 3 },
+    26: { normal: 15, fast: 10, tank: 6, explosive: 5, gunner: 4, splitter: 3, dasher: 2, vampire: 3 },
+    27: { normal: 16, fast: 10, tank: 6, explosive: 5, gunner: 5, splitter: 3, dasher: 2, vampire: 4 },
+    28: { normal: 16, fast: 11, tank: 6, explosive: 6, gunner: 5, splitter: 3, dasher: 2, vampire: 4 },
+    29: { normal: 17, fast: 11, tank: 7, explosive: 6, gunner: 5, splitter: 4, dasher: 2, vampire: 4 },
+    30: { normal: 9, fast: 5, tank: 3, explosive: 3, gunner: 2, splitter: 1, dasher: 1, vampire: 2 },
+    31: { normal: 17, fast: 12, tank: 7, explosive: 7, gunner: 6, splitter: 4, dasher: 3, vampire: 4 },
+    32: { normal: 18, fast: 12, tank: 8, explosive: 7, gunner: 6, splitter: 4, dasher: 3, vampire: 5 },
+    33: { normal: 18, fast: 13, tank: 8, explosive: 8, gunner: 7, splitter: 5, dasher: 3, vampire: 5 },
+    34: { normal: 19, fast: 13, tank: 9, explosive: 8, gunner: 7, splitter: 5, dasher: 3, vampire: 5 },
+    35: { normal: 19, fast: 14, tank: 9, explosive: 9, gunner: 8, splitter: 5, dasher: 4, vampire: 6 },
+    36: { normal: 20, fast: 14, tank: 10, explosive: 9, gunner: 8, splitter: 6, dasher: 4, vampire: 6 },
+    37: { normal: 20, fast: 15, tank: 10, explosive: 10, gunner: 9, splitter: 6, dasher: 4, vampire: 6 },
+    38: { normal: 21, fast: 15, tank: 11, explosive: 10, gunner: 9, splitter: 6, dasher: 4, vampire: 7 },
+    39: { normal: 21, fast: 16, tank: 11, explosive: 11, gunner: 10, splitter: 7, dasher: 5, vampire: 7 },
+    40: { normal: 11, fast: 7, tank: 5, explosive: 4, gunner: 3, splitter: 2, dasher: 2, vampire: 3 }
+};
+
+// ============================================
+// WAVE COMPOSITIONS - IMPOSSIBLE MODE (harder/earlier unlocks)
+// ============================================
+
+const WAVE_COMPOSITIONS_IMPOSSIBLE = {
+    1: { normal: 4, fast: 1, tank: 1, explosive: 0, gunner: 1, splitter: 0, dasher: 1, vampire: 0 },
+    2: { normal: 5, fast: 2, tank: 1, explosive: 0, gunner: 1, splitter: 0, dasher: 1, vampire: 0 },
+    3: { normal: 5, fast: 2, tank: 2, explosive: 2, gunner: 1, splitter: 0, dasher: 1, vampire: 0 },
+    4: { normal: 5, fast: 3, tank: 2, explosive: 2, gunner: 2, splitter: 1, dasher: 2, vampire: 0 },
+    5: { normal: 8, fast: 3, tank: 2, explosive: 2, gunner: 2, splitter: 1, dasher: 2, vampire: 1 },
+    6: { normal: 9, fast: 4, tank: 3, explosive: 2, gunner: 2, splitter: 1, dasher: 2, vampire: 1 },
+    7: { normal: 10, fast: 4, tank: 3, explosive: 2, gunner: 3, splitter: 1, dasher: 3, vampire: 1 },
+    8: { normal: 11, fast: 5, tank: 3, explosive: 3, gunner: 3, splitter: 2, dasher: 3, vampire: 2 },
+    9: { normal: 12, fast: 5, tank: 4, explosive: 3, gunner: 3, splitter: 2, dasher: 3, vampire: 2 },
+    10: { normal: 6, fast: 4, tank: 3, explosive: 3, gunner: 3, splitter: 1, dasher: 2, vampire: 1 },
+    11: { normal: 12, fast: 6, tank: 4, explosive: 4, gunner: 4, splitter: 3, dasher: 4, vampire: 3 },
+    12: { normal: 13, fast: 7, tank: 5, explosive: 4, gunner: 4, splitter: 3, dasher: 4, vampire: 3 },
+    13: { normal: 14, fast: 7, tank: 5, explosive: 5, gunner: 5, splitter: 3, dasher: 5, vampire: 3 },
+    14: { normal: 15, fast: 8, tank: 6, explosive: 5, gunner: 5, splitter: 4, dasher: 5, vampire: 4 },
+    15: { normal: 16, fast: 8, tank: 6, explosive: 6, gunner: 5, splitter: 4, dasher: 5, vampire: 4 },
+    16: { normal: 17, fast: 9, tank: 7, explosive: 6, gunner: 6, splitter: 4, dasher: 6, vampire: 4 },
+    17: { normal: 18, fast: 9, tank: 7, explosive: 7, gunner: 6, splitter: 5, dasher: 6, vampire: 5 },
+    18: { normal: 19, fast: 10, tank: 8, explosive: 7, gunner: 7, splitter: 5, dasher: 6, vampire: 5 },
+    19: { normal: 20, fast: 10, tank: 8, explosive: 8, gunner: 7, splitter: 5, dasher: 7, vampire: 5 },
+    20: { normal: 12, fast: 7, tank: 5, explosive: 4, gunner: 4, splitter: 3, dasher: 3, vampire: 2 },
+    21: { normal: 20, fast: 11, tank: 9, explosive: 8, gunner: 8, splitter: 6, dasher: 7, vampire: 6 },
+    22: { normal: 21, fast: 12, tank: 10, explosive: 9, gunner: 8, splitter: 6, dasher: 7, vampire: 6 },
+    23: { normal: 22, fast: 12, tank: 10, explosive: 9, gunner: 9, splitter: 7, dasher: 8, vampire: 7 },
+    24: { normal: 23, fast: 13, tank: 11, explosive: 10, gunner: 9, splitter: 7, dasher: 8, vampire: 7 },
+    25: { normal: 24, fast: 13, tank: 11, explosive: 10, gunner: 10, splitter: 7, dasher: 9, vampire: 7 },
+    26: { normal: 25, fast: 14, tank: 12, explosive: 11, gunner: 10, splitter: 8, dasher: 9, vampire: 8 },
+    27: { normal: 26, fast: 14, tank: 12, explosive: 11, gunner: 11, splitter: 8, dasher: 10, vampire: 8 },
+    28: { normal: 27, fast: 15, tank: 13, explosive: 12, gunner: 11, splitter: 8, dasher: 10, vampire: 8 },
+    29: { normal: 28, fast: 15, tank: 13, explosive: 12, gunner: 12, splitter: 9, dasher: 11, vampire: 9 },
+    30: { normal: 15, fast: 9, tank: 7, explosive: 6, gunner: 5, splitter: 4, dasher: 4, vampire: 3 },
+    31: { normal: 28, fast: 16, tank: 14, explosive: 13, gunner: 12, splitter: 10, dasher: 11, vampire: 10 },
+    32: { normal: 29, fast: 17, tank: 15, explosive: 14, gunner: 13, splitter: 10, dasher: 12, vampire: 10 },
+    33: { normal: 30, fast: 17, tank: 15, explosive: 14, gunner: 13, splitter: 11, dasher: 12, vampire: 11 },
+    34: { normal: 31, fast: 18, tank: 16, explosive: 15, gunner: 14, splitter: 11, dasher: 13, vampire: 11 },
+    35: { normal: 32, fast: 18, tank: 16, explosive: 15, gunner: 14, splitter: 11, dasher: 13, vampire: 11 },
+    36: { normal: 33, fast: 19, tank: 17, explosive: 16, gunner: 15, splitter: 12, dasher: 14, vampire: 12 },
+    37: { normal: 34, fast: 19, tank: 17, explosive: 16, gunner: 15, splitter: 12, dasher: 14, vampire: 12 },
+    38: { normal: 35, fast: 20, tank: 18, explosive: 17, gunner: 16, splitter: 12, dasher: 15, vampire: 12 },
+    39: { normal: 36, fast: 20, tank: 18, explosive: 17, gunner: 16, splitter: 13, dasher: 15, vampire: 13 },
+    40: { normal: 18, fast: 10, tank: 8, explosive: 7, gunner: 6, splitter: 5, dasher: 5, vampire: 4 }
 };
